@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="T000" tests="0" failures="0" skipped="1">
+  <testcase name="t000_decisions_backfill">
+    <skipped message="pending strict DoD execution"/>
+  </testcase>
+</testsuite>

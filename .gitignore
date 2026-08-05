@@ -216,3 +216,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+*.tsbuildinfo
+
+# SE-Mentor runtime state
+.sementor/
+.tmp/
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+
+# SE-Mentor large evidence artifacts.
+evidence/logs/**/*
+!evidence/logs/**/.gitkeep

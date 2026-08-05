@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="T008" tests="1" failures="0" skipped="1">
+  <testcase name="single_head_current_baseline"/>
+  <testcase name="double_head_fixture">
+    <skipped message="fixture not yet implemented"/>
+  </testcase>
+</testsuite>

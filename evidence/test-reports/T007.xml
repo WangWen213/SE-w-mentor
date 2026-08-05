@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="T007" tests="3" failures="0" skipped="0">
+  <testcase name="transaction_rollback"/>
+  <testcase name="sqlite_foreign_key"/>
+  <testcase name="alembic_upgrade_downgrade"/>
+</testsuite>
