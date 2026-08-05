@@ -246,7 +246,7 @@ None.
 None for T001.
 
 ### Remaining Work
-Merge T001 after T004 integration plan is ready.
+Merged to main in `957c3af`; final integration metadata is recorded below.
 
 ## 2026-08-05 T004 Shared Contracts
 
@@ -312,4 +312,83 @@ None.
 None for T004.
 
 ### Remaining Work
-Merge T004 after T001 integration plan is ready.
+Merged to main in `2511706`; final integration metadata is recorded below.
+
+## 2026-08-05 T000/T001/T004 Mainline Integration
+
+### Task ID
+T000, T001, T004, T003 diagnostic
+
+### Date
+2026-08-05
+
+### Agent
+Codex
+
+### Worktree
+main plus `codex/T001-traceability` and `codex/T004-contracts`
+
+### Start Commit
+`2511706` after T004 merge to main
+
+### End Commit
+this commit; see final reported integration metadata hash
+
+### Status Before
+T000 `[x]`, T001 `[x]` on branch pending mainline verification, T004 `[x]` on branch pending
+mainline verification, T003 `[-]`.
+
+### Status After
+T000 `[x]`, T001 `[x]`, T004 `[x]`, T003 `[-]`.
+
+### Dependency Check
+T000 completed before T001 and T004. T005/T006/T007/T008/T009+ were not started in this round.
+
+### Change Scope
+Mainline merge audit, T001 atomic traceability review, T004 coverage review, red/green evidence
+format correction, final green reports/logs, PLAN commit field backfill, and T003 blocker
+diagnosis.
+
+### Red Test And Evidence
+T000 red was reproduced from baseline `457c20f7f38672f3fd9e1e0acdd0165b778d28ac` and marked
+`REPRODUCED_RED` in `evidence/tdd/T000-red.log`. T001 and T004 red logs are stored in
+`evidence/tdd/T001-red.log` and `evidence/tdd/T004-red.log`.
+
+### Implementation Summary
+No new product functionality was added. T001 was accepted only after atomizing to 134 P0 mappings.
+T004 was accepted only after expanded contract tests covered invalid inputs, round trips, schema
+snapshots, snapshot drift, stable errors, trust levels, all action variants, and frontend/backend
+enum consistency.
+
+### Green Test And Evidence
+Final green JUnit files: `evidence/test-reports/T000.xml`, `evidence/test-reports/T001.xml`, and
+`evidence/test-reports/T004.xml`. Green logs: `evidence/tdd/T000-green.log`,
+`evidence/tdd/T001-green.log`, and `evidence/tdd/T004-green.log`.
+
+### Regression Evidence
+Mainline pytest for `tests/meta` and `backend/tests` passed with 13 tests and 1 existing warning.
+Ruff passed for scripts, meta tests, backend source, and backend tests. mypy passed for 17 source
+files. Frontend `npm run type-check` passed. Frontend Vite/Vitest config loading remains blocked
+inside the Codex sandbox by esbuild `Cannot read directory "../../..": Access is denied`.
+
+### Spec Review
+T001 and T004 review evidence remained current after mainline integration.
+
+### Code Review
+No blocking integration issues found. No T005 or later feature work was introduced.
+
+### Diff
+Integration diff includes refreshed T000/T001/T004 evidence, PLAN commit fields, and this
+AGENT_LOG section.
+
+### Deviations
+T000 red log is `REPRODUCED_RED`, not original red output. T002/T003/T007/T008 remain the frozen
+one-time bootstrap TDD exceptions from T000.
+
+### Blockers
+T003 frontend Vitest/build startup failure under Codex sandbox remains unresolved pending an
+external ordinary PowerShell run.
+
+### Remaining Work
+Collect the external ordinary PowerShell result for T003 and continue with T005 only after the
+current mainline state is accepted.

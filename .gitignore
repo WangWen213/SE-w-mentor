@@ -236,4 +236,6 @@ frontend/coverage/
 
 # SE-Mentor large evidence artifacts.
 evidence/logs/**/*
+!evidence/logs/**/
+!evidence/logs/**/*.log
 !evidence/logs/**/.gitkeep
