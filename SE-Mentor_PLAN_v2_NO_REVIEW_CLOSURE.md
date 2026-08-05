@@ -114,7 +114,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T001 — 建立需求—Task—测试—证据追踪矩阵
 
-- **状态**：[ ] 未开始
+- **状态**：[x] 已完成
 - **阻塞说明**：无
 - **Worktree**：`wt-spec-contracts`
 - **覆盖需求**：`US-01～US-06`, `FR-01～FR-12`, `NFR-PERF/SEC/CRED/USA/OBS`, `AC-FR/AC-PERF/AC-SEC/AC-USA/AC-OBS`
@@ -139,7 +139,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T001.xml
   - evidence/diffs/T001.patch
   - `AGENT_LOG.md` 中的 T001 记录
-- **Commit**：`未填写`
+- **Commit**：`this commit; see final reported T001 hash`
 
 ## T002 — 建立 monorepo 与最小可运行应用
 

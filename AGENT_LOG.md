@@ -181,3 +181,69 @@ None for T000.
 
 ### Remaining Work
 Begin T001 and T004 in separate worktrees after T000 commit.
+
+## 2026-08-05 T001 Traceability Matrix
+
+### Task ID
+T001
+
+### Date
+2026-08-05
+
+### Agent
+Codex
+
+### Worktree
+codex/T001-traceability
+
+### Start Commit
+2d13b49679d52cdc77079d3f9dd6ecb757be34f2
+
+### End Commit
+this commit; see final reported commit hash
+
+### Status Before
+`[ ]`
+
+### Status After
+`[x]`
+
+### Dependency Check
+T000 completed at `2d13b49679d52cdc77079d3f9dd6ecb757be34f2`.
+
+### Change Scope
+Traceability matrix, traceability checker, T001 tests, T001 evidence, and PLAN status.
+
+### Red Test And Evidence
+`tests/meta/test_traceability.py` first failed because `scripts.check_traceability` did not exist.
+During merge precheck, it failed again because the previous matrix was family-level and used the
+old column set. Logs are stored in `evidence/tdd/T001-red.log`.
+
+### Implementation Summary
+Implemented `scripts/check_traceability.py` and expanded `docs/TRACEABILITY_MATRIX.md` to cover
+134 atomic P0 US acceptance criteria, FR sub-requirements, NFR requirements, and AC families.
+
+### Green Test And Evidence
+`tests/meta/test_traceability.py` passed with 3 tests. `scripts/check_traceability.py` reports
+`134 P0 requirements mapped`. Green output is stored in `evidence/tdd/T001-green.log`.
+
+### Regression Evidence
+Ruff check passed for the T001 script and tests.
+
+### Spec Review
+`evidence/reviews/T001-spec-review.md`
+
+### Code Review
+`evidence/reviews/T001-code-review.md`
+
+### Diff
+`evidence/diffs/T001.patch`
+
+### Deviations
+None.
+
+### Blockers
+None for T001.
+
+### Remaining Work
+Merge T001 after T004 integration plan is ready.

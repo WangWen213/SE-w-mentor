@@ -1,15 +1,140 @@
 # Traceability Matrix
 
-Status: bootstrap draft. This file freezes the columns and initial P0 entries; it is not yet a
-complete release matrix.
+Status: T001 strict DoD candidate. This matrix freezes required columns and maps atomic P0 US acceptance criteria, FR sub-requirements, NFR requirements, and AC families to primary ownership, tests, and evidence.
 
-| requirement | priority | task | test | evidence | status |
-| --- | --- | --- | --- | --- | --- |
-| P0 decisions and bootstrap exception | P0 | T000 | `tests/meta/test_t000_decisions.py` | `evidence/tdd/T000.md`; `evidence/test-reports/T000.xml`; `evidence/reviews/T000-spec-review.md`; `evidence/reviews/T000-code-review.md` | complete |
-| Evidence format and traceability columns | P0 | T001 | `tests/meta/test_traceability.py` | `evidence/tdd/T001.md` | draft |
-| Minimal backend and frontend scaffold | P0 | T002 | `backend/tests/test_scaffold.py`; `frontend/src/smoke.test.ts` | `evidence/tdd/T002.md` | in_progress |
-| Quality command entry points | P0 | T003 | `scripts/check_all.py`; frontend ordinary permission run | `evidence/tdd/T003.md` | blocked |
-| Shared contract naming and model placement | P0 | T004 | pending | `evidence/tdd/T004.md` | not_started |
-| Layered config and profiles | P0 | T005 | pending | `evidence/tdd/T005.md` | not_started |
-| SQLite, SQLAlchemy, Alembic baseline | P0 | T007 | `backend/tests/db/test_session.py` | `evidence/tdd/T007.md` | in_progress |
-| Migration ownership and single head | P0 | T008 | `scripts/check_alembic_heads.py` | `evidence/tdd/T008.md` | in_progress |
+| requirement | priority | primary task | supporting task | test | evidence | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| US-01-AC-01 | P0 | T025#US-01-AC-01 | T001 | `tests/acceptance/US-01-AC-01.py` | `evidence/tdd/T025.md` | planned |
+| US-01-AC-02 | P0 | T025#US-01-AC-02 | T001 | `tests/acceptance/US-01-AC-02.py` | `evidence/tdd/T025.md` | planned |
+| US-01-AC-03 | P0 | T025#US-01-AC-03 | T001 | `tests/acceptance/US-01-AC-03.py` | `evidence/tdd/T025.md` | planned |
+| US-02-AC-01 | P0 | T043#US-02-AC-01 | T001 | `tests/acceptance/US-02-AC-01.py` | `evidence/tdd/T043.md` | planned |
+| US-02-AC-02 | P0 | T043#US-02-AC-02 | T001 | `tests/acceptance/US-02-AC-02.py` | `evidence/tdd/T043.md` | planned |
+| US-02-AC-03 | P0 | T043#US-02-AC-03 | T001 | `tests/acceptance/US-02-AC-03.py` | `evidence/tdd/T043.md` | planned |
+| US-02-AC-04 | P0 | T043#US-02-AC-04 | T001 | `tests/acceptance/US-02-AC-04.py` | `evidence/tdd/T043.md` | planned |
+| US-03-AC-01 | P0 | T046#US-03-AC-01 | T001 | `tests/acceptance/US-03-AC-01.py` | `evidence/tdd/T046.md` | planned |
+| US-03-AC-02 | P0 | T046#US-03-AC-02 | T001 | `tests/acceptance/US-03-AC-02.py` | `evidence/tdd/T046.md` | planned |
+| US-03-AC-03 | P0 | T046#US-03-AC-03 | T001 | `tests/acceptance/US-03-AC-03.py` | `evidence/tdd/T046.md` | planned |
+| US-03-AC-04 | P0 | T046#US-03-AC-04 | T001 | `tests/acceptance/US-03-AC-04.py` | `evidence/tdd/T046.md` | planned |
+| US-04-AC-01 | P0 | T059#US-04-AC-01 | T001 | `tests/acceptance/US-04-AC-01.py` | `evidence/tdd/T059.md` | planned |
+| US-04-AC-02 | P0 | T059#US-04-AC-02 | T001 | `tests/acceptance/US-04-AC-02.py` | `evidence/tdd/T059.md` | planned |
+| US-04-AC-03 | P0 | T059#US-04-AC-03 | T001 | `tests/acceptance/US-04-AC-03.py` | `evidence/tdd/T059.md` | planned |
+| US-04-AC-04 | P0 | T059#US-04-AC-04 | T001 | `tests/acceptance/US-04-AC-04.py` | `evidence/tdd/T059.md` | planned |
+| US-05-AC-01 | P0 | T078#US-05-AC-01 | T001 | `tests/acceptance/US-05-AC-01.py` | `evidence/tdd/T078.md` | planned |
+| US-05-AC-02 | P0 | T078#US-05-AC-02 | T001 | `tests/acceptance/US-05-AC-02.py` | `evidence/tdd/T078.md` | planned |
+| US-05-AC-03 | P0 | T078#US-05-AC-03 | T001 | `tests/acceptance/US-05-AC-03.py` | `evidence/tdd/T078.md` | planned |
+| US-05-AC-04 | P0 | T078#US-05-AC-04 | T001 | `tests/acceptance/US-05-AC-04.py` | `evidence/tdd/T078.md` | planned |
+| US-06-AC-01 | P0 | T079#US-06-AC-01 | T001 | `tests/acceptance/US-06-AC-01.py` | `evidence/tdd/T079.md` | planned |
+| US-06-AC-02 | P0 | T079#US-06-AC-02 | T001 | `tests/acceptance/US-06-AC-02.py` | `evidence/tdd/T079.md` | planned |
+| US-06-AC-03 | P0 | T079#US-06-AC-03 | T001 | `tests/acceptance/US-06-AC-03.py` | `evidence/tdd/T079.md` | planned |
+| US-06-AC-04 | P0 | T079#US-06-AC-04 | T001 | `tests/acceptance/US-06-AC-04.py` | `evidence/tdd/T079.md` | planned |
+| FR-01-01 | P0 | T019#FR-01-01 | T001 | `tests/requirements/FR-01-01.py` | `evidence/tdd/T019.md` | planned |
+| FR-01-02 | P0 | T021#FR-01-02 | T001 | `tests/requirements/FR-01-02.py` | `evidence/tdd/T021.md` | planned |
+| FR-01-03 | P0 | T022#FR-01-03 | T001 | `tests/requirements/FR-01-03.py` | `evidence/tdd/T022.md` | planned |
+| FR-01-04 | P0 | T023#FR-01-04 | T001 | `tests/requirements/FR-01-04.py` | `evidence/tdd/T023.md` | planned |
+| FR-02-01 | P0 | T024#FR-02-01 | T001 | `tests/requirements/FR-02-01.py` | `evidence/tdd/T024.md` | planned |
+| FR-02-02 | P0 | T025#FR-02-02 | T001 | `tests/requirements/FR-02-02.py` | `evidence/tdd/T025.md` | planned |
+| FR-02-03 | P0 | T026#FR-02-03 | T001 | `tests/requirements/FR-02-03.py` | `evidence/tdd/T026.md` | planned |
+| FR-02-04 | P0 | T027#FR-02-04 | T001 | `tests/requirements/FR-02-04.py` | `evidence/tdd/T027.md` | planned |
+| FR-03-01 | P0 | T028#FR-03-01 | T001 | `tests/requirements/FR-03-01.py` | `evidence/tdd/T028.md` | planned |
+| FR-03-02 | P0 | T029#FR-03-02 | T001 | `tests/requirements/FR-03-02.py` | `evidence/tdd/T029.md` | planned |
+| FR-03-03 | P0 | T033#FR-03-03 | T001 | `tests/requirements/FR-03-03.py` | `evidence/tdd/T033.md` | planned |
+| FR-03-04 | P0 | T034#FR-03-04 | T001 | `tests/requirements/FR-03-04.py` | `evidence/tdd/T034.md` | planned |
+| FR-04-01 | P0 | T035#FR-04-01 | T001 | `tests/requirements/FR-04-01.py` | `evidence/tdd/T035.md` | planned |
+| FR-04-02 | P0 | T036#FR-04-02 | T001 | `tests/requirements/FR-04-02.py` | `evidence/tdd/T036.md` | planned |
+| FR-04-03 | P0 | T040#FR-04-03 | T001 | `tests/requirements/FR-04-03.py` | `evidence/tdd/T040.md` | planned |
+| FR-04-04 | P0 | T041#FR-04-04 | T001 | `tests/requirements/FR-04-04.py` | `evidence/tdd/T041.md` | planned |
+| FR-04-05 | P0 | T043#FR-04-05 | T001 | `tests/requirements/FR-04-05.py` | `evidence/tdd/T043.md` | planned |
+| FR-05-01 | P0 | T053#FR-05-01 | T001 | `tests/requirements/FR-05-01.py` | `evidence/tdd/T053.md` | planned |
+| FR-05-02 | P0 | T056#FR-05-02 | T001 | `tests/requirements/FR-05-02.py` | `evidence/tdd/T056.md` | planned |
+| FR-05-03 | P0 | T066#FR-05-03 | T001 | `tests/requirements/FR-05-03.py` | `evidence/tdd/T066.md` | planned |
+| FR-05-04 | P0 | T068#FR-05-04 | T001 | `tests/requirements/FR-05-04.py` | `evidence/tdd/T068.md` | planned |
+| FR-05-05 | P0 | T069#FR-05-05 | T001 | `tests/requirements/FR-05-05.py` | `evidence/tdd/T069.md` | planned |
+| FR-05-06 | P0 | T078#FR-05-06 | T001 | `tests/requirements/FR-05-06.py` | `evidence/tdd/T078.md` | planned |
+| FR-06-01 | P0 | T044#FR-06-01 | T001 | `tests/requirements/FR-06-01.py` | `evidence/tdd/T044.md` | planned |
+| FR-06-02 | P0 | T046#FR-06-02 | T001 | `tests/requirements/FR-06-02.py` | `evidence/tdd/T046.md` | planned |
+| FR-06-03 | P0 | T047#FR-06-03 | T001 | `tests/requirements/FR-06-03.py` | `evidence/tdd/T047.md` | planned |
+| FR-06-04 | P0 | T048#FR-06-04 | T001 | `tests/requirements/FR-06-04.py` | `evidence/tdd/T048.md` | planned |
+| FR-06-05 | P0 | T049#FR-06-05 | T001 | `tests/requirements/FR-06-05.py` | `evidence/tdd/T049.md` | planned |
+| FR-07-01 | P0 | T058#FR-07-01 | T001 | `tests/requirements/FR-07-01.py` | `evidence/tdd/T058.md` | planned |
+| FR-07-02 | P0 | T029#FR-07-02 | T001 | `tests/requirements/FR-07-02.py` | `evidence/tdd/T029.md` | planned |
+| FR-07-03 | P0 | T029#FR-07-03 | T001 | `tests/requirements/FR-07-03.py` | `evidence/tdd/T029.md` | planned |
+| FR-07-04 | P0 | T059#FR-07-04 | T001 | `tests/requirements/FR-07-04.py` | `evidence/tdd/T059.md` | planned |
+| FR-07-05 | P0 | T060#FR-07-05 | T001 | `tests/requirements/FR-07-05.py` | `evidence/tdd/T060.md` | planned |
+| FR-07-06 | P0 | T061#FR-07-06 | T001 | `tests/requirements/FR-07-06.py` | `evidence/tdd/T061.md` | planned |
+| FR-07-07 | P0 | T062#FR-07-07 | T001 | `tests/requirements/FR-07-07.py` | `evidence/tdd/T062.md` | planned |
+| FR-07-08 | P0 | T064#FR-07-08 | T001 | `tests/requirements/FR-07-08.py` | `evidence/tdd/T064.md` | planned |
+| FR-07-09 | P0 | T065#FR-07-09 | T001 | `tests/requirements/FR-07-09.py` | `evidence/tdd/T065.md` | planned |
+| FR-08-01 | P0 | T070#FR-08-01 | T001 | `tests/requirements/FR-08-01.py` | `evidence/tdd/T070.md` | planned |
+| FR-08-02 | P0 | T071#FR-08-02 | T001 | `tests/requirements/FR-08-02.py` | `evidence/tdd/T071.md` | planned |
+| FR-08-03 | P0 | T072#FR-08-03 | T001 | `tests/requirements/FR-08-03.py` | `evidence/tdd/T072.md` | planned |
+| FR-08-04 | P0 | T073#FR-08-04 | T001 | `tests/requirements/FR-08-04.py` | `evidence/tdd/T073.md` | planned |
+| FR-08-05 | P0 | T076#FR-08-05 | T001 | `tests/requirements/FR-08-05.py` | `evidence/tdd/T076.md` | planned |
+| FR-08-06 | P0 | T075#FR-08-06 | T001 | `tests/requirements/FR-08-06.py` | `evidence/tdd/T075.md` | planned |
+| FR-08-07 | P0 | T078#FR-08-07 | T001 | `tests/requirements/FR-08-07.py` | `evidence/tdd/T078.md` | planned |
+| FR-09-01 | P0 | T079#FR-09-01 | T001 | `tests/requirements/FR-09-01.py` | `evidence/tdd/T079.md` | planned |
+| FR-09-02 | P0 | T036#FR-09-02 | T001 | `tests/requirements/FR-09-02.py` | `evidence/tdd/T036.md` | planned |
+| FR-09-03 | P0 | T039#FR-09-03 | T001 | `tests/requirements/FR-09-03.py` | `evidence/tdd/T039.md` | planned |
+| FR-09-04 | P0 | T038#FR-09-04 | T001 | `tests/requirements/FR-09-04.py` | `evidence/tdd/T038.md` | planned |
+| FR-10-01 | P0 | T094#FR-10-01 | T001 | `tests/requirements/FR-10-01.py` | `evidence/tdd/T094.md` | planned |
+| FR-10-02 | P0 | T096#FR-10-02 | T001 | `tests/requirements/FR-10-02.py` | `evidence/tdd/T096.md` | planned |
+| FR-10-03 | P0 | T097#FR-10-03 | T001 | `tests/requirements/FR-10-03.py` | `evidence/tdd/T097.md` | planned |
+| FR-11-01 | P0 | T100#FR-11-01 | T001 | `tests/requirements/FR-11-01.py` | `evidence/tdd/T100.md` | planned |
+| FR-11-02 | P0 | T092#FR-11-02 | T001 | `tests/requirements/FR-11-02.py` | `evidence/tdd/T092.md` | planned |
+| FR-12-01 | P0 | T053#FR-12-01 | T001 | `tests/requirements/FR-12-01.py` | `evidence/tdd/T053.md` | planned |
+| FR-12-02 | P0 | T081#FR-12-02 | T001 | `tests/requirements/FR-12-02.py` | `evidence/tdd/T081.md` | planned |
+| FR-12-03 | P0 | T085#FR-12-03 | T001 | `tests/requirements/FR-12-03.py` | `evidence/tdd/T085.md` | planned |
+| NFR-PERF-01 | P0 | T102#NFR-PERF-01 | T001 | `tests/nfr/NFR-PERF-01.py` | `evidence/tdd/T102.md` | planned |
+| NFR-PERF-02 | P0 | T102#NFR-PERF-02 | T001 | `tests/nfr/NFR-PERF-02.py` | `evidence/tdd/T102.md` | planned |
+| NFR-PERF-03 | P0 | T102#NFR-PERF-03 | T001 | `tests/nfr/NFR-PERF-03.py` | `evidence/tdd/T102.md` | planned |
+| NFR-PERF-04 | P0 | T102#NFR-PERF-04 | T001 | `tests/nfr/NFR-PERF-04.py` | `evidence/tdd/T102.md` | planned |
+| NFR-PERF-05 | P0 | T102#NFR-PERF-05 | T001 | `tests/nfr/NFR-PERF-05.py` | `evidence/tdd/T102.md` | planned |
+| NFR-PERF-06 | P0 | T102#NFR-PERF-06 | T001 | `tests/nfr/NFR-PERF-06.py` | `evidence/tdd/T102.md` | planned |
+| NFR-PERF-07 | P0 | T102#NFR-PERF-07 | T001 | `tests/nfr/NFR-PERF-07.py` | `evidence/tdd/T102.md` | planned |
+| NFR-SEC-01 | P0 | T045#NFR-SEC-01 | T001 | `tests/nfr/NFR-SEC-01.py` | `evidence/tdd/T045.md` | planned |
+| NFR-SEC-02 | P0 | T045#NFR-SEC-02 | T001 | `tests/nfr/NFR-SEC-02.py` | `evidence/tdd/T045.md` | planned |
+| NFR-SEC-03 | P0 | T045#NFR-SEC-03 | T001 | `tests/nfr/NFR-SEC-03.py` | `evidence/tdd/T045.md` | planned |
+| NFR-SEC-04 | P0 | T045#NFR-SEC-04 | T001 | `tests/nfr/NFR-SEC-04.py` | `evidence/tdd/T045.md` | planned |
+| NFR-SEC-05 | P0 | T045#NFR-SEC-05 | T001 | `tests/nfr/NFR-SEC-05.py` | `evidence/tdd/T045.md` | planned |
+| NFR-SEC-06 | P0 | T045#NFR-SEC-06 | T001 | `tests/nfr/NFR-SEC-06.py` | `evidence/tdd/T045.md` | planned |
+| NFR-SEC-07 | P0 | T045#NFR-SEC-07 | T001 | `tests/nfr/NFR-SEC-07.py` | `evidence/tdd/T045.md` | planned |
+| NFR-SEC-08 | P0 | T045#NFR-SEC-08 | T001 | `tests/nfr/NFR-SEC-08.py` | `evidence/tdd/T045.md` | planned |
+| NFR-SEC-09 | P0 | T045#NFR-SEC-09 | T001 | `tests/nfr/NFR-SEC-09.py` | `evidence/tdd/T045.md` | planned |
+| NFR-SEC-10 | P0 | T045#NFR-SEC-10 | T001 | `tests/nfr/NFR-SEC-10.py` | `evidence/tdd/T045.md` | planned |
+| NFR-CRED-01 | P0 | T104#NFR-CRED-01 | T001 | `tests/nfr/NFR-CRED-01.py` | `evidence/tdd/T104.md` | planned |
+| NFR-CRED-02 | P0 | T104#NFR-CRED-02 | T001 | `tests/nfr/NFR-CRED-02.py` | `evidence/tdd/T104.md` | planned |
+| NFR-CRED-03 | P0 | T104#NFR-CRED-03 | T001 | `tests/nfr/NFR-CRED-03.py` | `evidence/tdd/T104.md` | planned |
+| NFR-CRED-04 | P0 | T104#NFR-CRED-04 | T001 | `tests/nfr/NFR-CRED-04.py` | `evidence/tdd/T104.md` | planned |
+| NFR-CRED-05 | P0 | T104#NFR-CRED-05 | T001 | `tests/nfr/NFR-CRED-05.py` | `evidence/tdd/T104.md` | planned |
+| NFR-CRED-06 | P0 | T104#NFR-CRED-06 | T001 | `tests/nfr/NFR-CRED-06.py` | `evidence/tdd/T104.md` | planned |
+| NFR-CRED-07 | P0 | T104#NFR-CRED-07 | T001 | `tests/nfr/NFR-CRED-07.py` | `evidence/tdd/T104.md` | planned |
+| NFR-CRED-08 | P0 | T104#NFR-CRED-08 | T001 | `tests/nfr/NFR-CRED-08.py` | `evidence/tdd/T104.md` | planned |
+| NFR-CRED-09 | P0 | T104#NFR-CRED-09 | T001 | `tests/nfr/NFR-CRED-09.py` | `evidence/tdd/T104.md` | planned |
+| NFR-CRED-10 | P0 | T104#NFR-CRED-10 | T001 | `tests/nfr/NFR-CRED-10.py` | `evidence/tdd/T104.md` | planned |
+| NFR-USA-01 | P0 | T099#NFR-USA-01 | T001 | `tests/nfr/NFR-USA-01.py` | `evidence/tdd/T099.md` | planned |
+| NFR-USA-02 | P0 | T099#NFR-USA-02 | T001 | `tests/nfr/NFR-USA-02.py` | `evidence/tdd/T099.md` | planned |
+| NFR-USA-03 | P0 | T099#NFR-USA-03 | T001 | `tests/nfr/NFR-USA-03.py` | `evidence/tdd/T099.md` | planned |
+| NFR-USA-04 | P0 | T099#NFR-USA-04 | T001 | `tests/nfr/NFR-USA-04.py` | `evidence/tdd/T099.md` | planned |
+| NFR-USA-05 | P0 | T099#NFR-USA-05 | T001 | `tests/nfr/NFR-USA-05.py` | `evidence/tdd/T099.md` | planned |
+| NFR-USA-06 | P0 | T099#NFR-USA-06 | T001 | `tests/nfr/NFR-USA-06.py` | `evidence/tdd/T099.md` | planned |
+| NFR-USA-07 | P0 | T099#NFR-USA-07 | T001 | `tests/nfr/NFR-USA-07.py` | `evidence/tdd/T099.md` | planned |
+| NFR-USA-08 | P0 | T099#NFR-USA-08 | T001 | `tests/nfr/NFR-USA-08.py` | `evidence/tdd/T099.md` | planned |
+| NFR-USA-09 | P0 | T099#NFR-USA-09 | T001 | `tests/nfr/NFR-USA-09.py` | `evidence/tdd/T099.md` | planned |
+| NFR-USA-10 | P0 | T099#NFR-USA-10 | T001 | `tests/nfr/NFR-USA-10.py` | `evidence/tdd/T099.md` | planned |
+| NFR-OBS-01 | P0 | T100#NFR-OBS-01 | T001 | `tests/nfr/NFR-OBS-01.py` | `evidence/tdd/T100.md` | planned |
+| NFR-OBS-02 | P0 | T100#NFR-OBS-02 | T001 | `tests/nfr/NFR-OBS-02.py` | `evidence/tdd/T100.md` | planned |
+| NFR-OBS-03 | P0 | T100#NFR-OBS-03 | T001 | `tests/nfr/NFR-OBS-03.py` | `evidence/tdd/T100.md` | planned |
+| NFR-OBS-04 | P0 | T100#NFR-OBS-04 | T001 | `tests/nfr/NFR-OBS-04.py` | `evidence/tdd/T100.md` | planned |
+| NFR-OBS-05 | P0 | T100#NFR-OBS-05 | T001 | `tests/nfr/NFR-OBS-05.py` | `evidence/tdd/T100.md` | planned |
+| NFR-OBS-06 | P0 | T100#NFR-OBS-06 | T001 | `tests/nfr/NFR-OBS-06.py` | `evidence/tdd/T100.md` | planned |
+| NFR-OBS-07 | P0 | T100#NFR-OBS-07 | T001 | `tests/nfr/NFR-OBS-07.py` | `evidence/tdd/T100.md` | planned |
+| NFR-OBS-08 | P0 | T100#NFR-OBS-08 | T001 | `tests/nfr/NFR-OBS-08.py` | `evidence/tdd/T100.md` | planned |
+| NFR-OBS-09 | P0 | T100#NFR-OBS-09 | T001 | `tests/nfr/NFR-OBS-09.py` | `evidence/tdd/T100.md` | planned |
+| NFR-OBS-10 | P0 | T100#NFR-OBS-10 | T001 | `tests/nfr/NFR-OBS-10.py` | `evidence/tdd/T100.md` | planned |
+| NFR-OBS-11 | P0 | T100#NFR-OBS-11 | T001 | `tests/nfr/NFR-OBS-11.py` | `evidence/tdd/T100.md` | planned |
+| AC-FR | P0 | T115#AC-FR | T001 | `tests/acceptance/AC-FR.py` | `evidence/tdd/T115.md` | planned |
+| AC-PERF | P0 | T102#AC-PERF | T001 | `tests/acceptance/AC-PERF.py` | `evidence/tdd/T102.md` | planned |
+| AC-SEC | P0 | T045#AC-SEC | T001 | `tests/acceptance/AC-SEC.py` | `evidence/tdd/T045.md` | planned |
+| AC-CRED | P0 | T110#AC-CRED | T001 | `tests/acceptance/AC-CRED.py` | `evidence/tdd/T110.md` | planned |
+| AC-USA | P0 | T099#AC-USA | T001 | `tests/acceptance/AC-USA.py` | `evidence/tdd/T099.md` | planned |
+| AC-OBS | P0 | T101#AC-OBS | T001 | `tests/acceptance/AC-OBS.py` | `evidence/tdd/T101.md` | planned |
+| AC-CI | P0 | T003#AC-CI | T001 | `tests/acceptance/AC-CI.py` | `evidence/tdd/T003.md` | planned |

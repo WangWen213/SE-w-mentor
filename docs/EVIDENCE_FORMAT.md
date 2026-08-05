@@ -4,8 +4,10 @@ T001 freezes the evidence layout used by P0 tasks.
 
 For every Task `TXXX`, expected paths are:
 
-- `evidence/test-reports/TXXX.xml`
+- `evidence/test-reports/TXXX.xml` final green JUnit
 - `evidence/diffs/TXXX.patch`
+- `evidence/tdd/TXXX-red.log`
+- `evidence/tdd/TXXX-green.log`
 - `evidence/tdd/TXXX.md`
 - `evidence/reviews/TXXX-spec-review.md`
 - `evidence/reviews/TXXX-code-review.md`
@@ -14,8 +16,12 @@ For every Task `TXXX`, expected paths are:
 ## TDD Evidence Rules
 
 - A real red test must include command, date, exit code, and failure summary.
+- Red output belongs in `evidence/tdd/TXXX-red.log`.
+- Green output belongs in `evidence/tdd/TXXX-green.log`.
+- `evidence/test-reports/TXXX.xml` is the final green JUnit report only.
 - If the test is already green because bootstrap implementation exists, mark it
   `PRE_EXISTING_GREEN`.
+- If red is reproduced from a clean pre-implementation baseline, mark it `REPRODUCED_RED`.
 - Do not fabricate red evidence.
 - Record ordinary-permission versus elevated-permission runs explicitly.
 
