@@ -281,17 +281,20 @@ T000 completed at `2d13b49679d52cdc77079d3f9dd6ecb757be34f2`.
 Shared contract modules, contract tests, JSON Schema snapshots, T004 evidence, and PLAN status.
 
 ### Red Test And Evidence
-`backend/tests/contracts/test_contracts.py` failed because `se_mentor.contracts` did not exist.
+`backend/tests/contracts/test_contracts.py` first failed because `se_mentor.contracts` did not
+exist. During merge precheck it failed again because `frontend/src/contracts/enums.ts` did not
+exist. Logs are stored in `evidence/tdd/T004-red.log`.
 
 ### Implementation Summary
-Added enums, EvidenceRef, AgentAction, ToolResult, FeedbackSignal, stable errors, trust levels, and
-schema snapshots.
+Added enums, EvidenceRef, AgentAction, ToolResult, FeedbackSignal, stable errors, trust levels,
+schema snapshots, and frontend enum mirrors.
 
 ### Green Test And Evidence
-Contract tests passed with 3 tests.
+Contract tests passed with 7 tests. Green output is stored in `evidence/tdd/T004-green.log`.
 
 ### Regression Evidence
-Ruff and mypy passed for contract source and tests.
+Ruff and mypy passed for contract source and tests. TypeScript strict checking passed for
+`frontend/src/contracts/enums.ts`.
 
 ### Spec Review
 `evidence/reviews/T004-spec-review.md`
