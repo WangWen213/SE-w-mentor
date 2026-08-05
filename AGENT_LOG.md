@@ -115,3 +115,69 @@ review evidence.
 ### Blockers
 
 ### Remaining Work
+
+## 2026-08-05 T000 Decision Freeze
+
+### Task ID
+T000
+
+### Date
+2026-08-05
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+457c20f7f38672f3fd9e1e0acdd0165b778d28ac
+
+### End Commit
+this commit; see final reported commit hash
+
+### Status Before
+`[ ]`
+
+### Status After
+`[x]`
+
+### Dependency Check
+No dependencies. T001 and T004 remain blocked until this T000 commit exists.
+
+### Change Scope
+P0 OQ decision freeze, document contract test, T000 evidence, reviews, traceability update, and
+PLAN status update.
+
+### Red Test And Evidence
+`tests/meta/test_t000_decisions.py` failed because OQ-01 had no decision section. JUnit evidence:
+`evidence/test-reports/T000.xml`; TDD notes: `evidence/tdd/T000.md`.
+
+### Implementation Summary
+Expanded `docs/DECISIONS_P0.md` with OQ-01 through OQ-20 decisions and global naming/TDD/profile
+rules.
+
+### Green Test And Evidence
+`tests/meta/test_t000_decisions.py` passed after all OQ sections and fields were added.
+
+### Regression Evidence
+T000 document test passed. Full backend/frontend regression remains outside T000 scope and is
+covered by later tasks.
+
+### Spec Review
+`evidence/reviews/T000-spec-review.md`
+
+### Code Review
+`evidence/reviews/T000-code-review.md`
+
+### Diff
+`evidence/diffs/T000.patch`
+
+### Deviations
+No new TDD deviation. Existing bootstrap exception is documented and frozen.
+
+### Blockers
+None for T000.
+
+### Remaining Work
+Begin T001 and T004 in separate worktrees after T000 commit.
