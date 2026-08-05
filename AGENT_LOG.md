@@ -392,3 +392,70 @@ external ordinary PowerShell run.
 ### Remaining Work
 Collect the external ordinary PowerShell result for T003 and continue with T005 only after the
 current mainline state is accepted.
+
+## 2026-08-05 T001 Traceability Semantic Correction
+
+### Task ID
+T001
+
+### Date
+2026-08-05
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`f4dde68b36c7eeeedb45b0052c6244f994aa6af2`
+
+### End Commit
+this commit; see final reported T001 semantic correction hash
+
+### Status Before
+`[x]` with insufficient primary-task semantics.
+
+### Status After
+`[x]`
+
+### Dependency Check
+No T005 or later work started. This corrects T001 semantics required before continuing P0.
+
+### Change Scope
+Traceability matrix columns, task ID validation, status enum validation, planned versus verified
+path checks, release-gate mode, tests, and T001 evidence/reviews.
+
+### Red Test And Evidence
+`tests/meta/test_traceability.py` failed with 7 failures because the checker still required the old
+columns and the matrix used pseudo task IDs. Log: `evidence/tdd/T001-red.log`.
+
+### Implementation Summary
+Added `requirement anchor`, changed primary tasks to real PLAN task IDs, allowed one Task to own
+multiple requirements, rejected duplicate anchors, froze status values, and added release-gate
+checking for T115.
+
+### Green Test And Evidence
+`tests/meta/test_traceability.py` passed with 9 tests. Checker reported `134 P0 requirements
+mapped`. Green log: `evidence/tdd/T001-green.log`.
+
+### Regression Evidence
+Pending final mainline integration run below.
+
+### Spec Review
+`evidence/reviews/T001-spec-review.md`
+
+### Code Review
+`evidence/reviews/T001-code-review.md`
+
+### Diff
+`evidence/diffs/T001.patch`
+
+### Deviations
+None.
+
+### Blockers
+None for T001.
+
+### Remaining Work
+Run final T000/T001/T004/mainline regression and record integration metadata.

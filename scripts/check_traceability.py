@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 REQUIRED_COLUMNS = [
     "requirement",
+    "requirement anchor",
     "priority",
     "primary task",
-    "supporting task",
+    "supporting tasks",
     "test",
     "evidence",
     "status",
 ]
+
+VALID_STATUSES = {"planned", "implemented", "verified", "blocked", "deferred-p1"}
+TASK_RE = re.compile(r"^T\d{3}$")
+PLAN_PATH = Path("SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md")
 
 US_ACCEPTANCE_COUNTS = {
     "US-01": 3,
@@ -99,40 +105,100 @@ def _parse_table(path: Path) -> list[dict[str, str]]:
     return rows
 
 
-def check_matrix(path: Path) -> CheckResult:
+def _strip_code(value: str) -> str:
+    value = value.strip()
+    if value.startswith("`") and value.endswith("`"):
+        return value[1:-1]
+    return value
+
+
+def _parse_plan_task_ids(plan_path: Path = PLAN_PATH) -> set[str]:
+    try:
+        text = plan_path.read_text(encoding="utf-8")
+    except OSError:
+        return set()
+    return set(re.findall(r"^## (T\d{3})\b", text, re.MULTILINE))
+
+
+def _split_task_ids(value: str) -> list[str]:
+    return [part.strip() for part in re.split(r"[,，]", value) if part.strip()]
+
+
+def _valid_task(task_id: str, plan_tasks: set[str]) -> bool:
+    return bool(TASK_RE.fullmatch(task_id)) and task_id in plan_tasks
+
+
+def check_matrix(path: Path, *, release_gate: bool = False) -> CheckResult:
     try:
         rows = _parse_table(path)
     except (OSError, UnicodeError, ValueError) as exc:
         return CheckResult(False, str(exc))
 
-    by_requirement = {row.get("requirement", ""): row for row in rows}
-    missing = [requirement for requirement in REQUIRED_REQUIREMENTS if requirement not in by_requirement]
+    plan_tasks = _parse_plan_task_ids()
+    if not plan_tasks:
+        return CheckResult(False, f"cannot read PLAN task ids from {PLAN_PATH}")
+
+    by_anchor: dict[str, dict[str, str]] = {}
+    for index, row in enumerate(rows, start=1):
+        anchor = row.get("requirement anchor", "")
+        if not anchor:
+            return CheckResult(False, f"row {index} has empty requirement anchor")
+        if anchor in by_anchor:
+            return CheckResult(False, f"duplicate requirement anchor {anchor}")
+        by_anchor[anchor] = row
+
+        status = row.get("status", "")
+        if status not in VALID_STATUSES:
+            return CheckResult(False, f"{anchor} has invalid status {status}")
+
+        for field in ["primary task", "supporting tasks", "test", "evidence"]:
+            if not row.get(field) or row[field].lower() == "pending":
+                return CheckResult(False, f"{anchor} has empty {field}")
+
+        primary_task = row["primary task"]
+        if not _valid_task(primary_task, plan_tasks):
+            return CheckResult(False, f"{anchor} has invalid primary task {primary_task}")
+
+        for task in _split_task_ids(row["supporting tasks"]):
+            if not _valid_task(task, plan_tasks):
+                return CheckResult(False, f"{anchor} has invalid supporting task {task}")
+
+        for field in ["test", "evidence"]:
+            if not row[field].startswith("`") or not row[field].endswith("`"):
+                return CheckResult(False, f"{anchor} has invalid {field} path")
+
+        if status == "verified":
+            for field in ["test", "evidence"]:
+                target = Path(_strip_code(row[field]))
+                if not target.exists():
+                    return CheckResult(
+                        False,
+                        f"{anchor} verified {field} path does not exist: {target}",
+                    )
+
+    missing = [requirement for requirement in REQUIRED_REQUIREMENTS if requirement not in by_anchor]
     if missing:
         return CheckResult(False, f"missing P0 requirement mapping: {', '.join(missing)}")
 
-    seen_tasks: dict[str, str] = {}
-    for requirement in REQUIRED_REQUIREMENTS:
-        row = by_requirement[requirement]
-        for field in ["primary task", "supporting task", "test", "evidence"]:
-            if not row.get(field) or row[field].lower() == "pending":
-                return CheckResult(False, f"{requirement} has empty {field}")
-        for field in ["test", "evidence"]:
-            if not row[field].startswith("`") or not row[field].endswith("`"):
-                return CheckResult(False, f"{requirement} has invalid {field} path")
-        task = row["primary task"]
-        if task in seen_tasks:
+    if release_gate:
+        not_verified = [
+            requirement
+            for requirement in REQUIRED_REQUIREMENTS
+            if by_anchor[requirement].get("status") != "verified"
+        ]
+        if not_verified:
             return CheckResult(
                 False,
-                f"duplicate primary task {task}: {seen_tasks[task]} and {requirement}",
+                "release gate requires verified P0 requirements: " + ", ".join(not_verified),
             )
-        seen_tasks[task] = requirement
 
     return CheckResult(True, f"{len(REQUIRED_REQUIREMENTS)} P0 requirements mapped")
 
 
 def main() -> int:
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("docs/TRACEABILITY_MATRIX.md")
-    result = check_matrix(path)
+    args = [arg for arg in sys.argv[1:] if arg != "--release-gate"]
+    path = Path(args[0]) if args else Path("docs/TRACEABILITY_MATRIX.md")
+    result = check_matrix(path, release_gate="--release-gate" in sys.argv[1:])
     if not result.ok:
         print(result.message, file=sys.stderr)
         return 1

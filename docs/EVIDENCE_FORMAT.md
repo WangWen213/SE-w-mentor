@@ -25,6 +25,20 @@ For every Task `TXXX`, expected paths are:
 - Do not fabricate red evidence.
 - Record ordinary-permission versus elevated-permission runs explicitly.
 
+## Traceability Status Rules
+
+`docs/TRACEABILITY_MATRIX.md` status values are frozen to:
+
+- `planned`
+- `implemented`
+- `verified`
+- `blocked`
+- `deferred-p1`
+
+Rows with `planned` may point to future test and evidence paths. Rows with `verified` must point to
+test and evidence files that already exist. The T115 release gate must run traceability checking in
+release-gate mode so every P0 requirement is `verified` and backed by existing files.
+
 ## Review Evidence Rules
 
 - Spec Review checks requirement coverage and scope boundaries.
