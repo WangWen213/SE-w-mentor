@@ -1,0 +1,197 @@
+{
+  "$defs": {
+    "ApplyPatchAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_type": {
+          "const": "APPLY_PATCH",
+          "title": "Action Type",
+          "type": "string"
+        },
+        "patch": {
+          "title": "Patch",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "action_type",
+        "patch"
+      ],
+      "title": "ApplyPatchAction",
+      "type": "object"
+    },
+    "CreateFileAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_type": {
+          "const": "CREATE_FILE",
+          "title": "Action Type",
+          "type": "string"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "action_type",
+        "path",
+        "content"
+      ],
+      "title": "CreateFileAction",
+      "type": "object"
+    },
+    "DeleteFileAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_type": {
+          "const": "DELETE_FILE",
+          "title": "Action Type",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "action_type",
+        "path"
+      ],
+      "title": "DeleteFileAction",
+      "type": "object"
+    },
+    "ReadFileAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_type": {
+          "const": "READ_FILE",
+          "title": "Action Type",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "action_type",
+        "path"
+      ],
+      "title": "ReadFileAction",
+      "type": "object"
+    },
+    "RunCommandAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_type": {
+          "const": "RUN_COMMAND",
+          "title": "Action Type",
+          "type": "string"
+        },
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Args",
+          "type": "array"
+        },
+        "program": {
+          "title": "Program",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "action_type",
+        "program"
+      ],
+      "title": "RunCommandAction",
+      "type": "object"
+    },
+    "SearchCodeAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_type": {
+          "const": "SEARCH_CODE",
+          "title": "Action Type",
+          "type": "string"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "action_type",
+        "query"
+      ],
+      "title": "SearchCodeAction",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "APPLY_PATCH": "#/$defs/ApplyPatchAction",
+      "CREATE_FILE": "#/$defs/CreateFileAction",
+      "DELETE_FILE": "#/$defs/DeleteFileAction",
+      "READ_FILE": "#/$defs/ReadFileAction",
+      "RUN_COMMAND": "#/$defs/RunCommandAction",
+      "SEARCH_CODE": "#/$defs/SearchCodeAction"
+    },
+    "propertyName": "action_type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ReadFileAction"
+    },
+    {
+      "$ref": "#/$defs/SearchCodeAction"
+    },
+    {
+      "$ref": "#/$defs/ApplyPatchAction"
+    },
+    {
+      "$ref": "#/$defs/CreateFileAction"
+    },
+    {
+      "$ref": "#/$defs/DeleteFileAction"
+    },
+    {
+      "$ref": "#/$defs/RunCommandAction"
+    }
+  ]
+}

@@ -247,3 +247,66 @@ None for T001.
 
 ### Remaining Work
 Merge T001 after T004 integration plan is ready.
+
+## 2026-08-05 T004 Shared Contracts
+
+### Task ID
+T004
+
+### Date
+2026-08-05
+
+### Agent
+Codex
+
+### Worktree
+codex/T004-contracts
+
+### Start Commit
+2d13b49679d52cdc77079d3f9dd6ecb757be34f2
+
+### End Commit
+this commit; see final reported commit hash
+
+### Status Before
+`[ ]`
+
+### Status After
+`[x]`
+
+### Dependency Check
+T000 completed at `2d13b49679d52cdc77079d3f9dd6ecb757be34f2`.
+
+### Change Scope
+Shared contract modules, contract tests, JSON Schema snapshots, T004 evidence, and PLAN status.
+
+### Red Test And Evidence
+`backend/tests/contracts/test_contracts.py` failed because `se_mentor.contracts` did not exist.
+
+### Implementation Summary
+Added enums, EvidenceRef, AgentAction, ToolResult, FeedbackSignal, stable errors, trust levels, and
+schema snapshots.
+
+### Green Test And Evidence
+Contract tests passed with 3 tests.
+
+### Regression Evidence
+Ruff and mypy passed for contract source and tests.
+
+### Spec Review
+`evidence/reviews/T004-spec-review.md`
+
+### Code Review
+`evidence/reviews/T004-code-review.md`
+
+### Diff
+`evidence/diffs/T004.patch`
+
+### Deviations
+None.
+
+### Blockers
+None for T004.
+
+### Remaining Work
+Merge T004 after T001 integration plan is ready.
