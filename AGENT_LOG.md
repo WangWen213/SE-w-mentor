@@ -215,15 +215,17 @@ T000 completed at `2d13b49679d52cdc77079d3f9dd6ecb757be34f2`.
 Traceability matrix, traceability checker, T001 tests, T001 evidence, and PLAN status.
 
 ### Red Test And Evidence
-`tests/meta/test_traceability.py` failed because `scripts.check_traceability` did not exist.
+`tests/meta/test_traceability.py` first failed because `scripts.check_traceability` did not exist.
+During merge precheck, it failed again because the previous matrix was family-level and used the
+old column set. Logs are stored in `evidence/tdd/T001-red.log`.
 
 ### Implementation Summary
 Implemented `scripts/check_traceability.py` and expanded `docs/TRACEABILITY_MATRIX.md` to cover
-P0 US, FR, NFR, and AC families.
+134 atomic P0 US acceptance criteria, FR sub-requirements, NFR requirements, and AC families.
 
 ### Green Test And Evidence
 `tests/meta/test_traceability.py` passed with 3 tests. `scripts/check_traceability.py` reports
-`30 P0 requirements mapped`.
+`134 P0 requirements mapped`. Green output is stored in `evidence/tdd/T001-green.log`.
 
 ### Regression Evidence
 Ruff check passed for the T001 script and tests.

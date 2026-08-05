@@ -4,32 +4,49 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-REQUIRED_COLUMNS = ["requirement", "priority", "task", "test", "evidence", "status"]
+REQUIRED_COLUMNS = [
+    "requirement",
+    "priority",
+    "primary task",
+    "supporting task",
+    "test",
+    "evidence",
+    "status",
+]
 
-REQUIRED_REQUIREMENTS = [
-    "US-01",
-    "US-02",
-    "US-03",
-    "US-04",
-    "US-05",
-    "US-06",
-    "FR-01",
-    "FR-02",
-    "FR-03",
-    "FR-04",
-    "FR-05",
-    "FR-06",
-    "FR-07",
-    "FR-08",
-    "FR-09",
-    "FR-10",
-    "FR-11",
-    "FR-12",
-    "NFR-PERF",
-    "NFR-SEC",
-    "NFR-CRED",
-    "NFR-USA",
-    "NFR-OBS",
+US_ACCEPTANCE_COUNTS = {
+    "US-01": 3,
+    "US-02": 4,
+    "US-03": 4,
+    "US-04": 4,
+    "US-05": 4,
+    "US-06": 4,
+}
+
+FR_COUNTS = {
+    "FR-01": 4,
+    "FR-02": 4,
+    "FR-03": 4,
+    "FR-04": 5,
+    "FR-05": 6,
+    "FR-06": 5,
+    "FR-07": 9,
+    "FR-08": 7,
+    "FR-09": 4,
+    "FR-10": 3,
+    "FR-11": 2,
+    "FR-12": 3,
+}
+
+NFR_COUNTS = {
+    "NFR-PERF": 7,
+    "NFR-SEC": 10,
+    "NFR-CRED": 10,
+    "NFR-USA": 10,
+    "NFR-OBS": 11,
+}
+
+AC_REQUIREMENTS = [
     "AC-FR",
     "AC-PERF",
     "AC-SEC",
@@ -38,6 +55,25 @@ REQUIRED_REQUIREMENTS = [
     "AC-OBS",
     "AC-CI",
 ]
+
+REQUIRED_REQUIREMENTS = (
+    [
+        f"{story}-AC-{number:02d}"
+        for story, count in US_ACCEPTANCE_COUNTS.items()
+        for number in range(1, count + 1)
+    ]
+    + [
+        f"{family}-{number:02d}"
+        for family, count in FR_COUNTS.items()
+        for number in range(1, count + 1)
+    ]
+    + [
+        f"{family}-{number:02d}"
+        for family, count in NFR_COUNTS.items()
+        for number in range(1, count + 1)
+    ]
+    + AC_REQUIREMENTS
+)
 
 
 @dataclass(frozen=True)
@@ -77,10 +113,13 @@ def check_matrix(path: Path) -> CheckResult:
     seen_tasks: dict[str, str] = {}
     for requirement in REQUIRED_REQUIREMENTS:
         row = by_requirement[requirement]
-        for field in ["task", "test", "evidence"]:
+        for field in ["primary task", "supporting task", "test", "evidence"]:
             if not row.get(field) or row[field].lower() == "pending":
                 return CheckResult(False, f"{requirement} has empty {field}")
-        task = row["task"]
+        for field in ["test", "evidence"]:
+            if not row[field].startswith("`") or not row[field].endswith("`"):
+                return CheckResult(False, f"{requirement} has invalid {field} path")
+        task = row["primary task"]
         if task in seen_tasks:
             return CheckResult(
                 False,
