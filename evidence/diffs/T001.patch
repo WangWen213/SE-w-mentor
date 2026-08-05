@@ -1,1 +1,270 @@
-Pending. No task-complete diff captured yet.
+﻿diff --git a/AGENT_LOG.md b/AGENT_LOG.md
+index 195bc47..0952878 100644
+--- a/AGENT_LOG.md
++++ b/AGENT_LOG.md
+@@ -181,3 +181,67 @@ None for T000.
+ 
+ ### Remaining Work
+ Begin T001 and T004 in separate worktrees after T000 commit.
++
++## 2026-08-05 T001 Traceability Matrix
++
++### Task ID
++T001
++
++### Date
++2026-08-05
++
++### Agent
++Codex
++
++### Worktree
++codex/T001-traceability
++
++### Start Commit
++2d13b49679d52cdc77079d3f9dd6ecb757be34f2
++
++### End Commit
++this commit; see final reported commit hash
++
++### Status Before
++`[ ]`
++
++### Status After
++`[x]`
++
++### Dependency Check
++T000 completed at `2d13b49679d52cdc77079d3f9dd6ecb757be34f2`.
++
++### Change Scope
++Traceability matrix, traceability checker, T001 tests, T001 evidence, and PLAN status.
++
++### Red Test And Evidence
++`tests/meta/test_traceability.py` failed because `scripts.check_traceability` did not exist.
++
++### Implementation Summary
++Implemented `scripts/check_traceability.py` and expanded `docs/TRACEABILITY_MATRIX.md` to cover
++P0 US, FR, NFR, and AC families.
++
++### Green Test And Evidence
++`tests/meta/test_traceability.py` passed with 3 tests. `scripts/check_traceability.py` reports
++`30 P0 requirements mapped`.
++
++### Regression Evidence
++Ruff check passed for the T001 script and tests.
++
++### Spec Review
++`evidence/reviews/T001-spec-review.md`
++
++### Code Review
++`evidence/reviews/T001-code-review.md`
++
++### Diff
++`evidence/diffs/T001.patch`
++
++### Deviations
++None.
++
++### Blockers
++None for T001.
++
++### Remaining Work
++Merge T001 after T004 integration plan is ready.
+diff --git a/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md b/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md
+index dc3f6ce..d03ba80 100644
+--- a/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md
++++ b/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md
+@@ -114,7 +114,7 @@ T000-T008 规约/契约/迁移门禁
+ 
+ ## T001 — 建立需求—Task—测试—证据追踪矩阵
+ 
+-- **状态**：[ ] 未开始
++- **状态**：[x] 已完成
+ - **阻塞说明**：无
+ - **Worktree**：`wt-spec-contracts`
+ - **覆盖需求**：`US-01～US-06`, `FR-01～FR-12`, `NFR-PERF/SEC/CRED/USA/OBS`, `AC-FR/AC-PERF/AC-SEC/AC-USA/AC-OBS`
+@@ -139,7 +139,7 @@ T000-T008 规约/契约/迁移门禁
+   - evidence/test-reports/T001.xml
+   - evidence/diffs/T001.patch
+   - `AGENT_LOG.md` 中的 T001 记录
+-- **Commit**：`未填写`
++- **Commit**：`this commit; see final reported T001 hash`
+ 
+ ## T002 — 建立 monorepo 与最小可运行应用
+ 
+diff --git a/docs/TRACEABILITY_MATRIX.md b/docs/TRACEABILITY_MATRIX.md
+index 553d316..a50707b 100644
+--- a/docs/TRACEABILITY_MATRIX.md
++++ b/docs/TRACEABILITY_MATRIX.md
+@@ -1,15 +1,37 @@
+ # Traceability Matrix
+ 
+-Status: bootstrap draft. This file freezes the columns and initial P0 entries; it is not yet a
+-complete release matrix.
++Status: T001 strict DoD candidate. This matrix freezes the required columns and maps all P0 US,
++FR, NFR, and AC families to a primary Task, test location, and evidence location.
+ 
+ | requirement | priority | task | test | evidence | status |
+ | --- | --- | --- | --- | --- | --- |
+-| P0 decisions and bootstrap exception | P0 | T000 | `tests/meta/test_t000_decisions.py` | `evidence/tdd/T000.md`; `evidence/test-reports/T000.xml`; `evidence/reviews/T000-spec-review.md`; `evidence/reviews/T000-code-review.md` | complete |
+-| Evidence format and traceability columns | P0 | T001 | `tests/meta/test_traceability.py` | `evidence/tdd/T001.md` | draft |
+-| Minimal backend and frontend scaffold | P0 | T002 | `backend/tests/test_scaffold.py`; `frontend/src/smoke.test.ts` | `evidence/tdd/T002.md` | in_progress |
+-| Quality command entry points | P0 | T003 | `scripts/check_all.py`; frontend ordinary permission run | `evidence/tdd/T003.md` | blocked |
+-| Shared contract naming and model placement | P0 | T004 | pending | `evidence/tdd/T004.md` | not_started |
+-| Layered config and profiles | P0 | T005 | pending | `evidence/tdd/T005.md` | not_started |
+-| SQLite, SQLAlchemy, Alembic baseline | P0 | T007 | `backend/tests/db/test_session.py` | `evidence/tdd/T007.md` | in_progress |
+-| Migration ownership and single head | P0 | T008 | `scripts/check_alembic_heads.py` | `evidence/tdd/T008.md` | in_progress |
++| US-01 | P0 | T025 | `backend/tests/proposals/test_change_proposal.py` | `evidence/tdd/T025.md` | planned |
++| US-02 | P0 | T043 | `backend/tests/impact/test_impact_report.py` | `evidence/tdd/T043.md` | planned |
++| US-03 | P0 | T046 | `backend/tests/governance/test_decisions.py` | `evidence/tdd/T046.md` | planned |
++| US-04 | P0 | T059 | `backend/tests/tools/test_apply_patch.py` | `evidence/tdd/T059.md` | planned |
++| US-05 | P0 | T078 | `backend/tests/validation/test_completion_gate.py` | `evidence/tdd/T078.md` | planned |
++| US-06 | P0 | T079 | `backend/tests/knowledge/test_success_update.py` | `evidence/tdd/T079.md` | planned |
++| FR-01 | P0 | T019 | `backend/tests/projects/test_registration.py` | `evidence/tdd/T019.md` | planned |
++| FR-02 | P0 | T024 | `backend/tests/tasks/test_task_state.py` | `evidence/tdd/T024.md` | planned |
++| FR-03 | P0 | T033 | `backend/tests/context/test_context_package.py` | `evidence/tdd/T033.md` | planned |
++| FR-04 | P0 | T035 | `backend/tests/knowledge/test_retrieval.py` | `evidence/tdd/T035.md` | planned |
++| FR-05 | P0 | T066 | `backend/tests/agent/test_orchestrator.py` | `evidence/tdd/T066.md` | planned |
++| FR-06 | P0 | T044 | `backend/tests/governance/test_rules.py` | `evidence/tdd/T044.md` | planned |
++| FR-07 | P0 | T057 | `backend/tests/tools/test_dispatcher.py` | `evidence/tdd/T057.md` | planned |
++| FR-08 | P0 | T070 | `backend/tests/validation/test_plan.py` | `evidence/tdd/T070.md` | planned |
++| FR-09 | P0 | T080 | `backend/tests/knowledge/test_failure_update.py` | `evidence/tdd/T080.md` | planned |
++| FR-10 | P0 | T094 | `frontend/src/tasks/task-pages.test.tsx` | `evidence/tdd/T094.md` | planned |
++| FR-11 | P0 | T092 | `backend/tests/audit/test_replay.py` | `evidence/tdd/T092.md` | planned |
++| FR-12 | P0 | T081 | `backend/tests/e2e/test_offline_loop.py` | `evidence/tdd/T081.md` | planned |
++| NFR-PERF | P0 | T102 | `tests/performance/test_resource_limits.py` | `evidence/tdd/T102.md` | planned |
++| NFR-SEC | P0 | T006 | `backend/tests/security/test_secret_boundary.py` | `evidence/tdd/T006.md` | planned |
++| NFR-CRED | P0 | T104 | `backend/tests/security/test_windows_credential_manager.py` | `evidence/tdd/T104.md` | planned |
++| NFR-USA | P0 | T099 | `frontend/src/a11y/a11y.test.tsx` | `evidence/tdd/T099.md` | planned |
++| NFR-OBS | P0 | T100 | `backend/tests/observability/test_logging.py` | `evidence/tdd/T100.md` | planned |
++| AC-FR | P0 | T115 | `tests/meta/test_acceptance_report.py` | `evidence/tdd/T115.md` | planned |
++| AC-PERF | P0 | T103 | `tests/performance/test_degraded_dependencies.py` | `evidence/tdd/T103.md` | planned |
++| AC-SEC | P0 | T045 | `backend/tests/governance/test_dangerous_actions.py` | `evidence/tdd/T045.md` | planned |
++| AC-CRED | P0 | T110 | `tests/ci/test_secret_scanning.py` | `evidence/tdd/T110.md` | planned |
++| AC-USA | P0 | T098 | `frontend/src/replay/replay.test.tsx` | `evidence/tdd/T098.md` | planned |
++| AC-OBS | P0 | T101 | `backend/tests/observability/test_metrics.py` | `evidence/tdd/T101.md` | planned |
++| AC-CI | P0 | T003 | `tests/meta/test_quality_commands.py` | `evidence/tdd/T003.md` | in_progress |
+diff --git a/evidence/reviews/T001-code-review.md b/evidence/reviews/T001-code-review.md
+index 205788d..1f9b8a7 100644
+--- a/evidence/reviews/T001-code-review.md
++++ b/evidence/reviews/T001-code-review.md
+@@ -1,3 +1,18 @@
+ # T001 Code Review
+ 
+-Status: pending. Created as required evidence path placeholder.
++Status: passed.
++
++## Findings
++
++No blocking issues found.
++
++## Checks
++
++- `scripts/check_traceability.py` returns non-zero for missing mappings.
++- `scripts/check_traceability.py` returns non-zero for duplicate primary tasks.
++- The parser validates exact required columns before row checks.
++
++## Residual Risk
++
++The matrix maps requirement families to planned tests and evidence paths. Later tasks must replace
++planned paths with concrete evidence as they close.
+diff --git a/evidence/reviews/T001-spec-review.md b/evidence/reviews/T001-spec-review.md
+index fd02585..a76ecab 100644
+--- a/evidence/reviews/T001-spec-review.md
++++ b/evidence/reviews/T001-spec-review.md
+@@ -1,3 +1,18 @@
+ # T001 Spec Review
+ 
+-Status: pending. Created as required evidence path placeholder.
++Status: passed.
++
++## Scope Checked
++
++- `docs/TRACEABILITY_MATRIX.md` contains the frozen columns: requirement, priority, task, test,
++  evidence, status.
++- All P0 US entries US-01 through US-06 are mapped.
++- All P0 FR entries FR-01 through FR-12 are mapped.
++- P0 NFR families PERF, SEC, CRED, USA, and OBS are mapped.
++- P0 AC families FR, PERF, SEC, CRED, USA, OBS, and CI are mapped.
++- `docs/EVIDENCE_FORMAT.md` defines the required evidence paths.
++- `AGENT_LOG.md` retains the required template fields.
++
++## Result
++
++T001 satisfies the requested traceability and evidence-format scope.
+diff --git a/evidence/tdd/T001.md b/evidence/tdd/T001.md
+index 6a19cc9..807a8f4 100644
+--- a/evidence/tdd/T001.md
++++ b/evidence/tdd/T001.md
+@@ -1,8 +1,53 @@
+ # T001 TDD Evidence
+ 
+-Status: evidence format backfill started.
++Status: red-green complete.
+ 
+-- Red evidence: not yet executed.
+-- Evidence layout: frozen in `docs/EVIDENCE_FORMAT.md`.
+-- Traceability draft: `docs/TRACEABILITY_MATRIX.md`.
+-- Current state: `[ ]` in PLAN until full DoD is satisfied.
++## Red
++
++Command:
++
++```text
++C:\Users\ww\Desktop\SE-w-mentor\backend\.venv\Scripts\python.exe -m pytest tests\meta\test_traceability.py --junitxml=evidence\test-reports\T001.xml
++```
++
++Result:
++
++```text
++exit code: 1
++ModuleNotFoundError: No module named 'scripts.check_traceability'
++```
++
++The failure was real: T001 had no traceability check script.
++
++## Green
++
++Command:
++
++```text
++New-Item -ItemType Directory -Force -Path .tmp\checks | Out-Null
++$env:TMP=(Resolve-Path .tmp\checks).Path
++$env:TEMP=(Resolve-Path .tmp\checks).Path
++C:\Users\ww\Desktop\SE-w-mentor\backend\.venv\Scripts\python.exe -m pytest tests\meta\test_traceability.py --junitxml=evidence\test-reports\T001.xml -p no:cacheprovider
++```
++
++Result:
++
++```text
++exit code: 0
++3 passed
++```
++
++## Script Check
++
++Command:
++
++```text
++C:\Users\ww\Desktop\SE-w-mentor\backend\.venv\Scripts\python.exe scripts\check_traceability.py
++```
++
++Result:
++
++```text
++exit code: 0
++30 P0 requirements mapped
++```
+diff --git a/evidence/test-reports/T001.xml b/evidence/test-reports/T001.xml
+index aafe52c..dbd6479 100644
+--- a/evidence/test-reports/T001.xml
++++ b/evidence/test-reports/T001.xml
+@@ -1,6 +1 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<testsuite name="T001" tests="0" failures="0" skipped="1">
+-  <testcase name="t001_evidence_format_backfill">
+-    <skipped message="pending strict DoD execution"/>
+-  </testcase>
+-</testsuite>
++<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="3" time="0.026" timestamp="2026-08-05T11:26:31.566658+08:00" hostname="LAPTOP-IJMRFI3N"><testcase classname="tests.meta.test_traceability" name="test_T001_all_p0_requirements_have_task_test_evidence" time="0.001" /><testcase classname="tests.meta.test_traceability" name="test_T001_missing_mapping_returns_nonzero" time="0.006" /><testcase classname="tests.meta.test_traceability" name="test_T001_duplicate_primary_task_returns_nonzero" time="0.003" /></testsuite></testsuites>
+\ No newline at end of file
