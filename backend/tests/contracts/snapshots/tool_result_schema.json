@@ -1,0 +1,117 @@
+{
+  "$defs": {
+    "EvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "trust_level": {
+          "$ref": "#/$defs/TrustLevel"
+        },
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uri"
+        }
+      },
+      "required": [
+        "source",
+        "trust_level",
+        "summary"
+      ],
+      "title": "EvidenceRef",
+      "type": "object"
+    },
+    "ToolStatus": {
+      "enum": [
+        "OK",
+        "WARN",
+        "ERROR",
+        "BLOCKED"
+      ],
+      "title": "ToolStatus",
+      "type": "string"
+    },
+    "TrustLevel": {
+      "enum": [
+        "SYSTEM",
+        "USER_INPUT",
+        "REPOSITORY_CONTENT",
+        "LLM_OUTPUT",
+        "TOOL_OUTPUT"
+      ],
+      "title": "TrustLevel",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceRef"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/ToolStatus"
+    },
+    "stderr_ref": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "stdout_ref": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "status",
+    "summary"
+  ],
+  "title": "ToolResult",
+  "type": "object"
+}

@@ -1,0 +1,56 @@
+from __future__ import annotations
+
+from enum import StrEnum
+
+
+class TrustLevel(StrEnum):
+    SYSTEM = "SYSTEM"
+    USER_INPUT = "USER_INPUT"
+    REPOSITORY_CONTENT = "REPOSITORY_CONTENT"
+    LLM_OUTPUT = "LLM_OUTPUT"
+    TOOL_OUTPUT = "TOOL_OUTPUT"
+
+
+class ActionType(StrEnum):
+    READ_FILE = "READ_FILE"
+    SEARCH_CODE = "SEARCH_CODE"
+    APPLY_PATCH = "APPLY_PATCH"
+    CREATE_FILE = "CREATE_FILE"
+    DELETE_FILE = "DELETE_FILE"
+    RUN_COMMAND = "RUN_COMMAND"
+
+
+class ToolStatus(StrEnum):
+    OK = "OK"
+    WARN = "WARN"
+    ERROR = "ERROR"
+    BLOCKED = "BLOCKED"
+
+
+class FeedbackKind(StrEnum):
+    VALIDATION = "VALIDATION"
+    GOVERNANCE = "GOVERNANCE"
+    TOOL = "TOOL"
+    PROGRESS = "PROGRESS"
+
+
+class FeedbackSeverity(StrEnum):
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+
+
+class EventType(StrEnum):
+    TASK_CREATED = "TASK_CREATED"
+    ACTION_PARSED = "ACTION_PARSED"
+    GOVERNANCE_DECIDED = "GOVERNANCE_DECIDED"
+    TOOL_EXECUTED = "TOOL_EXECUTED"
+    VALIDATION_RECORDED = "VALIDATION_RECORDED"
+
+
+class StableErrorCode(StrEnum):
+    UNKNOWN_ACTION = "UNKNOWN_ACTION"
+    EXTRA_FIELD = "EXTRA_FIELD"
+    INVALID_ENUM = "INVALID_ENUM"
+    GOVERNANCE_BLOCKED = "GOVERNANCE_BLOCKED"
+    VALIDATION_INCONCLUSIVE = "VALIDATION_INCONCLUSIVE"
