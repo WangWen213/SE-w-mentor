@@ -411,7 +411,7 @@ main
 `f4dde68b36c7eeeedb45b0052c6244f994aa6af2`
 
 ### End Commit
-this commit; see final reported T001 semantic correction hash
+`1184c7beca606a38769ef58cb66d5a453323c294`
 
 ### Status Before
 `[x]` with insufficient primary-task semantics.
@@ -459,3 +459,92 @@ None for T001.
 
 ### Remaining Work
 Run final T000/T001/T004/mainline regression and record integration metadata.
+
+## 2026-08-05 Final T001/T004 Mainline Integration
+
+### Task ID
+T001, T004, T003 diagnostic
+
+### Date
+2026-08-05
+
+### Agent
+Codex
+
+### Worktree
+main and `codex/T004-contracts`
+
+### Start Commit
+`1184c7beca606a38769ef58cb66d5a453323c294`
+
+### End Commit
+Containing integration metadata commit; final hash is reported after commit creation.
+
+### Status Before
+T000 `[x]`, T001 `[x]` after semantic correction, T004 `[x]`, T003 `[-]`, T005 `[ ]`.
+
+### Status After
+T000 `[x]`, T001 `[x]`, T004 `[x]`, T003 `[-]`, T005 `[ ]`.
+
+### Dependency Check
+T005/T006/T007/T008/T009+ were not started. T004 branch was rebased to the latest main after the
+T001 semantic correction.
+
+### Change Scope
+Final integration metadata only: PLAN commit fields, mainline validation logs, T004 branch
+verification summary, and evidence refresh.
+
+### Red Test And Evidence
+T001 semantic red is in `evidence/tdd/T001-red.log`: 7 failures before the checker understood the
+new `requirement anchor` column and real Task ID semantics.
+
+### Implementation Summary
+T001 matrix semantics are frozen: `primary task` and `supporting tasks` are legal PLAN Task IDs,
+`requirement anchor` is unique per atomic P0 requirement, one Task may own multiple requirements,
+statuses are `planned`, `implemented`, `verified`, `blocked`, and `deferred-p1`, planned paths may
+be future paths, verified paths must exist, and T115 release-gate mode requires all P0 rows to be
+verified.
+
+### Green Test And Evidence
+T001 green log: `evidence/tdd/T001-green.log`. T000 and T004 green logs were refreshed at
+`evidence/tdd/T000-green.log` and `evidence/tdd/T004-green.log`.
+
+### Regression Evidence
+Mainline validation:
+
+- `pytest tests/meta backend/tests`: 19 passed, 1 existing FastAPI/TestClient warning.
+- `scripts/check_traceability.py`: 134 P0 requirements mapped.
+- `scripts/check_alembic_heads.py`: exit code 0.
+- `ruff check scripts tests/meta backend/src backend/tests`: passed.
+- `mypy backend/src backend/tests tests/meta`: passed.
+- `npm.cmd run type-check`: passed.
+
+T004 branch validation after rebase:
+
+- Python Contract passed.
+- Schema snapshot passed.
+- Enum mirror passed.
+- Single-file TypeScript passed.
+- Full Vite/Vitest remains under the T003 sandbox blocker and is not reported as passed.
+
+### Spec Review
+T001 and T004 review files were checked and remain current.
+
+### Code Review
+No blocking issues found in the integration diff. No T005 or later functionality was introduced.
+
+### Diff
+`evidence/diffs/T001.patch` captures the T001 semantic correction. Integration metadata changes
+are recorded in this commit.
+
+### Deviations
+None for this integration. Existing bootstrap exceptions remain limited to T002, T003, T007, and
+T008 as frozen in T000.
+
+### Blockers
+T003 Vite/Vitest still fails inside the Codex sandbox while loading config through esbuild with
+`Cannot read directory "../../..": Access is denied`. External ordinary PowerShell result is still
+needed to classify it.
+
+### Remaining Work
+Wait for the external ordinary PowerShell T003 result before treating frontend Vitest as resolved.

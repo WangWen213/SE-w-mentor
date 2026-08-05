@@ -110,7 +110,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T000.xml
   - evidence/diffs/T000.patch
   - `AGENT_LOG.md` 中的 T000 记录
-- **Commit**：implementation `2d13b49679d52cdc77079d3f9dd6ecb757be34f2`; integration metadata `this commit`
+- **Commit**：implementation `2d13b49679d52cdc77079d3f9dd6ecb757be34f2`; integration metadata `f4dde68b36c7eeeedb45b0052c6244f994aa6af2`; final metadata recorded in the containing integration commit
 
 ## T001 — 建立需求—Task—测试—证据追踪矩阵
 
@@ -139,7 +139,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T001.xml
   - evidence/diffs/T001.patch
   - `AGENT_LOG.md` 中的 T001 记录
-- **Commit**：implementation `e9b540bcca244e3822aaff292259e366668bf375`; merge `957c3af`; integration metadata `this commit`
+- **Commit**：implementation `e9b540bcca244e3822aaff292259e366668bf375`; merge `957c3af6e2ab79ca706c663d7cbf8de745c6d0a8`; semantic correction `1184c7beca606a38769ef58cb66d5a453323c294`; final metadata recorded in the containing integration commit
 
 ## T002 — 建立 monorepo 与最小可运行应用
 
@@ -234,7 +234,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T004.xml
   - evidence/diffs/T004.patch
   - `AGENT_LOG.md` 中的 T004 记录
-- **Commit**：implementation `7b839c1`; coverage `fd3e775`; evidence refresh `920fbd4`; merge `2511706`; integration metadata `this commit`
+- **Commit**：implementation `7b839c1`; coverage `fd3e775`; evidence refresh `920fbd4`; merge `251170637434c1b8919edd154cad225542cbfaf6`; rebase head `1184c7beca606a38769ef58cb66d5a453323c294`; final metadata recorded in the containing integration commit
 
 ## T005 — 实现分层配置、配置版本与运行 Profile
 
