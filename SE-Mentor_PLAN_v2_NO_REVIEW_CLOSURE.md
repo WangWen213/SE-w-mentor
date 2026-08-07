@@ -299,8 +299,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T007 — 建立 SQLAlchemy、SQLite 与 Alembic 基线
 
-- **状态**：[-] 进行中；SQLAlchemy、SQLite、Alembic 空基线与事务/外键基线测试已通过，尚未满足 T007 完整 DoD。
-- **阻塞说明**：T005 已完成；本轮按用户要求未开始 T007 重新验收，尚缺并发读写 smoke 证据、完整 evidence、评审与 commit。
+- **状态**：[-] branch complete in `codex/T007-db-baseline`; awaiting main merge, main regression, and integration metadata before `[x]`
+- **阻塞说明**：无 branch blocker；project-level `[x]` requires merge and main regression.
 - **Worktree**：`wt-spec-contracts`
 - **覆盖需求**：`数据模型 6.2～6.4`, `NFR-SEC-04`
 - **目标**：建立支持事务、外键、WAL、busy timeout 和临时测试数据库的数据层。
@@ -326,7 +326,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T007.xml
   - evidence/diffs/T007.patch
   - `AGENT_LOG.md` 中的 T007 记录
-- **Commit**：`未填写`
+- **Commit**：branch implementation commit to be reported after commit creation
 
 ## T008 — 建立迁移所有权与单一 Head 门禁
 

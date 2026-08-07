@@ -1,6 +1,1 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="T007" tests="3" failures="0" skipped="0">
-  <testcase name="transaction_rollback"/>
-  <testcase name="sqlite_foreign_key"/>
-  <testcase name="alembic_upgrade_downgrade"/>
-</testsuite>
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="4" time="2.032" timestamp="2026-08-07T14:25:24.712891+08:00" hostname="LAPTOP-IJMRFI3N"><testcase classname="tests.db.test_session" name="test_T007_transaction_rolls_back_and_foreign_key_is_enforced" time="0.089" /><testcase classname="tests.db.test_session" name="test_T007_sqlite_connection_enables_wal_and_busy_timeout" time="0.027" /><testcase classname="tests.db.test_session" name="test_T007_database_settings_are_supplied_by_effective_config" time="0.038" /><testcase classname="tests.db.test_session" name="test_T007_alembic_uses_explicit_database_url_without_env" time="1.590" /></testsuite></testsuites>
