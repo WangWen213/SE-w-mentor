@@ -3,13 +3,16 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from se_mentor.db.base import Base
+
+if TYPE_CHECKING:
+    from se_mentor.models.task import ChangeTask
 
 FORBIDDEN_CREDENTIAL_FIELDS = {
     "secret",
@@ -70,6 +73,7 @@ class Project(TimestampMixin, Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    tasks: Mapped[list[ChangeTask]] = relationship("ChangeTask", back_populates="project")
 
     @validates("root_path")
     def _set_normalized_root_path(self, _key: str, value: str) -> str:
