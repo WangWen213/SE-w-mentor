@@ -10,4 +10,5 @@ def build_child_env(
     *,
     allowlist: frozenset[str] = DEFAULT_CHILD_ENV_ALLOWLIST,
 ) -> dict[str, str]:
-    return {key: value for key, value in parent_env.items() if key in allowlist}
+    allowed_names = {key.casefold() for key in allowlist}
+    return {key: value for key, value in parent_env.items() if key.casefold() in allowed_names}

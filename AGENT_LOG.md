@@ -813,6 +813,14 @@ green log: `evidence/tdd/T006-green.log`.
 `backend/tests/security/test_secret_boundary.py` plus T004 contract tests passed with 9 tests.
 Ruff and mypy passed for security source and tests.
 
+### Coverage Amendment
+Pre-merge coverage audit added `test_T006_child_env_is_case_insensitive_on_windows_names`.
+The red result showed exact-case allowlist matching dropped Windows-style `Path` and `systemroot`.
+The implementation now casefolds allowlist comparison while still rejecting lower/mixed-case
+OpenAI, Alibaba Cloud, and generic token variables. Amendment logs:
+`evidence/tdd/T006-amendment-red.log` and `evidence/tdd/T006-amendment-green.log`.
+Security plus contract regression now passes with 10 tests.
+
 ### Spec Review
 `evidence/reviews/T006-spec-review.md`
 

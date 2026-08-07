@@ -11,7 +11,8 @@ No blocking issues found.
 - `Secret` stores plaintext privately and exposes only explicit callback retrieval.
 - Redaction patterns are centralized in `redaction.py`.
 - Redaction failure raises `RedactionError` with a safe message.
-- Child process environment construction copies only allowlisted keys.
+- Child process environment construction copies only allowlisted keys, comparing names
+  case-insensitively so Windows-style `Path` variants remain usable without admitting secret keys.
 - No new dependency or shared `backend/pyproject.toml` change was introduced.
 
 ## Residual Risk

@@ -11,6 +11,8 @@ Status: passed for branch implementation.
 - LLM credentials are read through a callback-based provider.
 - `AgentContext` holds a credential provider, not plaintext secrets.
 - Child process environment is allowlist based.
+- Child process environment allowlist handles Windows-style case-insensitive names without allowing
+  lower/mixed-case secret keys.
 - LLM keys, cloud credentials, unrelated user variables, and generic tokens are not inherited.
 - `.env.example` contains placeholders, not real values.
 - Redaction failures fail closed without echoing the original value.

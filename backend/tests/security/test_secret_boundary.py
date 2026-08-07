@@ -37,6 +37,26 @@ def test_AC_SEC_05_child_process_cannot_read_llm_key() -> None:
     assert "RANDOM_SERVICE_TOKEN" not in child_env
 
 
+def test_T006_child_env_is_case_insensitive_on_windows_names() -> None:
+    parent_env = {
+        "Path": "C:/Windows/System32",
+        "systemroot": "C:/Windows",
+        "openai_api_key": "sk-proj-secret",
+        "Alibaba_Cloud_Access_Key_Secret": "aliyun-secret",
+        "random_service_token": "ghp_secretsecretsecret",
+    }
+
+    child_env = build_child_env(parent_env)
+
+    assert child_env == {
+        "Path": "C:/Windows/System32",
+        "systemroot": "C:/Windows",
+    }
+    assert "openai_api_key" not in child_env
+    assert "Alibaba_Cloud_Access_Key_Secret" not in child_env
+    assert "random_service_token" not in child_env
+
+
 def test_T006_secret_never_in_repr_log_or_json(caplog: pytest.LogCaptureFixture) -> None:
     secret = Secret("sk-proj-abcdefghijklmnopqrstuvwxyz")
     aliyun = Secret("LTAI5t6secretsecret")
