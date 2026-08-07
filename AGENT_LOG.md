@@ -2,6 +2,45 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 Foundation M0 Checkpoint Validation
+
+### Task ID
+Foundation/M0 checkpoint
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`1320c65`
+
+### End Commit
+this checkpoint commit
+
+### Status
+Foundation/M0 PASS with documented sandbox note.
+
+### Validation Evidence
+Meta plus backend regression passed 36 tests with one existing third-party warning. Alembic
+single-head gate reported `0001_initial_baseline`. `alembic heads` reported
+`0001_initial_baseline (head)`. In-sandbox canonical `scripts/check_all.py` ran format, lint, mypy,
+Alembic gate, meta tests, backend tests, and frontend type-check before the documented T003
+Vitest/esbuild sandbox restriction.
+
+### Evidence
+`evidence/logs/integration/foundation-final-meta-backend-regression.log`
+`evidence/logs/integration/foundation-final-alembic-gate.log`
+`evidence/logs/integration/foundation-final-alembic-heads.log`
+`evidence/logs/integration/foundation-final-check-all-sandbox.log`
+
+### Result
+T000-T008 complete, T114 first pass PASS, single Alembic head, T009 NOT STARTED.
+
 ## 2026-08-07 T114 First Cold-Start Validation
 
 ### Task ID
