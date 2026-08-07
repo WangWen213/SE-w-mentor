@@ -1,7 +1,1 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="T008" tests="1" failures="0" skipped="1">
-  <testcase name="single_head_current_baseline"/>
-  <testcase name="double_head_fixture">
-    <skipped message="fixture not yet implemented"/>
-  </testcase>
-</testsuite>
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="5" time="2.022" timestamp="2026-08-07T15:11:24.743669+08:00" hostname="LAPTOP-IJMRFI3N"><testcase classname="tests.meta.test_migration_policy" name="test_T008_current_repository_has_exactly_one_head" time="0.556" /><testcase classname="tests.meta.test_migration_policy" name="test_T008_dual_head_fixture_fails_closed" time="0.706" /><testcase classname="tests.meta.test_migration_policy" name="test_T008_zero_head_fixture_fails_closed" time="0.734" /><testcase classname="tests.meta.test_migration_policy" name="test_T008_policy_documents_migration_ownership_contract" time="0.001" /><testcase classname="tests.meta.test_migration_policy" name="test_T008_check_all_runs_single_head_gate" time="0.002" /></testsuite></testsuites>

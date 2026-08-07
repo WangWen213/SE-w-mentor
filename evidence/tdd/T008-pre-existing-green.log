@@ -1,0 +1,11 @@
+PRE_EXISTING_GREEN
+
+Command:
+.\backend\.venv\Scripts\python.exe scripts\check_alembic_heads.py
+
+Result:
+exit 0 before adding the T008 dual-head, zero-head, policy, and canonical-gate tests.
+
+Reason:
+The current repository already had exactly one Alembic head after T007:
+0001_initial_baseline

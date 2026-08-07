@@ -53,7 +53,32 @@ def main() -> int:
         ([sys.executable, "-m", "ruff", "format", "--check", "."], ROOT / "backend"),
         ([sys.executable, "-m", "ruff", "check", "."], ROOT / "backend"),
         ([sys.executable, "-m", "mypy", "src", "tests"], ROOT / "backend"),
-        ([sys.executable, "-m", "pytest", "-p", "no:cacheprovider"], ROOT / "backend"),
+        ([sys.executable, str(ROOT / "scripts" / "check_alembic_heads.py")], ROOT),
+        (
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-p",
+                "no:cacheprovider",
+                "--basetemp",
+                str(TMP / "meta-pytest-basetemp"),
+                "tests/meta",
+            ],
+            ROOT,
+        ),
+        (
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-p",
+                "no:cacheprovider",
+                "--basetemp",
+                str(TMP / "backend-pytest-basetemp"),
+            ],
+            ROOT / "backend",
+        ),
         ([NPM, "run", "type-check"], ROOT / "frontend"),
         ([NPM, "run", "test", "--", "--run"], ROOT / "frontend"),
     ]
