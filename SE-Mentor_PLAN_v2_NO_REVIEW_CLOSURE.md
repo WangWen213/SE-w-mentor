@@ -143,8 +143,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T002 — 建立 monorepo 与最小可运行应用
 
-- **状态**：[-] 进行中；前置 monorepo 骨架与本地环境验证已通过，尚缺完整 DoD 证据、评审、commit 和干净工作区。
-- **阻塞说明**：未按 Task 完成定义补齐先红后绿证据、`AGENT_LOG.md`、evidence 与评审记录。
+- **状态**：[x] 已完成
+- **阻塞说明**：无
 - **Worktree**：`wt-spec-contracts`
 - **覆盖需求**：`技术选型`, `FR-10 基础`, `AC-CI 基础`
 - **目标**：建立 Python/FastAPI、React/TypeScript、部署、脚本和证据目录，使最小后端与前端可启动。
@@ -171,12 +171,12 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T002.xml
   - evidence/diffs/T002.patch
   - `AGENT_LOG.md` 中的 T002 记录
-- **Commit**：`未填写`
+- **Commit**：bootstrap implementation predates strict TDD; DoD/evidence closure recorded in the containing T002/T003 environment evidence commit
 
 ## T003 — 统一格式、Lint、类型检查和测试命令
 
-- **状态**：[-] 进行中；质量命令入口、依赖安装和基础 lint/type/test 验证已通过，尚未完成 T003 指定的失败传播测试与完整门禁证据。
-- **阻塞说明**：依赖 T002 正式完成；尚缺 T003 专项测试、证据和评审记录。
+- **状态**：[-] 进行中；质量入口专项测试已完成，外部普通权限 Vitest/build 已通过；等待外部普通权限 canonical check-all 结果。
+- **阻塞说明**：Codex 沙箱内 Vitest/esbuild 原生子进程失败已分类为 `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`，非仓库缺陷；T003 最终 `[x]` 仍需记录 `.\backend\.venv\Scripts\python.exe scripts\check_all.py` 的外部普通非管理员 PowerShell 结果。
 - **Worktree**：`wt-spec-contracts`
 - **覆盖需求**：`AC-CI`, `系统级 Definition of Done`
 - **目标**：提供本地和 CI 完全一致的单命令质量门禁。
@@ -202,7 +202,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T003.xml
   - evidence/diffs/T003.patch
   - `AGENT_LOG.md` 中的 T003 记录
-- **Commit**：`未填写`
+- **Commit**：quality entrypoint/evidence update recorded in the containing T002/T003 environment evidence commit
 
 ## T004 — 冻结共享领域契约与错误码
 

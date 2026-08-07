@@ -1,5 +1,1 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="T002" tests="2" failures="0" skipped="0">
-  <testcase name="backend_health_smoke"/>
-  <testcase name="frontend_build_smoke"/>
-</testsuite>
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.541" timestamp="2026-08-07T13:41:45.169726+08:00" hostname="LAPTOP-IJMRFI3N"><testcase classname="tests.test_scaffold" name="test_health_endpoint_returns_ok" time="0.049" /></testsuite></testsuites>

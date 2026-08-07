@@ -22,3 +22,14 @@ cd backend && python -m uvicorn se_mentor.main:create_app --factory
 cd backend && python -m alembic upgrade head
 cd frontend && npm run dev
 ```
+
+## Quality Gate
+
+Canonical local quality gate on Windows:
+
+```powershell
+.\backend\.venv\Scripts\python.exe scripts\check_all.py
+```
+
+Run it from the repository root. The script uses the current Python interpreter for Python checks
+and runs frontend commands from `frontend/` with `npm.cmd` on Windows.

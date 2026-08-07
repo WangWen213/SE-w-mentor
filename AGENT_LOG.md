@@ -618,3 +618,80 @@ None for T004 provenance.
 
 ### Remaining Work
 After post-audit verification passes, create isolated T005 and T006 worktrees.
+
+## 2026-08-07 T002/T003 External Environment Evidence Update
+
+### Task ID
+T002, T003
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`296fd5f3c5468fcf19764feaaecf48f84aac91d8`
+
+### End Commit
+Containing T002/T003 environment evidence commit; final hash is reported after commit creation.
+
+### Status Before
+T002 `[-]`; T003 `[-]`.
+
+### Status After
+T002 `[x]`; T003 `[-]`.
+
+### Dependency Check
+T000, T001, and T004 are complete on main. T005/T006 branch work is not merged yet. T007/T008/T009+
+remain untouched.
+
+### Change Scope
+Updated external frontend environment evidence, the quality command entrypoint, Makefile command
+selection, runtime ignore rules, README/PREP_STATUS, T002/T003 reviews, and T002/T003 TDD evidence.
+
+### Red Test And Evidence
+T002 is `PRE_EXISTING_GREEN` under the T000 bootstrap exception. T003 quality-entrypoint tests were
+added first and reproduced red:
+`evidence/tdd/T003-quality-entrypoint-red.log`.
+
+### Implementation Summary
+`scripts/check_all.py` now preflights required Python/Node tools, uses `sys.executable` for Python
+checks, runs frontend checks from `frontend/`, propagates child failures, and reports missing Python
+tools with `QUALITY_ENV_MISSING_PYTHON_TOOL`. `Makefile` now points quality commands at the backend
+venv instead of bare `python`. `.gitignore` now covers backups, logs, and secret/runtime artifacts.
+
+### Green Test And Evidence
+T002 backend smoke passed with `evidence/test-reports/T002.xml`; frontend type-check passed in
+Codex. User-executed ordinary non-admin frontend Vitest/build passed and is recorded in
+`evidence/tdd/T003-external-vitest.log` and `evidence/tdd/T003-external-build.log`. T003 quality
+entrypoint tests passed with `evidence/test-reports/T003.xml` and
+`evidence/tdd/T003-quality-entrypoint-green.log`.
+
+### Regression Evidence
+Ruff lint/format for `scripts/check_all.py` and `tests/meta/test_quality_commands.py` passed.
+Runtime ignore paths were verified with `git check-ignore`.
+
+### Spec Review
+T002 passes and T003 remains partial pending external ordinary non-admin canonical check-all output.
+
+### Code Review
+No blocking code issues found. T003 does not modify ACLs, Vite/Vitest config, or test runner
+behavior to mask the Codex sandbox limitation.
+
+### Diff
+`evidence/diffs/T002.patch` and `evidence/diffs/T003.patch`.
+
+### Deviations
+T002 remains a bootstrap `PRE_EXISTING_GREEN` exception. The Codex Vitest/esbuild failure is
+classified as `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`.
+
+### Blockers
+T003 requires the user to run the canonical command externally in ordinary, non-admin PowerShell:
+`.\backend\.venv\Scripts\python.exe scripts\check_all.py`.
+
+### Remaining Work
+After committing this evidence update, audit/merge T005 and T006 without starting T007+.

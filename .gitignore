@@ -228,6 +228,14 @@ frontend/coverage/
 # SE-Mentor runtime state
 .sementor/
 .tmp/
+backups/
+backend/backups/
+logs/
+backend/logs/
+secrets/
+backend/secrets/
+*.pem
+*.key
 *.sqlite
 *.sqlite3
 *.sqlite3-*

@@ -1,0 +1,19 @@
+Task: T003
+Classification: CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION
+Source: CODEX_SANDBOX_ENVIRONMENT
+Privilege: ordinary_user_inside_codex_sandbox
+Recorded: 2026-08-07
+
+Command:
+cd C:\Users\ww\Desktop\SE-w-mentor\frontend
+npm.cmd run test -- --run
+
+Observed result:
+exit code: 1
+error: Cannot read directory "../../..": Access is denied.
+error: Could not resolve "C:\Users\ww\Desktop\SE-w-mentor\frontend\vitest.config.mjs"
+
+Additional minimal reproductions previously showed direct esbuild bundling of both
+vitest.config.mjs and src/smoke.test.ts failing with the same "../../.." access-denied error from
+the native child process. Node fs checks and external ordinary PowerShell results do not reproduce
+this as a repository defect.

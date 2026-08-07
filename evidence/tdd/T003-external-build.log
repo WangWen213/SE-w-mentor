@@ -1,0 +1,17 @@
+Task: T003
+Source: USER_EXECUTED_EXTERNAL_ENVIRONMENT
+Privilege: ordinary_non_admin
+Recorded: 2026-08-07
+Workdir: C:\Users\ww\Desktop\SE-w-mentor\frontend
+
+Command:
+npm.cmd run build
+
+Result:
+PASS
+29 modules transformed.
+built in 515 ms.
+
+Classification:
+External ordinary non-admin Vite build succeeds. No ACL change, Vite/Vitest restructuring, runner
+replacement, or administrator-only test acceptance is needed for this evidence.
