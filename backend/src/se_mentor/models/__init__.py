@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+from se_mentor.models.governance import (
+    GovernanceDecision,
+    GovernanceDecisionStatus,
+    GovernanceRule,
+    GovernanceRuleEffect,
+    GovernanceRuleHit,
+    GovernanceRuleScope,
+    GovernanceVerdict,
+    ImpactReport,
+    ImpactReportStatus,
+)
 from se_mentor.models.llm import (
     AgentAction,
     AgentActionStatus,
@@ -32,6 +43,15 @@ __all__ = [
     "ChangeProposal",
     "ChangeTask",
     "CredentialProfile",
+    "GovernanceDecision",
+    "GovernanceDecisionStatus",
+    "GovernanceRule",
+    "GovernanceRuleEffect",
+    "GovernanceRuleHit",
+    "GovernanceRuleScope",
+    "GovernanceVerdict",
+    "ImpactReport",
+    "ImpactReportStatus",
     "LLMCall",
     "LLMCallStatus",
     "ParseStatus",
