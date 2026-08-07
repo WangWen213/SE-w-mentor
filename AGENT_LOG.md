@@ -763,3 +763,79 @@ None for T005 branch implementation.
 ### Remaining Work
 Merge to main later and run project-level regression before setting project mainline status to
 `[x]`.
+
+## 2026-08-07 T006 Secret Boundary
+
+### Task ID
+T006
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+codex/T006-secret-boundary
+
+### Start Commit
+`296fd5f3c5468fcf19764feaaecf48f84aac91d8`
+
+### End Commit
+Branch implementation commit; final hash is reported after commit creation.
+
+### Status Before
+`[ ]`
+
+### Status After
+`[-]` branch complete; awaiting main merge and project-level regression before `[x]`.
+
+### Dependency Check
+T004 provenance audit passed before T006 work began. T005 is isolated in a separate worktree.
+T007/T008/T009+ were not started.
+
+### Change Scope
+Only security package files, security tests, `.env.example`, T006 evidence, PLAN, and AGENT_LOG.
+
+### Red Test And Evidence
+`backend/tests/security/test_secret_boundary.py` failed with `ModuleNotFoundError: No module named
+'se_mentor.security'`. Log: `evidence/tdd/T006-red.log`.
+
+### Implementation Summary
+Added a non-printing `Secret`, callback-based credential provider, safe `AgentContext`, centralized
+redaction helpers, fail-closed redaction errors, and allowlisted child-process environment creation.
+
+### Green Test And Evidence
+`backend/tests/security/test_secret_boundary.py` passed. JUnit: `evidence/test-reports/T006.xml`;
+green log: `evidence/tdd/T006-green.log`.
+
+### Regression Evidence
+`backend/tests/security/test_secret_boundary.py` plus T004 contract tests passed with 9 tests.
+Ruff and mypy passed for security source and tests.
+
+### Coverage Amendment
+Pre-merge coverage audit added `test_T006_child_env_is_case_insensitive_on_windows_names`.
+The red result showed exact-case allowlist matching dropped Windows-style `Path` and `systemroot`.
+The implementation now casefolds allowlist comparison while still rejecting lower/mixed-case
+OpenAI, Alibaba Cloud, and generic token variables. Amendment logs:
+`evidence/tdd/T006-amendment-red.log` and `evidence/tdd/T006-amendment-green.log`.
+Security plus contract regression now passes with 10 tests.
+
+### Spec Review
+`evidence/reviews/T006-spec-review.md`
+
+### Code Review
+`evidence/reviews/T006-code-review.md`
+
+### Diff
+`evidence/diffs/T006.patch`
+
+### Deviations
+None.
+
+### Blockers
+None for T006 branch implementation.
+
+### Remaining Work
+Merge to main later and run project-level regression before setting project mainline status to
+`[x]`.
