@@ -922,6 +922,79 @@ None for T003.
 After this commit, T007 start condition is satisfied because T002 and T005 are `[x]`. T008/T009+
 remain prohibited until their documented prerequisites are met.
 
+## 2026-08-07 T007 Database Baseline Revalidation
+
+### Task ID
+T007
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+codex/T007-db-baseline
+
+### Start Commit
+`b24994b`
+
+### End Commit
+Implementation `14d29e1`; branch metadata recorded in the containing commit.
+
+### Status Before
+`[-]`
+
+### Status After
+`[-]` branch complete; awaiting main merge, main regression, and integration metadata before
+project-level `[x]`.
+
+### Dependency Check
+T002 and T005 are `[x]`, so T007 start condition is satisfied. T003 is also `[x]`. T008/T009+ were
+not started.
+
+### Change Scope
+Only DB session/Alembic baseline code, DB tests, T007 evidence, PLAN, and AGENT_LOG.
+
+### Red Test And Evidence
+Original PLAN rollback/FK test is `PRE_EXISTING_GREEN` under the bootstrap exception. New real-gap
+red failed because `database_settings_from_effective_config` did not exist. Red log:
+`evidence/tdd/T007-red.log`.
+
+### Implementation Summary
+Added immutable DB runtime settings bound to T005 `EffectiveConfig` version/hash, configurable
+SQLite busy timeout, real pragma coverage, and Alembic `-x database_url=...` support while removing
+the independent `SE_MENTOR_DATABASE_URL` lookup from Alembic.
+
+### Green Test And Evidence
+`backend/tests/db/test_session.py` passed 4 tests. JUnit: `evidence/test-reports/T007.xml`; green
+log: `evidence/tdd/T007-green.log`.
+
+### Regression Evidence
+Foundation backend/meta regression passed 30 tests with one existing third-party warning.
+Traceability reported 134 P0 requirements mapped. Alembic head check exited 0. T007 scope Ruff
+check/format passed. backend mypy passed on 25 source files. Alembic upgrade/downgrade logs:
+`evidence/logs/T007/alembic-upgrade.log` and `evidence/logs/T007/alembic-downgrade.log`.
+
+### Spec Review
+`evidence/reviews/T007-spec-review.md`
+
+### Code Review
+`evidence/reviews/T007-code-review.md`
+
+### Diff
+`evidence/diffs/T007.patch`
+
+### Deviations
+Bootstrap `PRE_EXISTING_GREEN` applies only to the original rollback/FK baseline test. The new red
+came from a real missing T005 DB settings integration function.
+
+### Blockers
+No branch blocker. Project-level `[x]` requires merge, main regression, and integration metadata.
+
+### Remaining Work
+Merge T007 later. Do not start T008 until T007 is project-level `[x]`.
+
 ## 2026-08-07 T006 Secret Boundary
 
 ### Task ID

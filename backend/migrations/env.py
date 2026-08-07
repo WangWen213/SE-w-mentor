@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from logging.config import fileConfig
 from pathlib import Path
 
@@ -19,7 +18,8 @@ target_metadata = Base.metadata
 
 
 def _database_url() -> str:
-    return os.getenv("SE_MENTOR_DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+    explicit_args = context.get_x_argument(as_dictionary=True)
+    return explicit_args.get("database_url") or config.get_main_option("sqlalchemy.url")
 
 
 def _prepare_sqlite_path(database_url: str) -> None:
