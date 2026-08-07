@@ -7,6 +7,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import make_url
 
+import se_mentor.models  # noqa: F401
 from se_mentor.db.base import Base
 
 config = context.config

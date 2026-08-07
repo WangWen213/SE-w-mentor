@@ -27,10 +27,10 @@ Status: frozen/current. This matrix freezes required columns and maps atomic P0 
 | US-06-AC-02 | US-06-AC-02 | P0 | T079 | T001 | `tests/acceptance/US-06-AC-02.py` | `evidence/tdd/T079.md` | planned |
 | US-06-AC-03 | US-06-AC-03 | P0 | T079 | T001 | `tests/acceptance/US-06-AC-03.py` | `evidence/tdd/T079.md` | planned |
 | US-06-AC-04 | US-06-AC-04 | P0 | T079 | T001 | `tests/acceptance/US-06-AC-04.py` | `evidence/tdd/T079.md` | planned |
-| FR-01-01 | FR-01-01 | P0 | T019 | T001 | `tests/requirements/FR-01-01.py` | `evidence/tdd/T019.md` | planned |
-| FR-01-02 | FR-01-02 | P0 | T021 | T001 | `tests/requirements/FR-01-02.py` | `evidence/tdd/T021.md` | planned |
-| FR-01-03 | FR-01-03 | P0 | T022 | T001 | `tests/requirements/FR-01-03.py` | `evidence/tdd/T022.md` | planned |
-| FR-01-04 | FR-01-04 | P0 | T023 | T001 | `tests/requirements/FR-01-04.py` | `evidence/tdd/T023.md` | planned |
+| FR-01-01 | FR-01-01 | P0 | T019 | T001,T009 | `tests/requirements/FR-01-01.py` | `evidence/tdd/T019.md` | planned |
+| FR-01-02 | FR-01-02 | P0 | T021 | T001,T009 | `tests/requirements/FR-01-02.py` | `evidence/tdd/T021.md` | planned |
+| FR-01-03 | FR-01-03 | P0 | T022 | T001,T009 | `tests/requirements/FR-01-03.py` | `evidence/tdd/T022.md` | planned |
+| FR-01-04 | FR-01-04 | P0 | T023 | T001,T009 | `tests/requirements/FR-01-04.py` | `evidence/tdd/T023.md` | planned |
 | FR-02-01 | FR-02-01 | P0 | T024 | T001 | `tests/requirements/FR-02-01.py` | `evidence/tdd/T024.md` | planned |
 | FR-02-02 | FR-02-02 | P0 | T025 | T001 | `tests/requirements/FR-02-02.py` | `evidence/tdd/T025.md` | planned |
 | FR-02-03 | FR-02-03 | P0 | T026 | T001 | `tests/requirements/FR-02-03.py` | `evidence/tdd/T026.md` | planned |
