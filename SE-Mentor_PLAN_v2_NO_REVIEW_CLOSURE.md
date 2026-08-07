@@ -175,8 +175,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T003 — 统一格式、Lint、类型检查和测试命令
 
-- **状态**：[-] 进行中；质量入口专项测试已完成，外部普通权限 Vitest/build 已通过；等待外部普通权限 canonical check-all 结果。
-- **阻塞说明**：Codex 沙箱内 Vitest/esbuild 原生子进程失败已分类为 `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`，非仓库缺陷；T003 最终 `[x]` 仍需记录 `.\backend\.venv\Scripts\python.exe scripts\check_all.py` 的外部普通非管理员 PowerShell 结果。
+- **状态**：[x] 已完成
+- **阻塞说明**：无；Codex 沙箱内 Vitest/esbuild 原生子进程失败已分类为 `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`，非仓库缺陷。外部普通非管理员 PowerShell canonical quality gate 已通过。
 - **Worktree**：`wt-spec-contracts`
 - **覆盖需求**：`AC-CI`, `系统级 Definition of Done`
 - **目标**：提供本地和 CI 完全一致的单命令质量门禁。
@@ -202,7 +202,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T003.xml
   - evidence/diffs/T003.patch
   - `AGENT_LOG.md` 中的 T003 记录
-- **Commit**：quality entrypoint/evidence update recorded in the containing T002/T003 environment evidence commit
+- **Commit**：quality entrypoint/evidence update `4b165fd`; final external canonical gate evidence recorded in the containing T003 final metadata commit
 
 ## T004 — 冻结共享领域契约与错误码
 

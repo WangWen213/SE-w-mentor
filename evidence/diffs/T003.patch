@@ -1,16 +1,15 @@
 diff --git a/AGENT_LOG.md b/AGENT_LOG.md
-index d0ceede..d0786d9 100644
+index 23b7884..6541f8a 100644
 --- a/AGENT_LOG.md
 +++ b/AGENT_LOG.md
-@@ -618,3 +618,80 @@ None for T004 provenance.
+@@ -850,6 +850,78 @@ from an external ordinary, non-admin PowerShell. T007 was intentionally not star
+ T007 can only be revalidated in a later round after this integration commit is complete. T008/T009+
+ remain out of scope.
  
- ### Remaining Work
- After post-audit verification passes, create isolated T005 and T006 worktrees.
-+
-+## 2026-08-07 T002/T003 External Environment Evidence Update
++## 2026-08-07 T003 Final Canonical Quality Gate Evidence
 +
 +### Task ID
-+T002, T003
++T003
 +
 +### Date
 +2026-08-07
@@ -22,193 +21,109 @@ index d0ceede..d0786d9 100644
 +main
 +
 +### Start Commit
-+`296fd5f3c5468fcf19764feaaecf48f84aac91d8`
++`36c9b57`
 +
 +### End Commit
-+Containing T002/T003 environment evidence commit; final hash is reported after commit creation.
++Containing T003 final metadata commit; final hash is reported after commit creation.
 +
 +### Status Before
-+T002 `[-]`; T003 `[-]`.
++`[-]`
 +
 +### Status After
-+T002 `[x]`; T003 `[-]`.
++`[x]`
 +
 +### Dependency Check
-+T000, T001, and T004 are complete on main. T005/T006 branch work is not merged yet. T007/T008/T009+
-+remain untouched.
++T000-T006 are complete on main after T005/T006 integration. T007/T008/T009+ were not started during
++this T003 final evidence update.
 +
 +### Change Scope
-+Updated external frontend environment evidence, the quality command entrypoint, Makefile command
-+selection, runtime ignore rules, README/PREP_STATUS, T002/T003 reviews, and T002/T003 TDD evidence.
++T003 evidence/status/reviews only, plus PREP_STATUS and PLAN final status. No Vitest/Vite config,
++ACL, dependency, or runner changes.
 +
 +### Red Test And Evidence
-+T002 is `PRE_EXISTING_GREEN` under the T000 bootstrap exception. T003 quality-entrypoint tests were
-+added first and reproduced red:
-+`evidence/tdd/T003-quality-entrypoint-red.log`.
++Existing T003 quality-entrypoint red remains `evidence/tdd/T003-quality-entrypoint-red.log`.
 +
 +### Implementation Summary
-+`scripts/check_all.py` now preflights required Python/Node tools, uses `sys.executable` for Python
-+checks, runs frontend checks from `frontend/`, propagates child failures, and reports missing Python
-+tools with `QUALITY_ENV_MISSING_PYTHON_TOOL`. `Makefile` now points quality commands at the backend
-+venv instead of bare `python`. `.gitignore` now covers backups, logs, and secret/runtime artifacts.
++No implementation change in this commit. Recorded the user-executed external ordinary non-admin
++canonical quality gate result.
 +
 +### Green Test And Evidence
-+T002 backend smoke passed with `evidence/test-reports/T002.xml`; frontend type-check passed in
-+Codex. User-executed ordinary non-admin frontend Vitest/build passed and is recorded in
-+`evidence/tdd/T003-external-vitest.log` and `evidence/tdd/T003-external-build.log`. T003 quality
-+entrypoint tests passed with `evidence/test-reports/T003.xml` and
-+`evidence/tdd/T003-quality-entrypoint-green.log`.
++External canonical gate: `evidence/tdd/T003-external-check-all.log`.
++
++Result summary: format PASS, Ruff PASS, mypy PASS, backend pytest 13 passed with one existing
++third-party warning, frontend type-check PASS, frontend Vitest 1 file/1 test PASS.
 +
 +### Regression Evidence
-+Ruff lint/format for `scripts/check_all.py` and `tests/meta/test_quality_commands.py` passed.
-+Runtime ignore paths were verified with `git check-ignore`.
++Local metadata regression commands were run before commit: T003 quality-entrypoint tests pass,
++traceability remains valid, and no T003 code was changed.
 +
 +### Spec Review
-+T002 passes and T003 remains partial pending external ordinary non-admin canonical check-all output.
++`evidence/reviews/T003-spec-review.md`
 +
 +### Code Review
-+No blocking code issues found. T003 does not modify ACLs, Vite/Vitest config, or test runner
-+behavior to mask the Codex sandbox limitation.
++`evidence/reviews/T003-code-review.md`
 +
 +### Diff
-+`evidence/diffs/T002.patch` and `evidence/diffs/T003.patch`.
++`evidence/diffs/T003.patch`
 +
 +### Deviations
-+T002 remains a bootstrap `PRE_EXISTING_GREEN` exception. The Codex Vitest/esbuild failure is
-+classified as `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`.
++Codex sandbox Vitest/esbuild native-child failure is permanently classified as
++`CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`. It is not a repository defect and does not require
++privilege escalation.
 +
 +### Blockers
-+T003 requires the user to run the canonical command externally in ordinary, non-admin PowerShell:
-+`.\backend\.venv\Scripts\python.exe scripts\check_all.py`.
++None for T003.
 +
 +### Remaining Work
-+After committing this evidence update, audit/merge T005 and T006 without starting T007+.
-diff --git a/Makefile b/Makefile
-index 2563ae6..34cda87 100644
---- a/Makefile
-+++ b/Makefile
-@@ -1,25 +1,32 @@
--.PHONY: format-check lint type-check unit-test frontend-test test db-upgrade db-downgrade
-+BACKEND_PYTHON ?= ./.venv/Scripts/python.exe
-+REPO_PYTHON ?= ./backend/.venv/Scripts/python.exe
-+NPM ?= npm.cmd
++After this commit, T007 start condition is satisfied because T002 and T005 are `[x]`. T008/T009+
++remain prohibited until their documented prerequisites are met.
 +
-+.PHONY: format-check lint type-check unit-test frontend-test test db-upgrade db-downgrade check-all
+ ## 2026-08-07 T006 Secret Boundary
  
- format-check:
--	cd backend && python -m ruff format --check .
-+	cd backend && $(BACKEND_PYTHON) -m ruff format --check .
- 
- lint:
--	cd backend && python -m ruff check .
-+	cd backend && $(BACKEND_PYTHON) -m ruff check .
- 
- type-check:
--	cd backend && python -m mypy src tests
--	cd frontend && npm run type-check
-+	cd backend && $(BACKEND_PYTHON) -m mypy src tests
-+	cd frontend && $(NPM) run type-check
- 
- unit-test:
--	cd backend && python -m pytest
-+	cd backend && $(BACKEND_PYTHON) -m pytest
- 
- frontend-test:
--	cd frontend && npm run test -- --run
-+	cd frontend && $(NPM) run test -- --run
- 
- test: unit-test frontend-test
- 
-+check-all:
-+	$(REPO_PYTHON) scripts/check_all.py
-+
- db-upgrade:
--	cd backend && python -m alembic upgrade head
-+	cd backend && $(BACKEND_PYTHON) -m alembic upgrade head
- 
- db-downgrade:
--	cd backend && python -m alembic downgrade base
-+	cd backend && $(BACKEND_PYTHON) -m alembic downgrade base
+ ### Task ID
 diff --git a/PREP_STATUS.md b/PREP_STATUS.md
-index f3e5dd6..79b65ba 100644
+index 79b65ba..a7c3857 100644
 --- a/PREP_STATUS.md
 +++ b/PREP_STATUS.md
-@@ -18,8 +18,8 @@ remains in `SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md`.
- | Backend scaffold | Ready | FastAPI `create_app()`, `/health` smoke test |
+@@ -19,6 +19,7 @@ remains in `SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md`.
  | Database baseline | Ready for bootstrap | SQLAlchemy base/session, Alembic empty baseline, current single head |
  | Frontend scaffold | Ready | React + TypeScript strict + Vite build |
--| Frontend tests | Blocked for ordinary sandbox run | Vitest passes only when path permissions allow esbuild to read project config |
--| Runtime artifacts | Ignored | `.venv/`, `node_modules/`, `dist/`, `.sementor/`, `.tmp/` |
-+| Frontend tests | Ready outside Codex sandbox | User-executed ordinary non-admin PowerShell: Vitest pass, Vite build pass |
-+| Runtime artifacts | Ignored | `.venv/`, `node_modules/`, `dist/`, `.sementor/`, `.tmp/`, backups, logs, secrets |
+ | Frontend tests | Ready outside Codex sandbox | User-executed ordinary non-admin PowerShell: Vitest pass, Vite build pass |
++| Quality gate | Ready outside Codex sandbox | User-executed ordinary non-admin PowerShell: canonical `check_all.py` pass |
+ | Runtime artifacts | Ignored | `.venv/`, `node_modules/`, `dist/`, `.sementor/`, `.tmp/`, backups, logs, secrets |
  | T009+ feature work | Paused | Await T000-T008 strict DoD closure |
  
- ## Verified Commands
-@@ -33,10 +33,15 @@ remains in `SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md`.
- - `backend/.venv/Scripts/python.exe scripts/check_alembic_heads.py`
+@@ -34,7 +35,7 @@ remains in `SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md`.
  - `npm.cmd run type-check`
  - `npm.cmd run build`
-+- `npm.cmd run test -- --run` in an external ordinary non-admin PowerShell
-+- `backend/.venv/Scripts/python.exe scripts/check_all.py` is the canonical repository quality gate
+ - `npm.cmd run test -- --run` in an external ordinary non-admin PowerShell
+-- `backend/.venv/Scripts/python.exe scripts/check_all.py` is the canonical repository quality gate
++- `backend/.venv/Scripts/python.exe scripts/check_all.py` passed in an external ordinary non-admin PowerShell
  
  ## Known Blockers
  
--- `npm.cmd run test -- --run` fails under ordinary sandbox permissions with esbuild attempting
--  to read `../../..`; T003 remains `[-]` until ordinary-permission Vitest evidence is green.
-+- Codex sandbox native child processes can fail Vite/Vitest config loading with
-+  `Cannot read directory "../../.."`. This is classified as
-+  `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`, not a repository Vitest/Vite defect. Do not modify
-+  Windows ACLs or restructure Vite/Vitest to accommodate this sandbox limitation.
-+- T003 remains `[-]` pending an external ordinary non-admin run of the canonical check-all command.
+@@ -42,6 +43,8 @@ remains in `SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md`.
+   `Cannot read directory "../../.."`. This is classified as
+   `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`, not a repository Vitest/Vite defect. Do not modify
+   Windows ACLs or restructure Vite/Vitest to accommodate this sandbox limitation.
+-- T003 remains `[-]` pending an external ordinary non-admin run of the canonical check-all command.
++- Existing third-party dependency warning: `StarletteDeprecationWarning` from FastAPI/Starlette
++  TestClient/httpx compatibility. It is not a T003 blocker and should be handled later through
++  dependency governance.
  - T002/T003/T007/T008 were bootstrapped before strict red-green evidence existed; see
    `docs/TDD_BOOTSTRAP_DEVIATION.md`.
-diff --git a/README.md b/README.md
-index a5b5d64..3e6e64f 100644
---- a/README.md
-+++ b/README.md
-@@ -22,3 +22,14 @@ cd backend && python -m uvicorn se_mentor.main:create_app --factory
- cd backend && python -m alembic upgrade head
- cd frontend && npm run dev
- ```
-+
-+## Quality Gate
-+
-+Canonical local quality gate on Windows:
-+
-+```powershell
-+.\backend\.venv\Scripts\python.exe scripts\check_all.py
-+```
-+
-+Run it from the repository root. The script uses the current Python interpreter for Python checks
-+and runs frontend commands from `frontend/` with `npm.cmd` on Windows.
 diff --git a/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md b/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md
-index c51b9fc..d422b89 100644
+index 8f56718..b08ff19 100644
 --- a/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md
 +++ b/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md
-@@ -143,8 +143,8 @@ T000-T008 规约/契约/迁移门禁
- 
- ## T002 — 建立 monorepo 与最小可运行应用
- 
--- **状态**：[-] 进行中；前置 monorepo 骨架与本地环境验证已通过，尚缺完整 DoD 证据、评审、commit 和干净工作区。
--- **阻塞说明**：未按 Task 完成定义补齐先红后绿证据、`AGENT_LOG.md`、evidence 与评审记录。
-+- **状态**：[x] 已完成
-+- **阻塞说明**：无
- - **Worktree**：`wt-spec-contracts`
- - **覆盖需求**：`技术选型`, `FR-10 基础`, `AC-CI 基础`
- - **目标**：建立 Python/FastAPI、React/TypeScript、部署、脚本和证据目录，使最小后端与前端可启动。
-@@ -171,12 +171,12 @@ T000-T008 规约/契约/迁移门禁
-   - evidence/test-reports/T002.xml
-   - evidence/diffs/T002.patch
-   - `AGENT_LOG.md` 中的 T002 记录
--- **Commit**：`未填写`
-+- **Commit**：bootstrap implementation predates strict TDD; DoD/evidence closure recorded in the containing T002/T003 environment evidence commit
+@@ -175,8 +175,8 @@ T000-T008 规约/契约/迁移门禁
  
  ## T003 — 统一格式、Lint、类型检查和测试命令
  
--- **状态**：[-] 进行中；质量命令入口、依赖安装和基础 lint/type/test 验证已通过，尚未完成 T003 指定的失败传播测试与完整门禁证据。
--- **阻塞说明**：依赖 T002 正式完成；尚缺 T003 专项测试、证据和评审记录。
-+- **状态**：[-] 进行中；质量入口专项测试已完成，外部普通权限 Vitest/build 已通过；等待外部普通权限 canonical check-all 结果。
-+- **阻塞说明**：Codex 沙箱内 Vitest/esbuild 原生子进程失败已分类为 `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`，非仓库缺陷；T003 最终 `[x]` 仍需记录 `.\backend\.venv\Scripts\python.exe scripts\check_all.py` 的外部普通非管理员 PowerShell 结果。
+-- **状态**：[-] 进行中；质量入口专项测试已完成，外部普通权限 Vitest/build 已通过；等待外部普通权限 canonical check-all 结果。
+-- **阻塞说明**：Codex 沙箱内 Vitest/esbuild 原生子进程失败已分类为 `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`，非仓库缺陷；T003 最终 `[x]` 仍需记录 `.\backend\.venv\Scripts\python.exe scripts\check_all.py` 的外部普通非管理员 PowerShell 结果。
++- **状态**：[x] 已完成
++- **阻塞说明**：无；Codex 沙箱内 Vitest/esbuild 原生子进程失败已分类为 `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`，非仓库缺陷。外部普通非管理员 PowerShell canonical quality gate 已通过。
  - **Worktree**：`wt-spec-contracts`
  - **覆盖需求**：`AC-CI`, `系统级 Definition of Done`
  - **目标**：提供本地和 CI 完全一致的单命令质量门禁。
@@ -216,306 +131,154 @@ index c51b9fc..d422b89 100644
    - evidence/test-reports/T003.xml
    - evidence/diffs/T003.patch
    - `AGENT_LOG.md` 中的 T003 记录
--- **Commit**：`未填写`
-+- **Commit**：quality entrypoint/evidence update recorded in the containing T002/T003 environment evidence commit
+-- **Commit**：quality entrypoint/evidence update recorded in the containing T002/T003 environment evidence commit
++- **Commit**：quality entrypoint/evidence update `4b165fd`; final external canonical gate evidence recorded in the containing T003 final metadata commit
  
  ## T004 — 冻结共享领域契约与错误码
  
 diff --git a/evidence/reviews/T003-code-review.md b/evidence/reviews/T003-code-review.md
-index d805db0..0511a84 100644
+index 0511a84..3000e44 100644
 --- a/evidence/reviews/T003-code-review.md
 +++ b/evidence/reviews/T003-code-review.md
-@@ -1,3 +1,18 @@
--# T003 Code Review
-+# T003 Code Quality Review
+@@ -1,6 +1,6 @@
+ # T003 Code Quality Review
  
--Status: pending. Created as required evidence path placeholder.
-+Status: partial, remains `[-]`.
+-Status: partial, remains `[-]`.
++Status: pass.
+ 
+ Findings:
+ 
+@@ -11,8 +11,13 @@ Findings:
+ - Tests cover interpreter selection, child failure propagation, frontend working directory, Windows
+   npm command selection, and missing Python tool reporting.
+ 
+-Residual risk:
++Final conclusion:
+ 
+-- The full gate includes frontend Vitest. Inside Codex it remains affected by
+-  `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`; external ordinary non-admin evidence is therefore the
+-  required final signal.
++- Repository quality gate: PASS.
++- External ordinary-user execution: PASS.
++- Codex sandbox native-child execution: environment-specific limitation.
++- Repository defect: NOT PRESENT.
++- Privilege escalation: NOT REQUIRED.
 +
-+Findings:
-+
-+- No blocking code issues found in the T003 quality-entrypoint change.
-+- `scripts/check_all.py` centralizes environment setup and avoids bare `python`.
-+- The preflight emits stable, actionable diagnostics without installing dependencies or mutating
-+  permissions.
-+- Tests cover interpreter selection, child failure propagation, frontend working directory, Windows
-+  npm command selection, and missing Python tool reporting.
-+
-+Residual risk:
-+
-+- The full gate includes frontend Vitest. Inside Codex it remains affected by
-+  `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`; external ordinary non-admin evidence is therefore the
-+  required final signal.
++The `StarletteDeprecationWarning` comes from third-party dependency compatibility and should be
++handled later through dependency governance, not by expanding T003 scope.
 diff --git a/evidence/reviews/T003-spec-review.md b/evidence/reviews/T003-spec-review.md
-index 6b436db..5c42b04 100644
+index 5c42b04..03e9c53 100644
 --- a/evidence/reviews/T003-spec-review.md
 +++ b/evidence/reviews/T003-spec-review.md
-@@ -1,3 +1,19 @@
--# T003 Spec Review
-+# T003 Spec Compliance Review
+@@ -1,6 +1,6 @@
+ # T003 Spec Compliance Review
  
--Status: pending. Created as required evidence path placeholder.
-+Status: partial, remains `[-]`.
+-Status: partial, remains `[-]`.
++Status: pass.
+ 
+ Reviewed against T003 scope:
+ 
+@@ -12,8 +12,30 @@ Reviewed against T003 scope:
+   project interpreter, and the canonical command.
+ - README and PREP_STATUS document the canonical command.
+ - External ordinary non-admin Vitest and Vite build results are recorded as user-executed evidence.
++- External ordinary non-admin canonical `check_all.py` result is recorded and passed.
+ 
+-Remaining gap:
++Final conclusion:
+ 
+-- Full canonical `.\backend\.venv\Scripts\python.exe scripts\check_all.py` still needs an external
+-  ordinary non-admin run recorded before T003 can be marked `[x]`.
++- Repository quality gate: PASS.
++- External ordinary-user execution: PASS.
++- Codex sandbox native-child execution: environment-specific limitation.
++- Repository defect: NOT PRESENT.
++- Privilege escalation: NOT REQUIRED.
 +
-+Reviewed against T003 scope:
++DoD confirmed:
 +
-+- Local quality entry point exists in `scripts/check_all.py`.
-+- Python checks use the current interpreter via `sys.executable`.
-+- Frontend checks run from `frontend/` and use `npm.cmd` on Windows.
-+- Child command failures propagate their non-zero exit code.
-+- Missing Python tooling reports `QUALITY_ENV_MISSING_PYTHON_TOOL`, current interpreter, expected
-+  project interpreter, and the canonical command.
-+- README and PREP_STATUS document the canonical command.
-+- External ordinary non-admin Vitest and Vite build results are recorded as user-executed evidence.
++1. format command passes.
++2. Ruff passes.
++3. mypy passes.
++4. pytest passes.
++5. frontend type-check passes.
++6. frontend Vitest passes.
++7. `check_all.py` uses `sys.executable`.
++8. frontend cwd is explicit.
++9. Windows uses `npm.cmd`.
++10. child step failure propagates a non-zero exit code.
++11. missing Python tooling has actionable preflight output.
++12. canonical command passes in an ordinary user environment.
 +
-+Remaining gap:
-+
-+- Full canonical `.\backend\.venv\Scripts\python.exe scripts\check_all.py` still needs an external
-+  ordinary non-admin run recorded before T003 can be marked `[x]`.
++The existing `StarletteDeprecationWarning` is a third-party dependency warning and is not a T003
++blocker.
 diff --git a/evidence/tdd/T003.md b/evidence/tdd/T003.md
-index 92fb147..1448f32 100644
+index 1448f32..698c1b5 100644
 --- a/evidence/tdd/T003.md
 +++ b/evidence/tdd/T003.md
-@@ -1,88 +1,81 @@
+@@ -1,6 +1,6 @@
  # T003 TDD Evidence
  
--Status: real blocker remains.
-+Status: `[-]`.
+-Status: `[-]`.
++Status: `[x]`.
  
--Ordinary-permission frontend test command currently fails:
-+## Classification Update
+ ## Classification Update
  
--```text
--npm.cmd run test -- --run
--exit code: 1
--error: Cannot read directory "../../..": Access is denied.
--error: Could not resolve frontend/vitest.config.mjs
--```
-+The frontend Vitest/Vite failure observed inside the Codex sandbox is now classified as
-+`CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`, not as a repository defect.
+@@ -18,6 +18,37 @@ External evidence supplied by the user:
+ The previous Codex sandbox failure is retained only as environment evidence:
+ `evidence/tdd/T003-sandbox-failure.log`.
  
--Elevated/path-permissive run has passed previously, but that is not accepted as final T003
--evidence.
-+External evidence supplied by the user:
- 
--Attempted ordinary-permission mitigations:
-+- `source = USER_EXECUTED_EXTERNAL_ENVIRONMENT`
-+- `privilege = ordinary_non_admin`
-+- working directory: `C:\Users\ww\Desktop\SE-w-mentor\frontend`
-+- `npm.cmd run test -- --run`: passed, 1 file and 1 test
-+- `npm.cmd run build`: passed, 29 modules transformed, built in 515 ms
- 
--- run from `frontend/`,
--- run via `npm.cmd --prefix frontend`,
--- explicit `--root`,
--- explicit `--dir`,
--- explicit config path,
--- `.mjs` Vitest config,
--- fixed `TMP` and `TEMP`,
--- disabled cache,
--- changed pool to `forks`.
-+The previous Codex sandbox failure is retained only as environment evidence:
-+`evidence/tdd/T003-sandbox-failure.log`.
- 
--## Additional Diagnosis After T000
-+## Quality Entrypoint Red
- 
--Ordinary-permission checks were run from `C:\Users\ww\Desktop\SE-w-mentor\frontend`.
-+`test_T003_uses_current_python_interpreter`,
-+`test_T003_propagates_child_failure`,
-+`test_T003_uses_frontend_working_directory`, and
-+`test_T003_reports_missing_python_tool_actionably` were added before implementation.
- 
--Environment:
-+Red result: `REPRODUCED_RED`.
- 
- ```text
--Node v24.15.0
--npm 11.12.1
--cwd C:\Users\ww\Desktop\SE-w-mentor\frontend
--TMP/TEMP C:\Users\ww\AppData\Local\Temp
-+backend\.venv\Scripts\python.exe -m pytest tests\meta\test_quality_commands.py --junitxml=evidence\test-reports\T003.xml -p no:cacheprovider
-+exit code: 1
-+4 failed
-+AttributeError: module 'scripts.check_all' has no attribute 'preflight'
- ```
- 
--Minimal reproductions:
-+Log: `evidence/tdd/T003-quality-entrypoint-red.log`.
- 
--```text
--npm.cmd run test -- --run
--exit code: 1
--Cannot read directory "../../..": Access is denied.
--Could not resolve "C:\Users\ww\Desktop\SE-w-mentor\frontend\vitest.config.mjs"
--```
-+## Quality Entrypoint Green
- 
--```text
--node node_modules\esbuild\bin\esbuild vitest.config.mjs --bundle --platform=node --outfile=..\.tmp\vitest-config-bundle.mjs
--exit code: 1
--Cannot read directory "../../..": Access is denied.
--```
-+The quality script now:
++## External Canonical Quality Gate
 +
-+- uses `sys.executable` for Python checks instead of a bare `python`;
-+- runs frontend commands from `frontend/`;
-+- propagates failing child command exit codes;
-+- preflights required Python and Node tools;
-+- reports `QUALITY_ENV_MISSING_PYTHON_TOOL` with the current interpreter and canonical command.
++Final external canonical gate evidence:
 +
-+Green result:
- 
- ```text
--node node_modules\esbuild\bin\esbuild .\src\smoke.test.ts --bundle --platform=node --outfile=..\.tmp\smoke-bundle.js
--exit code: 1
--Cannot read directory "../../..": Access is denied.
-+backend\.venv\Scripts\python.exe -m pytest tests\meta\test_quality_commands.py --junitxml=evidence\test-reports\T003.xml -p no:cacheprovider
-+exit code: 0
-+4 passed
- ```
- 
--Root cause range:
-+Log: `evidence/tdd/T003-quality-entrypoint-green.log`.
- 
--- The failure is not limited to Vitest test discovery; direct esbuild bundling also fails.
--- Node `fs.statSync()` can read `.`, `..`, `../..`, `../../..`, and the config files from the same
--  shell context, so the failing boundary appears when esbuild's native Windows binary runs.
--- Vite build still passes, so the failure is specific to this ordinary-permission Vitest/esbuild
--  config/test bundling path, not all frontend tooling.
-+## Canonical Command
- 
--Excluded or reduced hypotheses:
-+Run from repository root:
- 
--- Not caused only by `vitest.config.ts`; `.mjs` config fails the same way.
--- Not fixed by explicit `--root`, `--dir`, or absolute config path.
--- Not fixed by moving `TMP`/`TEMP` to the repository `.tmp`.
--- Not fixed by disabling cache or switching pool to `forks`.
--- Not caused by symlinked config files; checked files are normal files.
-+```powershell
++```text
++source = USER_EXECUTED_EXTERNAL_ENVIRONMENT
++environment = Windows ordinary non-admin PowerShell
++privilege_elevation = false
++
++command =
 +.\backend\.venv\Scripts\python.exe scripts\check_all.py
++
++result = PASS
++
++format = PASS
++ruff = PASS
++mypy = PASS
++
++backend_pytest =
++13 passed
++1 existing warning
++
++frontend_type_check = PASS
++
++frontend_vitest =
++Test Files 1 passed
++Tests 1 passed
 +```
++
++Log: `evidence/tdd/T003-external-check-all.log`.
++
+ ## Quality Entrypoint Red
  
--Next diagnostic commands:
-+The user-provided failing command:
+ `test_T003_uses_current_python_interpreter`,
+@@ -74,8 +105,15 @@ used `D:\software\python.exe` and failed with `No module named ruff`; that is no
+ `NON_CANONICAL_INTERPRETER_INVOCATION` unless the canonical backend venv interpreter fails the same
+ preflight.
  
--```text
--node node_modules\esbuild\bin\esbuild <entry> --bundle --platform=node --log-level=debug
--icacls C:\Users\ww
--icacls C:\Users\ww\Desktop
--icacls C:\Users\ww\Desktop\SE-w-mentor
-+```powershell
-+python scripts\check_all.py
- ```
+-## Remaining DoD Gap
++## Final Classification
++
++- Repository quality gate: PASS.
++- External ordinary-user execution: PASS.
++- Codex sandbox native-child execution: environment-specific limitation.
++- Repository defect: NOT PRESENT.
++- Privilege escalation: NOT REQUIRED.
++- ACL modification: NOT REQUIRED.
++- Vitest/Vite rewrite: NOT REQUIRED.
  
--Current state: T003 remains `[-]`.
-+used `D:\software\python.exe` and failed with `No module named ruff`; that is now treated as
-+`NON_CANONICAL_INTERPRETER_INVOCATION` unless the canonical backend venv interpreter fails the same
-+preflight.
-+
-+## Remaining DoD Gap
-+
-+T003 remains `[-]` until the canonical command above is run in an external ordinary, non-admin
-+PowerShell and its full result is recorded. No further Vitest/esbuild ACL diagnosis or ACL
-+modification is planned.
-diff --git a/evidence/test-reports/T003.xml b/evidence/test-reports/T003.xml
-index a0e8739..39c589e 100644
---- a/evidence/test-reports/T003.xml
-+++ b/evidence/test-reports/T003.xml
-@@ -1,6 +1 @@
--<?xml version="1.0" encoding="UTF-8"?>
--<testsuite name="T003" tests="1" failures="1" skipped="0">
--  <testcase name="frontend_vitest_ordinary_permission">
--    <failure message="Access is denied while esbuild resolves Vitest config"/>
--  </testcase>
--</testsuite>
-+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="4" time="0.033" timestamp="2026-08-07T13:40:59.016889+08:00" hostname="LAPTOP-IJMRFI3N"><testcase classname="tests.meta.test_quality_commands" name="test_T003_uses_current_python_interpreter" time="0.001" /><testcase classname="tests.meta.test_quality_commands" name="test_T003_propagates_child_failure" time="0.000" /><testcase classname="tests.meta.test_quality_commands" name="test_T003_uses_frontend_working_directory" time="0.000" /><testcase classname="tests.meta.test_quality_commands" name="test_T003_reports_missing_python_tool_actionably" time="0.001" /></testsuite></testsuites>
-\ No newline at end of file
-diff --git a/scripts/check_all.py b/scripts/check_all.py
-index bae9f78..6f123b8 100644
---- a/scripts/check_all.py
-+++ b/scripts/check_all.py
-@@ -8,6 +8,9 @@ from pathlib import Path
- ROOT = Path(__file__).resolve().parents[1]
- NPM = "npm.cmd" if sys.platform == "win32" else "npm"
- TMP = ROOT / ".tmp" / "check-all"
-+EXPECTED_PROJECT_INTERPRETER = ROOT / "backend" / ".venv" / "Scripts" / "python.exe"
-+PYTHON_TOOLS = ("ruff", "mypy", "pytest")
-+NODE_TOOLS = (("node", "--version"), (NPM, "--version"))
- 
- 
- def run(command: list[str], *, cwd: Path) -> int:
-@@ -18,7 +21,34 @@ def run(command: list[str], *, cwd: Path) -> int:
-     return subprocess.run(command, cwd=cwd, env=env, check=False).returncode
- 
- 
-+def preflight() -> int:
-+    missing_python_tools = [
-+        tool
-+        for tool in PYTHON_TOOLS
-+        if _probe([sys.executable, "-m", tool, "--version"], cwd=ROOT / "backend") != 0
-+    ]
-+    missing_node_tools = [
-+        command[0]
-+        for command in NODE_TOOLS
-+        if _probe(list(command), cwd=ROOT / "frontend") != 0
-+    ]
-+    if not missing_python_tools and not missing_node_tools:
-+        return 0
-+
-+    if missing_python_tools:
-+        _print_missing_python_tools(missing_python_tools)
-+    if missing_node_tools:
-+        print("QUALITY_ENV_MISSING_NODE_TOOL", file=sys.stderr)
-+        print("Missing:", file=sys.stderr)
-+        print("\n".join(missing_node_tools), file=sys.stderr)
-+    return 1
-+
-+
- def main() -> int:
-+    environment_ok = preflight()
-+    if environment_ok != 0:
-+        return environment_ok
-+
-     checks = [
-         ([sys.executable, "-m", "ruff", "format", "--check", "."], ROOT / "backend"),
-         ([sys.executable, "-m", "ruff", "check", "."], ROOT / "backend"),
-@@ -35,5 +65,37 @@ def main() -> int:
-     return 0
- 
- 
-+def _probe(command: list[str], *, cwd: Path) -> int:
-+    TMP.mkdir(parents=True, exist_ok=True)
-+    env = os.environ.copy()
-+    env["TMP"] = str(TMP)
-+    env["TEMP"] = str(TMP)
-+    result = subprocess.run(
-+        command,
-+        cwd=cwd,
-+        env=env,
-+        check=False,
-+        capture_output=True,
-+        text=True,
-+    )
-+    return result.returncode
-+
-+
-+def _print_missing_python_tools(missing: list[str]) -> None:
-+    print("QUALITY_ENV_MISSING_PYTHON_TOOL", file=sys.stderr)
-+    print(file=sys.stderr)
-+    print("Current interpreter:", file=sys.stderr)
-+    print(sys.executable, file=sys.stderr)
-+    print(file=sys.stderr)
-+    print("Missing:", file=sys.stderr)
-+    print("\n".join(missing), file=sys.stderr)
-+    print(file=sys.stderr)
-+    print("Expected project interpreter:", file=sys.stderr)
-+    print(EXPECTED_PROJECT_INTERPRETER, file=sys.stderr)
-+    print(file=sys.stderr)
-+    print("Run:", file=sys.stderr)
-+    print(r".\backend\.venv\Scripts\python.exe scripts\check_all.py", file=sys.stderr)
-+
-+
- if __name__ == "__main__":
-     sys.exit(main())
+-T003 remains `[-]` until the canonical command above is run in an external ordinary, non-admin
+-PowerShell and its full result is recorded. No further Vitest/esbuild ACL diagnosis or ACL
+-modification is planned.
++The existing `StarletteDeprecationWarning` is recorded as a third-party dependency warning and is
++not a T003 blocker.

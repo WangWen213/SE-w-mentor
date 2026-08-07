@@ -850,6 +850,78 @@ from an external ordinary, non-admin PowerShell. T007 was intentionally not star
 T007 can only be revalidated in a later round after this integration commit is complete. T008/T009+
 remain out of scope.
 
+## 2026-08-07 T003 Final Canonical Quality Gate Evidence
+
+### Task ID
+T003
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`36c9b57`
+
+### End Commit
+Containing T003 final metadata commit; final hash is reported after commit creation.
+
+### Status Before
+`[-]`
+
+### Status After
+`[x]`
+
+### Dependency Check
+T000-T006 are complete on main after T005/T006 integration. T007/T008/T009+ were not started during
+this T003 final evidence update.
+
+### Change Scope
+T003 evidence/status/reviews only, plus PREP_STATUS and PLAN final status. No Vitest/Vite config,
+ACL, dependency, or runner changes.
+
+### Red Test And Evidence
+Existing T003 quality-entrypoint red remains `evidence/tdd/T003-quality-entrypoint-red.log`.
+
+### Implementation Summary
+No implementation change in this commit. Recorded the user-executed external ordinary non-admin
+canonical quality gate result.
+
+### Green Test And Evidence
+External canonical gate: `evidence/tdd/T003-external-check-all.log`.
+
+Result summary: format PASS, Ruff PASS, mypy PASS, backend pytest 13 passed with one existing
+third-party warning, frontend type-check PASS, frontend Vitest 1 file/1 test PASS.
+
+### Regression Evidence
+Local metadata regression commands were run before commit: T003 quality-entrypoint tests pass,
+traceability remains valid, and no T003 code was changed.
+
+### Spec Review
+`evidence/reviews/T003-spec-review.md`
+
+### Code Review
+`evidence/reviews/T003-code-review.md`
+
+### Diff
+`evidence/diffs/T003.patch`
+
+### Deviations
+Codex sandbox Vitest/esbuild native-child failure is permanently classified as
+`CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`. It is not a repository defect and does not require
+privilege escalation.
+
+### Blockers
+None for T003.
+
+### Remaining Work
+After this commit, T007 start condition is satisfied because T002 and T005 are `[x]`. T008/T009+
+remain prohibited until their documented prerequisites are met.
+
 ## 2026-08-07 T006 Secret Boundary
 
 ### Task ID
