@@ -2,6 +2,60 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 T007 Main Integration Closure
+
+### Task ID
+T007
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`b24994b`
+
+### End Commit
+Merge `bfbf9eb`
+
+### Status Before
+`[-]` branch complete in `codex/T007-db-baseline`.
+
+### Status After
+`[x]`
+
+### Dependency Check
+T002 and T005 were `[x]`; T008 remained blocked until this closure. T009+ was not started.
+
+### Change Scope
+Merged only the T007 database baseline branch and its evidence/metadata into main.
+
+### Main Regression Evidence
+`backend/tests/db` passed 4 tests. `alembic heads` reported exactly `0001_initial_baseline (head)`.
+In-sandbox `scripts/check_all.py` reproduced the previously documented T003
+`CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION` during frontend Vitest config loading after backend
+format, lint, mypy, and pytest passed. This is an environment classification already recorded in
+`PREP_STATUS.md` and the T003 evidence, not a T007 DB regression.
+
+### Spec Review
+Existing T007 review evidence remains current: `evidence/reviews/T007-spec-review.md`.
+
+### Code Review
+Existing T007 review evidence remains current: `evidence/reviews/T007-code-review.md`.
+
+### Deviations
+No T007 implementation changes were made during closure.
+
+### Blockers
+None for T007.
+
+### Remaining Work
+Begin T008 from latest main. Do not start T009+.
+
 ## 2026-08-05 Bootstrap Compliance Backfill
 
 ### Task ID
