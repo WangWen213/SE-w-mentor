@@ -238,7 +238,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T005 — 实现分层配置、配置版本与运行 Profile
 
-- **状态**：[ ] 未开始
+- **状态**：[-] branch complete in `codex/T005-config-profiles`; awaiting main merge and project-level regression before `[x]`
 - **阻塞说明**：无
 - **Worktree**：`wt-spec-contracts`
 - **覆盖需求**：`FR-01-02`, `NFR-PERF-04`, `NFR-PERF-06`, `OQ-09`, `OQ-19`, `OQ-20`
@@ -264,7 +264,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T005.xml
   - evidence/diffs/T005.patch
   - `AGENT_LOG.md` 中的 T005 记录
-- **Commit**：`未填写`
+- **Commit**：branch implementation commit to be reported after commit creation
 
 ## T006 — 实现凭据边界、脱敏与最小子进程环境
 

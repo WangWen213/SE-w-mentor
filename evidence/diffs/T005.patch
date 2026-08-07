@@ -1,0 +1,98 @@
+﻿diff --git a/AGENT_LOG.md b/AGENT_LOG.md
+index d0ceede..ff0c6d9 100644
+--- a/AGENT_LOG.md
++++ b/AGENT_LOG.md
+@@ -618,3 +618,71 @@ None for T004 provenance.
+ 
+ ### Remaining Work
+ After post-audit verification passes, create isolated T005 and T006 worktrees.
++
++## 2026-08-07 T005 Config Profiles
++
++### Task ID
++T005
++
++### Date
++2026-08-07
++
++### Agent
++Codex
++
++### Worktree
++codex/T005-config-profiles
++
++### Start Commit
++`296fd5f3c5468fcf19764feaaecf48f84aac91d8`
++
++### End Commit
++Branch implementation commit; final hash is reported after commit creation.
++
++### Status Before
++`[ ]`
++
++### Status After
++`[-]` branch complete; awaiting main merge and project-level regression before `[x]`.
++
++### Dependency Check
++T004 provenance audit passed before T005 work began. T006 is isolated in a separate worktree.
++T007/T008/T009+ were not started.
++
++### Change Scope
++Only config package files, config tests, T005 evidence, PLAN, and AGENT_LOG.
++
++### Red Test And Evidence
++`backend/tests/config/test_loader.py` failed with `ModuleNotFoundError: No module named
++'se_mentor.config'`. Log: `evidence/tdd/T005-red.log`.
++
++### Implementation Summary
++Added typed config policies, profile layers, deterministic effective-config freezing, source
++explanations, stricter-policy precedence, unknown-key rejection, and CLOUD_DEMO hard restrictions.
++
++### Green Test And Evidence
++`backend/tests/config/test_loader.py` passed. JUnit: `evidence/test-reports/T005.xml`; green log:
++`evidence/tdd/T005-green.log`.
++
++### Regression Evidence
++`backend/tests/config/test_loader.py` plus T004 contract tests passed with 8 tests. Ruff and mypy
++passed for config source and tests.
++
++### Spec Review
++`evidence/reviews/T005-spec-review.md`
++
++### Code Review
++`evidence/reviews/T005-code-review.md`
++
++### Diff
++`evidence/diffs/T005.patch`
++
++### Deviations
++None.
++
++### Blockers
++None for T005 branch implementation.
++
++### Remaining Work
++Merge to main later and run project-level regression before setting project mainline status to
++`[x]`.
+diff --git a/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md b/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md
+index c51b9fc..d0e45e1 100644
+--- a/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md
++++ b/SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md
+@@ -238,7 +238,7 @@ T000-T008 规约/契约/迁移门禁
+ 
+ ## T005 — 实现分层配置、配置版本与运行 Profile
+ 
+-- **状态**：[ ] 未开始
++- **状态**：[-] branch complete in `codex/T005-config-profiles`; awaiting main merge and project-level regression before `[x]`
+ - **阻塞说明**：无
+ - **Worktree**：`wt-spec-contracts`
+ - **覆盖需求**：`FR-01-02`, `NFR-PERF-04`, `NFR-PERF-06`, `OQ-09`, `OQ-19`, `OQ-20`
+@@ -264,7 +264,7 @@ T000-T008 规约/契约/迁移门禁
+   - evidence/test-reports/T005.xml
+   - evidence/diffs/T005.patch
+   - `AGENT_LOG.md` 中的 T005 记录
+-- **Commit**：`未填写`
++- **Commit**：branch implementation commit to be reported after commit creation
+ 
+ ## T006 — 实现凭据边界、脱敏与最小子进程环境
+ 
