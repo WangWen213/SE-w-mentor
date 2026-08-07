@@ -234,7 +234,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T004.xml
   - evidence/diffs/T004.patch
   - `AGENT_LOG.md` 中的 T004 记录
-- **Commit**：implementation `7b839c1`; coverage `fd3e775`; evidence refresh `920fbd4`; merge `251170637434c1b8919edd154cad225542cbfaf6`; rebase head `1184c7beca606a38769ef58cb66d5a453323c294`; final metadata recorded in the containing integration commit
+- **Commit**：initial implementation `7b839c1`; expanded tests and enum mirror `fd3e775`; evidence refresh `920fbd4`; merge `251170637434c1b8919edd154cad225542cbfaf6`; integration metadata `4d9dd2e30a16b7999fe5758659a8c24b5dc6e35e`; provenance audit recorded in the containing commit. Note: `1184c7beca606a38769ef58cb66d5a453323c294` is the T001 semantic correction and later T004 branch HEAD after rebase, not a T004 implementation commit.
 
 ## T005 — 实现分层配置、配置版本与运行 Profile
 

@@ -548,3 +548,73 @@ needed to classify it.
 
 ### Remaining Work
 Wait for the external ordinary PowerShell T003 result before treating frontend Vitest as resolved.
+
+## 2026-08-07 T004 Git Provenance Audit
+
+### Task ID
+T004
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`4d9dd2e30a16b7999fe5758659a8c24b5dc6e35e`
+
+### End Commit
+Containing provenance audit commit; final hash is reported after commit creation.
+
+### Status Before
+`[x]` with ambiguous provenance wording around `1184c7beca606a38769ef58cb66d5a453323c294`.
+
+### Status After
+`[x]`
+
+### Dependency Check
+T005/T006 were not started before this audit. T007/T008/T009+ remain untouched.
+
+### Change Scope
+Git provenance audit and documentation/evidence correction only. No T004 code changes and no empty
+merge commit.
+
+### Red Test And Evidence
+Not applicable; this was a Git-source audit, not new implementation behavior.
+
+### Implementation Summary
+Confirmed T004 initial implementation was introduced by `7b839c1`, expanded tests and
+`frontend/src/contracts/enums.ts` by `fd3e775`, evidence refresh by `920fbd4`, merge by
+`251170637434c1b8919edd154cad225542cbfaf6`, and integration metadata by
+`4d9dd2e30a16b7999fe5758659a8c24b5dc6e35e`. Confirmed `1184c7b` is the T001 semantic correction
+and the T004 branch HEAD only after rebasing onto main.
+
+### Green Test And Evidence
+Audit commands are recorded in `evidence/logs/T004/provenance-audit.log`.
+
+### Regression Evidence
+Post-audit verification passed: T004 contract tests 7 passed, `pytest tests/meta backend/tests`
+19 passed with one existing warning, traceability reported 134 P0 requirements mapped, and
+Alembic head checking exited 0. Log: `evidence/logs/T004/post-audit-verification.log`.
+
+### Spec Review
+T004 code and evidence are present in main: 7 contract tests, frontend enum mirror, schema
+snapshots, red/green evidence, reviews, PLAN, and AGENT_LOG records.
+
+### Code Review
+No missing T004 implementation found. No recovery from worktree or reflog required.
+
+### Diff
+Provenance wording and audit log only.
+
+### Deviations
+None.
+
+### Blockers
+None for T004 provenance.
+
+### Remaining Work
+After post-audit verification passes, create isolated T005 and T006 worktrees.
