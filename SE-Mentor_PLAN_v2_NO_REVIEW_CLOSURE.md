@@ -330,8 +330,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T008 — 建立迁移所有权与单一 Head 门禁
 
-- **状态**：[-] 进行中；迁移策略文档和单 Head 检查脚本已建立并通过当前基线验证，尚未满足 T008 完整 DoD。
-- **阻塞说明**：依赖 T007 正式完成；尚缺双 Head fixture 测试、矩阵引用、完整 evidence、评审与 commit。
+- **状态**：[x] 已完成
+- **阻塞说明**：无。In-sandbox full canonical validation reaches the documented T003 Vitest/esbuild native-child restriction after the T008 Alembic gate, meta tests, backend tests, and frontend type-check pass.
 - **Worktree**：`wt-schema`
 - **覆盖需求**：`审查 Migration 冲突问题`, `AC-CI`
 - **目标**：规定只有 wt-schema 生成正式 Alembic migration，其他 worktree 仅修改独立模型文件；CI 阻止多 Head。
@@ -355,7 +355,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T008.xml
   - evidence/diffs/T008.patch
   - `AGENT_LOG.md` 中的 T008 记录
-- **Commit**：`未填写`
+- **Commit**：implementation/evidence recorded in the containing T008 commit on `codex/T008-migration-governance`
 
 # Phase 1 数据模型
 

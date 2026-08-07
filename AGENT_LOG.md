@@ -2,6 +2,83 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 T008 Migration Ownership And Single-Head Gate
+
+### Task ID
+T008
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T008-migration-governance`. Attempted sibling
+worktree `C:\Users\ww\Desktop\wt-schema` was blocked before creation by a ref lock permission error;
+no partial worktree or branch was left behind.
+
+### Start Commit
+`2d05a94`
+
+### End Commit
+this T008 commit
+
+### Status Before
+`[-]` partial scaffold existed; double-head fixture, complete policy, canonical gate wiring,
+traceability, reviews, and evidence were missing.
+
+### Status After
+`[x]` branch complete; awaiting main integration.
+
+### Dependency Check
+T007 was `[x]` on main before T008 began. T009+ was not started.
+
+### Change Scope
+Only migration policy, Alembic head checker, canonical validation wiring, T008 meta tests,
+traceability, reviews, and evidence.
+
+### Red Test And Evidence
+`tests/meta/test_migration_policy.py` produced 4 failures and 1 pass. The existing repository
+single-head test was `PRE_EXISTING_GREEN`; real failures covered dual-head fixture, zero-head
+fixture, missing ownership policy text, and missing `check_all.py` gate wiring. Evidence:
+`evidence/tdd/T008-pre-existing-green.log` and `evidence/tdd/T008-red.log`.
+
+### Implementation Summary
+Added a deterministic Alembic single-head checker with optional fixture config/cwd, fail-closed
+0-head and multi-head semantics, count/revision reporting, complete migration ownership policy, and
+canonical `check_all.py` integration.
+
+### Green Test And Evidence
+T008 scoped tests passed 5 tests. JUnit: `evidence/test-reports/T008.xml`; green log:
+`evidence/tdd/T008-green.log`.
+
+### Regression Evidence
+`tests/meta` passed 19 tests. Meta plus backend regression passed 35 tests with one existing
+third-party warning. `scripts/check_alembic_heads.py` reported one head:
+`0001_initial_baseline`. In-sandbox `scripts/check_all.py` now runs the Alembic gate, meta tests,
+backend tests, and frontend type-check before the documented T003 Vitest/esbuild sandbox failure.
+
+### Spec Review
+`evidence/reviews/T008-spec-review.md`
+
+### Code Review
+`evidence/reviews/T008-code-review.md`
+
+### Diff
+`evidence/diffs/T008.patch`
+
+### Deviations
+Sibling `wt-schema` could not be created in this managed sandbox; the branch remained isolated as
+`codex/T008-migration-governance` from latest main.
+
+### Blockers
+No T008 implementation blocker. Full canonical PASS still requires the documented external
+ordinary PowerShell path for frontend Vitest.
+
+### Remaining Work
+Merge T008 to main, run main validation, then perform T114 first cold-start pass. Do not start T009+.
+
 ## 2026-08-07 T007 Main Integration Closure
 
 ### Task ID

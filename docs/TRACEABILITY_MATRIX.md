@@ -138,3 +138,4 @@ Status: T001 strict DoD candidate. This matrix freezes required columns and maps
 | AC-USA | AC-USA | P0 | T099 | T001 | `tests/acceptance/AC-USA.py` | `evidence/tdd/T099.md` | planned |
 | AC-OBS | AC-OBS | P0 | T101 | T001 | `tests/acceptance/AC-OBS.py` | `evidence/tdd/T101.md` | planned |
 | AC-CI | AC-CI | P0 | T003 | T001 | `tests/acceptance/AC-CI.py` | `evidence/tdd/T003.md` | planned |
+| GOV-MIGRATION-01 | Alembic migration ownership and single-head gate | P0 | T008 | T001,T003,T007 | `tests/meta/test_migration_policy.py` | `evidence/tdd/T008.md` | verified |
