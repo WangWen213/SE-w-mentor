@@ -419,7 +419,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T011 — LLM 与动作域数据模型
 
-- **状态**：[ ] 未开始
+- **状态**：[-] branch complete; awaiting main merge/regression
 - **阻塞说明**：无
 - **Worktree**：`wt-schema`
 - **覆盖需求**：`LLMCall`, `AgentAction`, `FR-05-01`, `NFR-OBS-05`
@@ -444,7 +444,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T011.xml
   - evidence/diffs/T011.patch
   - `AGENT_LOG.md` 中的 T011 记录
-- **Commit**：`未填写`
+- **Commit**：implementation `f7a02a2`; evidence/metadata pending
 
 ## T012 — 影响分析与治理域数据模型
 

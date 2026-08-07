@@ -2,6 +2,80 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 T011 LLM And Action Domain Data Model
+
+### Task ID
+T011
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T011-llm-action-domain`. Requested `wt-schema`
+worktree creation failed because the managed sandbox blocked Git ref lock creation under
+`.git/refs/heads`. No privilege escalation was used.
+
+### Start Commit
+`05f7963`
+
+### End Commit
+Implementation `f7a02a2`; evidence/metadata in this T011 evidence commit.
+
+### Status Before
+`[ ]`
+
+### Status After
+`[-]` branch complete; awaiting main merge and main regression before project-level `[x]`.
+
+### Dependency Check
+T010 was `[x]` on main before T011 began. T012+ was not started.
+
+### Change Scope
+Only LLM/action persistence models, model registry, TaskIteration relationships, T011 migration,
+T011 tests, evidence, reviews, PLAN, and AGENT_LOG.
+
+### Red Test And Evidence
+No `PRE_EXISTING_GREEN`. `backend/tests/models/test_llm_action_models.py` failed during collection
+with `ModuleNotFoundError: No module named 'se_mentor.models.llm'`. Evidence:
+`evidence/tdd/T011-red.log`.
+
+### Implementation Summary
+Added `LLMCall` and `AgentAction`; provider/model/token/latency/error/parse observability;
+bounded request/response and parameter summaries; secret/unbounded prompt sink rejection; frozen
+enum DB constraints; action sequence uniqueness; optional LLMCall-to-AgentAction source relation;
+Alembic revision `0030_llm_action` from `0020_task_domain`; and migrated DB parity tests.
+
+### Green Test And Evidence
+T011 scoped tests passed 4 tests. JUnit: `evidence/test-reports/T011.xml`; green log:
+`evidence/tdd/T011-green.log`.
+
+### Regression Evidence
+T009+T010+T011 model regression passed 12 tests. Foundation/meta plus backend regression passed 48
+tests with two existing warnings. Alembic heads, upgrade, downgrade, re-upgrade, and single-head
+gate passed. Ruff format/check passed. backend mypy passed on 32 source files. In-sandbox
+`scripts/check_all.py` reached the documented Vitest/esbuild directory access restriction only
+after format, lint, mypy, Alembic gate, meta tests, backend tests, and frontend type-check passed.
+
+### Spec Review
+`evidence/reviews/T011-spec-review.md`
+
+### Code Review
+`evidence/reviews/T011-code-review.md`
+
+### Diff
+`evidence/diffs/T011.patch`
+
+### Deviations
+Requested `wt-schema` worktree creation was blocked by managed sandbox Git ref permissions. No
+privilege escalation was used. T011 reused the current T004-frozen `ActionType` enum rather than
+expanding action contracts in this schema task.
+
+### Remaining Work
+Merge T011 to main and rerun main regression. Do not start T012.
+
 ## 2026-08-07 T010 Main Integration Closure
 
 ### Task ID
