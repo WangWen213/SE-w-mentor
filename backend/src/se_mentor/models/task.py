@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, String, Text
@@ -9,6 +10,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from se_mentor.db.base import Base
 from se_mentor.models.project import Project
+
+if TYPE_CHECKING:
+    from se_mentor.models.llm import AgentAction, LLMCall
 
 
 class TaskStatus(StrEnum):
@@ -248,3 +252,8 @@ class TaskIteration(TimestampMixin, Base):
     progress_score: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
 
     task: Mapped[ChangeTask] = relationship(back_populates="iterations")
+    llm_calls: Mapped[list[LLMCall]] = relationship("LLMCall", back_populates="iteration")
+    agent_actions: Mapped[list[AgentAction]] = relationship(
+        "AgentAction",
+        back_populates="iteration",
+    )

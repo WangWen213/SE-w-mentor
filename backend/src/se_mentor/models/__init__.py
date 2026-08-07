@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+from se_mentor.models.llm import (
+    AgentAction,
+    AgentActionStatus,
+    LLMCall,
+    LLMCallStatus,
+    ParseStatus,
+    RiskLevel,
+)
 from se_mentor.models.project import (
     CredentialProfile,
     Project,
@@ -19,14 +27,20 @@ from se_mentor.models.task import (
 )
 
 __all__ = [
+    "AgentAction",
+    "AgentActionStatus",
     "ChangeProposal",
     "ChangeTask",
     "CredentialProfile",
+    "LLMCall",
+    "LLMCallStatus",
+    "ParseStatus",
     "Project",
     "ProjectConfig",
     "ProposalCompleteness",
     "ProposalCreatedByType",
     "ProposalStatus",
+    "RiskLevel",
     "TaskIteration",
     "TaskIterationPhase",
     "TaskIterationResult",
