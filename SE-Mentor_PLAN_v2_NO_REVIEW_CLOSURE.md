@@ -355,7 +355,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T008.xml
   - evidence/diffs/T008.patch
   - `AGENT_LOG.md` 中的 T008 记录
-- **Commit**：implementation/evidence recorded in the containing T008 commit on `codex/T008-migration-governance`
+- **Commit**：implementation/evidence `73a074a`; main integration merge `c08bf17`
 
 # Phase 1 数据模型
 

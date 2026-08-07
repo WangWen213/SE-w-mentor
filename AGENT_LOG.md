@@ -2,6 +2,62 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 T008 Main Integration Closure
+
+### Task ID
+T008
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`2d05a94`
+
+### End Commit
+Merge `c08bf17`
+
+### Status Before
+`[-]` on main, branch complete at `73a074a`.
+
+### Status After
+`[x]`
+
+### Dependency Check
+T007 was `[x]` before merge. T009+ was not started.
+
+### Change Scope
+Merged only `codex/T008-migration-governance` and recorded main integration validation logs.
+
+### Main Regression Evidence
+`scripts/check_alembic_heads.py` reported one head, `0001_initial_baseline`. `alembic heads`
+reported `0001_initial_baseline (head)`. Meta plus backend regression passed 35 tests with one
+existing third-party warning. Alembic upgrade/downgrade/upgrade smoke passed against a temp SQLite
+database. In-sandbox `scripts/check_all.py` ran format, lint, mypy, Alembic gate, meta tests,
+backend tests, and frontend type-check before reaching the documented T003 Vitest/esbuild sandbox
+restriction.
+
+### Evidence
+`evidence/logs/integration/t008-main-alembic-gate.log`
+`evidence/logs/integration/t008-main-alembic-heads.log`
+`evidence/logs/integration/t008-main-meta-backend-regression.log`
+`evidence/logs/integration/t008-main-check-all-sandbox.log`
+`evidence/logs/integration/t008-main-alembic-upgrade-1.log`
+`evidence/logs/integration/t008-main-alembic-downgrade.log`
+`evidence/logs/integration/t008-main-alembic-upgrade-2.log`
+
+### Blockers
+None for T008. Full canonical PASS still requires the documented external ordinary PowerShell
+frontend Vitest path.
+
+### Remaining Work
+Perform T114 first cold-start validation before any T009+ work.
+
 ## 2026-08-07 T008 Migration Ownership And Single-Head Gate
 
 ### Task ID
