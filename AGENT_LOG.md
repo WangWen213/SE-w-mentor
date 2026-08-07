@@ -2,6 +2,62 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 T012 Main Integration Closure
+
+### Task ID
+T012
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`b10997f`
+
+### End Commit
+Merge `574d74c`
+
+### Status Before
+`[-]` branch complete at `4a8ae9c`.
+
+### Status After
+`[x]`
+
+### Dependency Check
+T011 was complete and pushed before T012 started. T013+ was not started.
+
+### Change Scope
+Merged only `codex/T012-governance-domain` and recorded main integration validation logs.
+
+### Main Regression Evidence
+T012 scoped tests passed 6 tests. T009+T010+T011+T012 model regression passed 18 tests. Meta plus
+backend regression passed 54 tests with existing third-party/Alembic warnings. Alembic upgrade,
+downgrade, and re-upgrade passed against an isolated SQLite DB. `alembic heads` and
+`scripts/check_alembic_heads.py` reported exactly one head: `0040_governance`.
+
+Canonical `scripts/check_all.py` reached the documented Vitest/esbuild sandbox restriction only
+after format, lint, mypy, Alembic gate, meta tests, backend tests, and frontend type-check passed.
+
+### Evidence
+`evidence/logs/integration/t012-main-scoped-tests.log`
+`evidence/logs/integration/t012-main-model-regression.log`
+`evidence/logs/integration/t012-main-meta-backend-regression.log`
+`evidence/logs/integration/t012-main-alembic-heads.log`
+`evidence/logs/integration/t012-main-alembic-upgrade.log`
+`evidence/logs/integration/t012-main-alembic-downgrade.log`
+`evidence/logs/integration/t012-main-alembic-reupgrade.log`
+`evidence/logs/integration/t012-main-alembic-gate.log`
+`evidence/logs/integration/t012-main-check-all-sandbox.log`
+`evidence/test-reports/T012-main.xml`
+
+### Result
+T012 `[x]`. T013 NOT STARTED.
+
 ## 2026-08-08 T012 Impact Analysis And Governance Domain Data Model
 
 ### Task ID
@@ -22,7 +78,7 @@ worktree creation failed because the managed sandbox blocked Git ref lock creati
 `b10997f`
 
 ### End Commit
-Implementation `bcbda0e`; evidence/metadata recorded in the branch commit containing this entry.
+Implementation `bcbda0e`; evidence/metadata `4a8ae9c`.
 
 ### Status Before
 `[ ]`

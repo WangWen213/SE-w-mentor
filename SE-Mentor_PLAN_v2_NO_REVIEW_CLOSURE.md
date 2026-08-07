@@ -448,7 +448,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T012 — 影响分析与治理域数据模型
 
-- **状态**：[-] 分支完成，等待 main 合并与回归
+- **状态**：[x] 已完成
 - **阻塞说明**：无
 - **Worktree**：`wt-schema`
 - **覆盖需求**：`ImpactReport`, `GovernanceDecision`, `GovernanceRule`, `GovernanceRuleHit`, `FR-04`, `FR-06`
@@ -473,7 +473,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T012.xml
   - evidence/diffs/T012.patch
   - `AGENT_LOG.md` 中的 T012 记录
-- **Commit**：Implementation `bcbda0e`; evidence/metadata recorded in branch commit containing this plan update.
+- **Commit**：Implementation `bcbda0e`; evidence/metadata `4a8ae9c`; main integration merge `574d74c`.
 
 ## T013 — 审批与执行策略域数据模型
 
