@@ -2,6 +2,59 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 T010 Main Integration Closure
+
+### Task ID
+T010
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`8018128`
+
+### End Commit
+Merge `597fdd9`
+
+### Status Before
+`[-]` branch complete at `199d981`.
+
+### Status After
+`[x]`
+
+### Dependency Check
+T009 and Foundation/M0 were complete before merge. T011+ was not started.
+
+### Change Scope
+Merged only `codex/T010-task-domain` and recorded main integration validation logs.
+
+### Main Regression Evidence
+T009+T010 scoped model tests passed 8 tests. Meta plus backend regression passed 44 tests with one
+existing third-party warning. Alembic upgrade, downgrade, and re-upgrade passed against an isolated
+SQLite DB. `alembic heads` and `scripts/check_alembic_heads.py` reported exactly one head:
+`0020_task_domain`. In-sandbox canonical `scripts/check_all.py` reached the documented
+Vitest/esbuild sandbox restriction only after format, lint, mypy, Alembic gate, meta tests, backend
+tests, and frontend type-check passed.
+
+### Evidence
+`evidence/logs/integration/t010-main-scoped-tests.log`
+`evidence/logs/integration/t010-main-meta-backend-regression.log`
+`evidence/logs/integration/t010-main-alembic-heads.log`
+`evidence/logs/integration/t010-main-alembic-upgrade.log`
+`evidence/logs/integration/t010-main-alembic-downgrade.log`
+`evidence/logs/integration/t010-main-alembic-reupgrade.log`
+`evidence/logs/integration/t010-main-alembic-gate.log`
+`evidence/logs/integration/t010-main-check-all-sandbox.log`
+
+### Result
+T010 `[x]`. T011 NOT STARTED.
+
 ## 2026-08-07 T010 Task Domain Data Model
 
 ### Task ID
@@ -22,7 +75,7 @@ worktree creation failed because the managed sandbox blocked Git ref lock creati
 `8018128`
 
 ### End Commit
-Implementation `5c5db4d`; evidence/metadata in this T010 evidence commit.
+Implementation `5c5db4d`; evidence/metadata `199d981`.
 
 ### Status Before
 `[ ]`
