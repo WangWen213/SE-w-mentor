@@ -2,6 +2,96 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 T012 Impact Analysis And Governance Domain Data Model
+
+### Task ID
+T012
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T012-governance-domain`. Requested `wt-schema`
+worktree creation failed because the managed sandbox blocked Git ref lock creation under
+`.git/refs/heads`. T012 proceeded on an isolated branch.
+
+### Start Commit
+`b10997f`
+
+### End Commit
+Implementation `bcbda0e`; evidence/metadata recorded in the branch commit containing this entry.
+
+### Status Before
+`[ ]`
+
+### Status After
+`[-]` branch complete, awaiting main merge/regression.
+
+### Dependency Check
+T011 was complete and pushed to `origin/main` before T012 started. T013+ was not started.
+
+### Change Scope
+Implemented only governance persistence and tests: `ImpactReport`, `GovernanceDecision`,
+`GovernanceRule`, `GovernanceRuleHit`, model exports, migration `0040_governance`, T012 tests,
+traceability support links, and evidence. No approval, execution policy, governance engine,
+temporary grant, API, UI, or T013+ work was introduced.
+
+### TDD Evidence
+Planned RED `test_T012_deny_hard_rule_cannot_be_overridable` failed during collection because
+`se_mentor.models.governance` did not exist. GREEN scoped test suite passed 6 tests.
+
+### Implementation Notes
+Rules persist effect, priority, separate patterns and conditions JSON, overridable, enabled, stable
+`rule_key`, and positive `rule_version`. `DENY_HARD` rules cannot be overridable. Decisions bind
+`proposal_hash`, `revision`, ruleset version, evidence, and optional impact report/action. Rule
+hits reject nonexistent rules and retain the exact `(rule_id, rule_version)` that produced the
+decision.
+
+### Regression Evidence
+T012 scoped tests passed 6 tests. T009+T010+T011+T012 model regression passed 18 tests. Meta plus
+backend regression passed 54 tests with existing third-party/Alembic warnings. Alembic upgrade,
+downgrade, and re-upgrade passed against an isolated SQLite DB. `alembic heads` and
+`scripts/check_alembic_heads.py` reported exactly one head: `0040_governance`. Backend ruff
+format/check and mypy passed. Traceability tests passed 9 tests.
+
+Canonical `scripts/check_all.py` passed format, lint, mypy, Alembic gate, meta tests, backend
+tests, and frontend type-check, then reached the documented Vitest/esbuild sandbox directory access
+restriction. A requested non-sandbox retry failed earlier because Windows denied deletion of stale
+`.tmp/check-all/*-pytest-basetemp` directories; a direct narrow deletion attempt was also denied by
+the host environment.
+
+### Evidence
+`evidence/tdd/T012.md`
+`evidence/tdd/T012-red.log`
+`evidence/tdd/T012-green.log`
+`evidence/test-reports/T012.xml`
+`evidence/diffs/T012.patch`
+`evidence/reviews/T012-spec-review.md`
+`evidence/reviews/T012-code-review.md`
+`evidence/logs/T012/t009-t010-t011-t012-model-regression.log`
+`evidence/logs/T012/foundation-meta-backend-regression.log`
+`evidence/logs/T012/alembic-heads.log`
+`evidence/logs/T012/alembic-upgrade.log`
+`evidence/logs/T012/alembic-downgrade.log`
+`evidence/logs/T012/alembic-reupgrade.log`
+`evidence/logs/T012/alembic-gate.log`
+`evidence/logs/T012/traceability.log`
+`evidence/logs/T012/ruff-format.log`
+`evidence/logs/T012/ruff.log`
+`evidence/logs/T012/mypy.log`
+`evidence/logs/T012/check-all.log`
+`evidence/logs/T012/check-all-escalated.log`
+
+### Reviews
+Spec Review: `evidence/reviews/T012-spec-review.md`
+Code Review: `evidence/reviews/T012-code-review.md`
+
+### Result
+T012 branch complete as `[-]`. T013 NOT STARTED.
+
 ## 2026-08-07 T011 Main Integration Closure
 
 ### Task ID
