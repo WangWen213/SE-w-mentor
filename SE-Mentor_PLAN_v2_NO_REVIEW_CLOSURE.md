@@ -238,7 +238,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T005 — 实现分层配置、配置版本与运行 Profile
 
-- **状态**：[-] branch complete in `codex/T005-config-profiles`; awaiting main merge and project-level regression before `[x]`
+- **状态**：[x] 已完成
 - **阻塞说明**：无
 - **Worktree**：`wt-spec-contracts`
 - **覆盖需求**：`FR-01-02`, `NFR-PERF-04`, `NFR-PERF-06`, `OQ-09`, `OQ-19`, `OQ-20`
@@ -264,11 +264,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T005.xml
   - evidence/diffs/T005.patch
   - `AGENT_LOG.md` 中的 T005 记录
-- **Commit**：branch implementation commit to be reported after commit creation
+- **Commit**：implementation `d5a49bc`; merge `0a5bd46`; final metadata recorded in the containing integration commit
 
 ## T006 — 实现凭据边界、脱敏与最小子进程环境
 
-- **状态**：[-] branch complete in `codex/T006-secret-boundary`; awaiting main merge and project-level regression before `[x]`
+- **状态**：[x] 已完成
 - **阻塞说明**：无
 - **Worktree**：`wt-spec-contracts`
 - **覆盖需求**：`NFR-CRED-01～10`, `NFR-SEC-09`, `AC-SEC-05`
@@ -295,12 +295,12 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T006.xml
   - evidence/diffs/T006.patch
   - `AGENT_LOG.md` 中的 T006 记录
-- **Commit**：branch implementation commit to be reported after commit creation
+- **Commit**：implementation `e880ff7`; child-env casing amendment `5d5107d`; merge `ca37de5`; final metadata recorded in the containing integration commit
 
 ## T007 — 建立 SQLAlchemy、SQLite 与 Alembic 基线
 
 - **状态**：[-] 进行中；SQLAlchemy、SQLite、Alembic 空基线与事务/外键基线测试已通过，尚未满足 T007 完整 DoD。
-- **阻塞说明**：依赖 T005 正式完成；尚缺并发读写 smoke 证据、完整 evidence、评审与 commit。
+- **阻塞说明**：T005 已完成；本轮按用户要求未开始 T007 重新验收，尚缺并发读写 smoke 证据、完整 evidence、评审与 commit。
 - **Worktree**：`wt-spec-contracts`
 - **覆盖需求**：`数据模型 6.2～6.4`, `NFR-SEC-04`
 - **目标**：建立支持事务、外键、WAL、busy timeout 和临时测试数据库的数据层。

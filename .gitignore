@@ -230,8 +230,8 @@ frontend/coverage/
 .tmp/
 backups/
 backend/backups/
-logs/
-backend/logs/
+/logs/
+/backend/logs/
 secrets/
 backend/secrets/
 *.pem

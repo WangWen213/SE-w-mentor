@@ -764,6 +764,92 @@ None for T005 branch implementation.
 Merge to main later and run project-level regression before setting project mainline status to
 `[x]`.
 
+## 2026-08-07 T005/T006 Main Integration Metadata
+
+### Task ID
+T005, T006
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`4b165fd`
+
+### End Commit
+Containing integration metadata commit; final hash is reported after commit creation.
+
+### Status Before
+T005 `[-]` branch complete; T006 `[-]` branch complete; T003 `[-]`; T007 not started in this
+round.
+
+### Status After
+T005 `[x]`; T006 `[x]`; T003 remains `[-]`; T007 remains `[-]` and was not revalidated or
+developed.
+
+### Dependency Check
+T004 provenance audit passed before T005/T006 branch work. T005 merged before T006. T006 was rebased
+onto main after T005 merge. T007/T008/T009+ were not started.
+
+### Change Scope
+Main integration metadata only after merges: PLAN status/commit fields, AGENT_LOG integration
+record, and `.gitignore` clarification for runtime logs without suppressing evidence logs.
+
+### Red Test And Evidence
+T005 original red: `evidence/tdd/T005-red.log`.
+T006 original red: `evidence/tdd/T006-red.log`.
+T006 amendment red: `evidence/tdd/T006-amendment-red.log`.
+
+### Implementation Summary
+T005 introduced layered config, profile defaults, deterministic task config freezing, source
+explanations, unknown-key rejection, and CLOUD_DEMO hard restrictions. T006 introduced secret-safe
+objects, redaction, callback credential access, safe AgentContext, and allowlisted child-process
+environment construction with case-insensitive name matching.
+
+### Green Test And Evidence
+T005 green: `evidence/tdd/T005-green.log`, `evidence/test-reports/T005.xml`.
+T006 green: `evidence/tdd/T006-green.log`, `evidence/tdd/T006-amendment-green.log`,
+`evidence/test-reports/T006.xml`.
+
+### Regression Evidence
+After T005 merge: `pytest tests/meta backend/tests` passed 24 tests with one existing FastAPI
+TestClient warning; `scripts/check_traceability.py` reported 134 P0 requirements mapped;
+`scripts/check_alembic_heads.py` exited 0; Ruff, mypy, and frontend type-check passed.
+
+After T006 merge: `pytest tests/meta backend/tests` passed 27 tests with one existing FastAPI
+TestClient warning; `scripts/check_traceability.py` reported 134 P0 requirements mapped;
+`scripts/check_alembic_heads.py` exited 0; Ruff, mypy, and frontend type-check passed.
+
+### Spec Review
+T005 review: `evidence/reviews/T005-spec-review.md`.
+T006 review: `evidence/reviews/T006-spec-review.md`.
+
+### Code Review
+T005 review: `evidence/reviews/T005-code-review.md`.
+T006 review: `evidence/reviews/T006-code-review.md`.
+
+### Diff
+T005 diff: `evidence/diffs/T005.patch`.
+T006 diff: `evidence/diffs/T006.patch`.
+
+### Deviations
+None for T005/T006 TDD. T003 remains blocked only on external canonical check-all evidence, not on
+Vitest/Vite repository behavior.
+
+### Blockers
+T003 still needs the user to run:
+`.\backend\.venv\Scripts\python.exe scripts\check_all.py`
+from an external ordinary, non-admin PowerShell. T007 was intentionally not started.
+
+### Remaining Work
+T007 can only be revalidated in a later round after this integration commit is complete. T008/T009+
+remain out of scope.
+
 ## 2026-08-07 T006 Secret Boundary
 
 ### Task ID
@@ -782,7 +868,7 @@ codex/T006-secret-boundary
 `296fd5f3c5468fcf19764feaaecf48f84aac91d8`
 
 ### End Commit
-Branch implementation commit; final hash is reported after commit creation.
+Implementation `e880ff7`; child-env casing amendment `5d5107d`.
 
 ### Status Before
 `[ ]`
