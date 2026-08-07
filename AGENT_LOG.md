@@ -2,6 +2,60 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 T011 Main Integration Closure
+
+### Task ID
+T011
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`05f7963`
+
+### End Commit
+Merge `508a539`
+
+### Status Before
+`[-]` branch complete at `98df3f6`.
+
+### Status After
+`[x]`
+
+### Dependency Check
+T010 was complete before merge. T012+ was not started.
+
+### Change Scope
+Merged only `codex/T011-llm-action-domain` and recorded main integration validation logs.
+
+### Main Regression Evidence
+T011 scoped tests passed 4 tests. T009+T010+T011 model regression passed 12 tests. Meta plus
+backend regression passed 48 tests with two existing warnings. Alembic upgrade, downgrade, and
+re-upgrade passed against an isolated SQLite DB. `alembic heads` and
+`scripts/check_alembic_heads.py` reported exactly one head: `0030_llm_action`. In-sandbox canonical
+`scripts/check_all.py` reached the documented Vitest/esbuild sandbox restriction only after format,
+lint, mypy, Alembic gate, meta tests, backend tests, and frontend type-check passed.
+
+### Evidence
+`evidence/logs/integration/t011-main-scoped-tests.log`
+`evidence/logs/integration/t011-main-model-regression.log`
+`evidence/logs/integration/t011-main-meta-backend-regression.log`
+`evidence/logs/integration/t011-main-alembic-heads.log`
+`evidence/logs/integration/t011-main-alembic-upgrade.log`
+`evidence/logs/integration/t011-main-alembic-downgrade.log`
+`evidence/logs/integration/t011-main-alembic-reupgrade.log`
+`evidence/logs/integration/t011-main-alembic-gate.log`
+`evidence/logs/integration/t011-main-check-all-sandbox.log`
+
+### Result
+T011 `[x]`. T012 NOT STARTED.
+
 ## 2026-08-07 T011 LLM And Action Domain Data Model
 
 ### Task ID
@@ -22,7 +76,7 @@ worktree creation failed because the managed sandbox blocked Git ref lock creati
 `05f7963`
 
 ### End Commit
-Implementation `f7a02a2`; evidence/metadata in this T011 evidence commit.
+Implementation `f7a02a2`; evidence/metadata `98df3f6`.
 
 ### Status Before
 `[ ]`
