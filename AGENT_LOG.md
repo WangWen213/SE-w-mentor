@@ -2,6 +2,77 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 T009 Project Domain Data Model
+
+### Task ID
+T009
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T009-project-domain`. Requested sibling
+`C:\Users\ww\Desktop\wt-schema` worktree could not be created because the managed sandbox blocked
+Git's `.git/worktrees/wt-schema` directory creation. The branch was created from `main @ 991d904`
+and remained isolated from T008.
+
+### Start Commit
+`991d904`
+
+### End Commit
+Implementation `50b30cf`; evidence/metadata in this T009 evidence commit.
+
+### Status Before
+`[ ]`
+
+### Status After
+`[-]` branch complete; awaiting main merge and main regression before project-level `[x]`.
+
+### Dependency Check
+Foundation/M0 checkpoint was complete. T008 was `[x]`. T010+ was not started.
+
+### Change Scope
+Only Project domain models, model registry, T009 migration, T009 tests, traceability support,
+evidence, reviews, PLAN, and AGENT_LOG.
+
+### Red Test And Evidence
+No `PRE_EXISTING_GREEN`. `backend/tests/models/test_project_models.py` failed with
+`ModuleNotFoundError: No module named 'se_mentor.models'`. Evidence:
+`evidence/tdd/T009-red.log`.
+
+### Implementation Summary
+Added `Project`, `ProjectConfig`, and `CredentialProfile`; canonical project-root normalization;
+project/config/profile constraints and relationships; credential plaintext rejection; Alembic
+revision `0010_project_domain` from `0001_initial_baseline`; and scoped tests.
+
+### Green Test And Evidence
+T009 scoped tests passed 4 tests. JUnit: `evidence/test-reports/T009.xml`; green log:
+`evidence/tdd/T009-green.log`.
+
+### Regression Evidence
+Ruff format/check passed. backend mypy passed on 28 source files. Foundation/meta plus backend
+regression passed 40 tests with one existing third-party warning. Alembic upgrade, downgrade,
+re-upgrade, heads, and single-head gate passed. In-sandbox `scripts/check_all.py` reached the
+documented T003 Vitest/esbuild sandbox restriction only after earlier gates passed.
+
+### Spec Review
+`evidence/reviews/T009-spec-review.md`
+
+### Code Review
+`evidence/reviews/T009-code-review.md`
+
+### Diff
+`evidence/diffs/T009.patch`
+
+### Deviations
+Sibling `wt-schema` creation was blocked by the managed sandbox. No privilege escalation was used.
+
+### Remaining Work
+Merge T009 to main and rerun main regression. Do not start T010.
+
 ## 2026-08-07 Foundation M0 Checkpoint Validation
 
 ### Task ID

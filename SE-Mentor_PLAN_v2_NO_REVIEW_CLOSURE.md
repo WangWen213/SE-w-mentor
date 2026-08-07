@@ -361,8 +361,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T009 — 项目域数据模型
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[-] branch complete in `codex/T009-project-domain`; awaiting main merge and main regression before `[x]`
+- **阻塞说明**：无 branch blocker；project-level `[x]` requires merge and main regression.
 - **Worktree**：`wt-schema`
 - **覆盖需求**：`Project`, `ProjectConfig`, `CredentialProfile`, `FR-01`
 - **目标**：实现项目、配置版本和凭据 Profile 元数据模型，不保存凭据明文。
@@ -386,7 +386,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T009.xml
   - evidence/diffs/T009.patch
   - `AGENT_LOG.md` 中的 T009 记录
-- **Commit**：`未填写`
+- **Commit**：implementation `50b30cf`; evidence/metadata recorded in the containing T009 evidence commit
 
 ## T010 — 任务与提案域数据模型
 
