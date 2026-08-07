@@ -2,6 +2,59 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 T009 Main Integration Closure
+
+### Task ID
+T009
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`991d904`
+
+### End Commit
+Merge `e9246e7`
+
+### Status Before
+`[-]` branch complete at `2ccd9b7`.
+
+### Status After
+`[x]`
+
+### Dependency Check
+T008 and Foundation/M0 were complete before merge. T010+ was not started.
+
+### Change Scope
+Merged only `codex/T009-project-domain` and recorded main integration validation logs.
+
+### Main Regression Evidence
+T009 scoped model tests passed 4 tests. Meta plus backend regression passed 40 tests with one
+existing third-party warning. Alembic upgrade, downgrade, and re-upgrade passed against an isolated
+SQLite DB. `alembic heads` and `scripts/check_alembic_heads.py` reported exactly one head:
+`0010_project_domain`. In-sandbox canonical `scripts/check_all.py` reached the documented T003
+Vitest/esbuild sandbox restriction only after format, lint, mypy, Alembic gate, meta tests, backend
+tests, and frontend type-check passed.
+
+### Evidence
+`evidence/logs/integration/t009-main-scoped-tests.log`
+`evidence/logs/integration/t009-main-meta-backend-regression.log`
+`evidence/logs/integration/t009-main-alembic-gate.log`
+`evidence/logs/integration/t009-main-alembic-heads.log`
+`evidence/logs/integration/t009-main-alembic-upgrade.log`
+`evidence/logs/integration/t009-main-alembic-downgrade.log`
+`evidence/logs/integration/t009-main-alembic-reupgrade.log`
+`evidence/logs/integration/t009-main-check-all-sandbox.log`
+
+### Result
+T009 `[x]`. T010 NOT STARTED.
+
 ## 2026-08-07 T009 Project Domain Data Model
 
 ### Task ID
