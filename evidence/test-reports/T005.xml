@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.029" timestamp="2026-08-07T13:05:13.599696+08:00" hostname="LAPTOP-IJMRFI3N"><testcase classname="tests.config.test_loader" name="test_T005_task_config_cannot_relax_system_deny_rule" time="0.002" /></testsuite></testsuites>

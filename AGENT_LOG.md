@@ -618,3 +618,71 @@ None for T004 provenance.
 
 ### Remaining Work
 After post-audit verification passes, create isolated T005 and T006 worktrees.
+
+## 2026-08-07 T005 Config Profiles
+
+### Task ID
+T005
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+codex/T005-config-profiles
+
+### Start Commit
+`296fd5f3c5468fcf19764feaaecf48f84aac91d8`
+
+### End Commit
+Branch implementation commit; final hash is reported after commit creation.
+
+### Status Before
+`[ ]`
+
+### Status After
+`[-]` branch complete; awaiting main merge and project-level regression before `[x]`.
+
+### Dependency Check
+T004 provenance audit passed before T005 work began. T006 is isolated in a separate worktree.
+T007/T008/T009+ were not started.
+
+### Change Scope
+Only config package files, config tests, T005 evidence, PLAN, and AGENT_LOG.
+
+### Red Test And Evidence
+`backend/tests/config/test_loader.py` failed with `ModuleNotFoundError: No module named
+'se_mentor.config'`. Log: `evidence/tdd/T005-red.log`.
+
+### Implementation Summary
+Added typed config policies, profile layers, deterministic effective-config freezing, source
+explanations, stricter-policy precedence, unknown-key rejection, and CLOUD_DEMO hard restrictions.
+
+### Green Test And Evidence
+`backend/tests/config/test_loader.py` passed. JUnit: `evidence/test-reports/T005.xml`; green log:
+`evidence/tdd/T005-green.log`.
+
+### Regression Evidence
+`backend/tests/config/test_loader.py` plus T004 contract tests passed with 8 tests. Ruff and mypy
+passed for config source and tests.
+
+### Spec Review
+`evidence/reviews/T005-spec-review.md`
+
+### Code Review
+`evidence/reviews/T005-code-review.md`
+
+### Diff
+`evidence/diffs/T005.patch`
+
+### Deviations
+None.
+
+### Blockers
+None for T005 branch implementation.
+
+### Remaining Work
+Merge to main later and run project-level regression before setting project mainline status to
+`[x]`.
