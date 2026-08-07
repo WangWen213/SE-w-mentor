@@ -21,6 +21,6 @@ and database baseline. The deviation is not a precedent for later tasks.
 | Task | Deviation | Current Evidence Treatment |
 | --- | --- | --- |
 | T002 | Minimal app scaffold existed before formal red test packet | `PRE_EXISTING_GREEN` for current scaffold smoke tests |
-| T003 | Quality command script existed before failure-propagation test | ordinary-permission frontend Vitest remains real blocker |
+| T003 | Quality command script existed before failure-propagation test | External ordinary non-admin PowerShell canonical gate passed; Codex sandbox Vitest/esbuild native-child failure is classified as `CODEX_SANDBOX_NATIVE_CHILD_RESTRICTION`, not a repository defect |
 | T007 | Database base/session and Alembic baseline existed before formal red test packet | `PRE_EXISTING_GREEN` for transaction and FK baseline test |
-| T008 | Migration policy and single-head script existed before double-head fixture test | current single-head check is green; double-head fixture still missing |
+| T008 | Migration policy and single-head script existed before double-head fixture test | `PRE_EXISTING_GREEN` for the current single-head baseline; real RED covered dual-head fixture, zero-head fixture, policy gaps, and canonical gate wiring |

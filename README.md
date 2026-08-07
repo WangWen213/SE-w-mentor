@@ -33,3 +33,6 @@ Canonical local quality gate on Windows:
 
 Run it from the repository root. The script uses the current Python interpreter for Python checks
 and runs frontend commands from `frontend/` with `npm.cmd` on Windows.
+
+`npm.cmd run build` is separate frontend readiness evidence; it is not part of the canonical
+`scripts/check_all.py` quality gate.

@@ -24,3 +24,4 @@ A Task may move to `[x]` only after:
 ## Development Pause
 
 T009 and later feature development is paused until T000-T008 are closed under strict DoD.
+Foundation/M0 is not open for T009 until T114 first cold-start PASS is also recorded.

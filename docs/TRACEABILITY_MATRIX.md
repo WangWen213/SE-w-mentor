@@ -1,6 +1,6 @@
 # Traceability Matrix
 
-Status: T001 strict DoD candidate. This matrix freezes required columns and maps atomic P0 US acceptance criteria, FR sub-requirements, NFR requirements, and AC families to primary ownership, tests, and evidence.
+Status: frozen/current. This matrix freezes required columns and maps atomic P0 US acceptance criteria, FR sub-requirements, NFR requirements, AC families, and foundation governance rows to primary ownership, tests, and evidence.
 
 | requirement | requirement anchor | priority | primary task | supporting tasks | test | evidence | status |
 | --- | --- | --- | --- | --- | --- | --- | --- |

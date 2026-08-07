@@ -2,6 +2,65 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 T114 First Cold-Start Validation
+
+### Task ID
+T114 first pass
+
+### Date
+2026-08-07
+
+### Agent
+Codex plus fresh read-only subagent `019fdb15-ea18-7701-83f1-883f6d7757c0`
+
+### Worktree
+main
+
+### Start Commit
+`598200b`
+
+### End Commit
+this T114 first-pass commit
+
+### Status Before
+T114 first pass not recorded.
+
+### Status After
+First cold-start pass PASS; final pre-release rerun remains pending.
+
+### Dependency Check
+T000-T008 were `[x]` on main before this pass. T009+ was not started.
+
+### Red Test And Evidence
+`tests/meta/test_t114_cold_start.py` failed because the cold-start report was missing. Evidence:
+`evidence/tdd/T114-red.log`.
+
+### Implementation Summary
+Recorded the fresh-agent BLOCKED findings, fixed Foundation documentation drift, and added the
+first-pass cold-start report with required PASS assertions.
+
+### Green Test And Evidence
+`tests/meta/test_t114_cold_start.py` passed. JUnit: `evidence/test-reports/T114.xml`; green log:
+`evidence/tdd/T114-green.log`.
+
+### Validation Findings
+T000-T008 are complete. Decision freeze, traceability, shared contracts, migration ownership,
+canonical command documentation, and single Alembic head are coherent after fixes. `T009 NOT
+STARTED`.
+
+### Spec Review
+`evidence/reviews/T114-spec-review.md`
+
+### Code Review
+`evidence/reviews/T114-code-review.md`
+
+### Diff
+`evidence/diffs/T114.patch`
+
+### Remaining Work
+Foundation checkpoint push may proceed after final validation confirms clean status. Do not start
+T009+ in this round.
+
 ## 2026-08-07 T008 Main Integration Closure
 
 ### Task ID

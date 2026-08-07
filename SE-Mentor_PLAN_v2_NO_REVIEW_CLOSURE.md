@@ -3389,8 +3389,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T114 — 陌生智能体冷启动验证与二次修订
 
-- **状态**：[ ] 首轮未执行；最终复跑未执行
-- **阻塞说明**：需在计划冻结后立即执行首轮，发布前执行第二轮
+- **状态**：[-] first cold-start PASS complete; final pre-release rerun not executed
+- **阻塞说明**：首轮已完成；发布前仍需第二轮复跑
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`审查 Cold Start`, `SPEC_PROCESS`
 - **目标**：分别在核心实现前后让不同新鲜 subagent 仅凭 SPEC/PLAN 实施指定 Task，记录歧义和修订。
@@ -3414,7 +3414,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T114.xml
   - evidence/diffs/T114.patch
   - `AGENT_LOG.md` 中的 T114 记录
-- **Commit**：`未填写`
+- **Commit**：first cold-start pass recorded in the containing T114 commit; final rerun `未填写`
 
 ## T115 — 生成验收证据、ACCEPTANCE_REPORT 与 Release Gate
 

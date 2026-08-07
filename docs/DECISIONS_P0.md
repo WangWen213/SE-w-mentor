@@ -10,7 +10,8 @@ Status: frozen for P0 unless the change process in this file is followed.
 - Deprecated spelling: `sementor`; do not introduce it in new code, docs, migration IDs, or service names.
 - T002, T003, T007, and T008 are covered by a one-time Bootstrap TDD exception.
 - From T000 onward, new implementation work must follow strict red-green TDD.
-- T009 and later feature work is paused until T000-T008 satisfy strict DoD.
+- T009 and later feature work is paused until T000-T008 satisfy strict DoD and T114 first
+  cold-start PASS is recorded.
 
 ## Bootstrap TDD exception
 

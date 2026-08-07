@@ -21,7 +21,7 @@ remains in `SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md`.
 | Frontend tests | Ready outside Codex sandbox | User-executed ordinary non-admin PowerShell: Vitest pass, Vite build pass |
 | Quality gate | Ready outside Codex sandbox | User-executed ordinary non-admin PowerShell: canonical `check_all.py` pass |
 | Runtime artifacts | Ignored | `.venv/`, `node_modules/`, `dist/`, `.sementor/`, `.tmp/`, backups, logs, secrets |
-| T009+ feature work | Paused | Await T000-T008 strict DoD closure |
+| T009+ feature work | Paused | Await T000-T008 strict DoD closure plus T114 first cold-start PASS |
 
 ## Verified Commands
 
@@ -33,7 +33,8 @@ remains in `SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md`.
 - `backend/.venv/Scripts/python.exe -m alembic downgrade base`
 - `backend/.venv/Scripts/python.exe scripts/check_alembic_heads.py`
 - `npm.cmd run type-check`
-- `npm.cmd run build`
+- `npm.cmd run build` as separate frontend readiness/build evidence, not part of
+  `scripts/check_all.py`
 - `npm.cmd run test -- --run` in an external ordinary non-admin PowerShell
 - `backend/.venv/Scripts/python.exe scripts/check_all.py` passed in an external ordinary non-admin PowerShell
 
