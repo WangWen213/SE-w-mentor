@@ -940,7 +940,7 @@ codex/T007-db-baseline
 `b24994b`
 
 ### End Commit
-Branch implementation commit; final hash is reported after commit creation.
+Implementation `14d29e1`; branch metadata recorded in the containing commit.
 
 ### Status Before
 `[-]`

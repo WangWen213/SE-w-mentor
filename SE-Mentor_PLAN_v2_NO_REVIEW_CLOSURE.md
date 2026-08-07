@@ -326,7 +326,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T007.xml
   - evidence/diffs/T007.patch
   - `AGENT_LOG.md` 中的 T007 记录
-- **Commit**：branch implementation commit to be reported after commit creation
+- **Commit**：branch implementation `14d29e1`; branch metadata recorded in the containing commit
 
 ## T008 — 建立迁移所有权与单一 Head 门禁
 
