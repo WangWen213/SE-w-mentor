@@ -268,7 +268,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T006 — 实现凭据边界、脱敏与最小子进程环境
 
-- **状态**：[ ] 未开始
+- **状态**：[-] branch complete in `codex/T006-secret-boundary`; awaiting main merge and project-level regression before `[x]`
 - **阻塞说明**：无
 - **Worktree**：`wt-spec-contracts`
 - **覆盖需求**：`NFR-CRED-01～10`, `NFR-SEC-09`, `AC-SEC-05`
@@ -295,7 +295,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T006.xml
   - evidence/diffs/T006.patch
   - `AGENT_LOG.md` 中的 T006 记录
-- **Commit**：`未填写`
+- **Commit**：branch implementation commit to be reported after commit creation
 
 ## T007 — 建立 SQLAlchemy、SQLite 与 Alembic 基线
 
