@@ -2,6 +2,80 @@
 
 Append one section per Task execution.
 
+## 2026-08-07 T010 Task Domain Data Model
+
+### Task ID
+T010
+
+### Date
+2026-08-07
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T010-task-domain`. Requested `wt-schema`
+worktree creation failed because the managed sandbox blocked Git ref lock creation under
+`.git/refs/heads`. No privilege escalation was used.
+
+### Start Commit
+`8018128`
+
+### End Commit
+Implementation `5c5db4d`; evidence/metadata in this T010 evidence commit.
+
+### Status Before
+`[ ]`
+
+### Status After
+`[-]` branch complete; awaiting main merge and main regression before project-level `[x]`.
+
+### Dependency Check
+Foundation/M0 checkpoint was complete. T009 was `[x]`. T011+ was not started.
+
+### Change Scope
+Only task-domain persistence models, model registry, T010 migration, model tests, one T009
+regression-test false-positive adjustment, evidence, reviews, PLAN, and AGENT_LOG.
+
+### Red Test And Evidence
+No `PRE_EXISTING_GREEN`. `backend/tests/models/test_task_models.py` failed during collection with
+`ModuleNotFoundError: No module named 'se_mentor.models.task'`. Evidence:
+`evidence/tdd/T010-red.log`.
+
+### Implementation Summary
+Added `ChangeTask`, `ChangeProposal`, and `TaskIteration`; frozen SPEC enum check constraints;
+positive version/iteration and non-negative counter constraints; task/proposal/iteration indexes;
+proposal supersedes self-reference; Project-to-ChangeTask relationship; Alembic revision
+`0020_task_domain` from `0010_project_domain`; and scoped tests.
+
+### Green Test And Evidence
+T010 scoped tests passed 4 tests. JUnit: `evidence/test-reports/T010.xml`; green log:
+`evidence/tdd/T010-green.log`.
+
+### Regression Evidence
+T009+T010 model regression passed 8 tests. Foundation/meta plus backend regression passed 44 tests
+with one existing third-party warning. Alembic heads, upgrade, downgrade, re-upgrade, and
+single-head gate passed. Ruff format/check passed. backend mypy passed on 30 source files.
+In-sandbox `scripts/check_all.py` reached the documented Vitest/esbuild access restriction only
+after format, lint, mypy, Alembic gate, meta tests, backend tests, and frontend type-check passed.
+
+### Spec Review
+`evidence/reviews/T010-spec-review.md`
+
+### Code Review
+`evidence/reviews/T010-code-review.md`
+
+### Diff
+`evidence/diffs/T010.patch`
+
+### Deviations
+Requested `SE-Mentor_PLAN_v2_COMPLETE.md` is absent; used
+`SE-Mentor_PLAN_v2_NO_REVIEW_CLOSURE.md`. Requested `wt-schema` worktree creation was blocked by
+managed sandbox Git ref permissions. No privilege escalation was used.
+
+### Remaining Work
+Merge T010 to main and rerun main regression. Do not start T011.
+
 ## 2026-08-07 T009 Main Integration Closure
 
 ### Task ID

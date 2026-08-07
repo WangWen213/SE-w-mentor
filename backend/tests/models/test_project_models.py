@@ -144,7 +144,7 @@ def test_T009_credential_profile_round_trip_cascade_and_no_plaintext_sink(
     assert profile.keyring_reference == "os-keyring:se-mentor/openai/default"
     assert profile.configuration_status == "configured"
 
-    forbidden = ("fake-secret-T009", "api_key", "token", "password", "credential_value")
+    forbidden_schema_fragments = ("api_key", "token", "password", "credential_value")
     table_names = inspect(engine).get_table_names()
     assert {"projects", "project_configs", "credential_profiles"}.issubset(table_names)
     backend_dir = Path(__file__).resolve().parents[2]
@@ -153,9 +153,9 @@ def test_T009_credential_profile_round_trip_cascade_and_no_plaintext_sink(
     )
     dump = _sqlite_dump(database_path)
 
-    for forbidden_fragment in forbidden:
+    for forbidden_fragment in forbidden_schema_fragments:
         assert forbidden_fragment not in migration_text
-        assert forbidden_fragment not in dump
+    assert "fake-secret-T009" not in dump
 
     with session_scope(session_factory) as session:
         deleted_project = session.get(Project, project_id)
