@@ -1,0 +1,561 @@
+﻿diff --git a/backend/migrations/versions/0070_validation_feedback.py b/backend/migrations/versions/0070_validation_feedback.py
+new file mode 100644
+index 0000000..dee50c1
+--- /dev/null
++++ b/backend/migrations/versions/0070_validation_feedback.py
+@@ -0,0 +1,188 @@
++"""Validation, feedback, and progress persistence.
++
++Revision ID: 0070_validation_feedback
++Revises: 0060_execution_transaction
++Create Date: 2026-08-08
++"""
++
++from __future__ import annotations
++
++import sqlalchemy as sa
++from alembic import op
++
++revision = "0070_validation_feedback"
++down_revision = "0060_execution_transaction"
++branch_labels = None
++depends_on = None
++
++PLAN_STATUSES = ("ACTIVE", "SUPERSEDED", "EXPIRED")
++VALIDATION_TYPES = ("TEST", "LINT", "TYPE_CHECK", "MIGRATION", "MANUAL")
++RUN_STATUSES = ("PASSED", "FAILED", "ERROR", "SKIPPED", "INCONCLUSIVE")
++FEEDBACK_KINDS = ("VALIDATION", "GOVERNANCE", "TOOL", "PROGRESS")
++FEEDBACK_SEVERITIES = ("INFO", "WARNING", "ERROR")
++EVENT_TYPES = (
++    "TASK_CREATED",
++    "ACTION_PARSED",
++    "GOVERNANCE_DECIDED",
++    "TOOL_EXECUTED",
++    "VALIDATION_RECORDED",
++)
++
++
++def upgrade() -> None:
++    op.create_table(
++        "validation_plans",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("task_id", sa.String(length=36), nullable=False),
++        sa.Column("proposal_id", sa.String(length=36), nullable=False),
++        sa.Column("execution_policy_id", sa.String(length=36), nullable=False),
++        sa.Column("version", sa.Integer(), nullable=False),
++        sa.Column("status", sa.String(length=16), nullable=False),
++        sa.Column("required_checks_json", sa.Text(), nullable=False),
++        sa.Column("evidence_json", sa.Text(), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint("version >= 1", name="version_positive"),
++        sa.CheckConstraint(f"status IN {_quoted_values(PLAN_STATUSES)}", name="status_values"),
++        sa.CheckConstraint(
++            "length(trim(required_checks_json)) > 0",
++            name="required_checks_non_empty",
++        ),
++        sa.CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        sa.ForeignKeyConstraint(
++            ["execution_policy_id"], ["execution_policies.id"], ondelete="RESTRICT"
++        ),
++        sa.ForeignKeyConstraint(["proposal_id"], ["change_proposals.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["task_id"], ["change_tasks.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index("ix_validation_plans_task_id", "validation_plans", ["task_id"])
++    op.create_index("ix_validation_plans_proposal_id", "validation_plans", ["proposal_id"])
++    op.create_index(
++        "ix_validation_plans_execution_policy_id",
++        "validation_plans",
++        ["execution_policy_id"],
++    )
++    op.create_index(
++        "ix_validation_plans_proposal_policy_version",
++        "validation_plans",
++        ["proposal_id", "execution_policy_id", "version"],
++        unique=True,
++    )
++    op.create_index(
++        "ix_validation_plans_task_id_status",
++        "validation_plans",
++        ["task_id", "status"],
++    )
++
++    op.create_table(
++        "validation_runs",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("validation_plan_id", sa.String(length=36), nullable=False),
++        sa.Column("run_order", sa.Integer(), nullable=False),
++        sa.Column("validation_type", sa.String(length=16), nullable=False),
++        sa.Column("command_summary", sa.String(length=2048), nullable=False),
++        sa.Column("exit_code", sa.Integer(), nullable=True),
++        sa.Column("status", sa.String(length=16), nullable=False),
++        sa.Column("required", sa.Boolean(), nullable=False),
++        sa.Column("required_failure", sa.Boolean(), nullable=False),
++        sa.Column("failure_category", sa.String(length=64), nullable=True),
++        sa.Column("log_artifact_ref", sa.String(length=512), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint("run_order >= 1", name="run_order_positive"),
++        sa.CheckConstraint(
++            f"validation_type IN {_quoted_values(VALIDATION_TYPES)}",
++            name="validation_type_values",
++        ),
++        sa.CheckConstraint(f"status IN {_quoted_values(RUN_STATUSES)}", name="status_values"),
++        sa.CheckConstraint("exit_code IS NULL OR exit_code >= 0", name="exit_code_non_negative"),
++        sa.CheckConstraint("length(trim(command_summary)) > 0", name="command_summary_non_empty"),
++        sa.CheckConstraint("length(trim(log_artifact_ref)) > 0", name="log_artifact_ref_non_empty"),
++        sa.CheckConstraint(
++            "status != 'PASSED' OR (exit_code = 0 AND required_failure = 0)",
++            name="passed_requires_zero_exit_no_required_failure",
++        ),
++        sa.ForeignKeyConstraint(
++            ["validation_plan_id"], ["validation_plans.id"], ondelete="RESTRICT"
++        ),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index(
++        "ix_validation_runs_validation_plan_id", "validation_runs", ["validation_plan_id"]
++    )
++    op.create_index(
++        "ix_validation_runs_plan_order",
++        "validation_runs",
++        ["validation_plan_id", "run_order"],
++        unique=True,
++    )
++
++    op.create_table(
++        "feedback_signals",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("task_id", sa.String(length=36), nullable=False),
++        sa.Column("kind", sa.String(length=16), nullable=False),
++        sa.Column("severity", sa.String(length=16), nullable=False),
++        sa.Column("summary", sa.String(length=2048), nullable=False),
++        sa.Column("evidence_json", sa.Text(), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint(f"kind IN {_quoted_values(FEEDBACK_KINDS)}", name="kind_values"),
++        sa.CheckConstraint(
++            f"severity IN {_quoted_values(FEEDBACK_SEVERITIES)}",
++            name="severity_values",
++        ),
++        sa.CheckConstraint("length(trim(summary)) > 0", name="summary_non_empty"),
++        sa.CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        sa.ForeignKeyConstraint(["task_id"], ["change_tasks.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index("ix_feedback_signals_task_id", "feedback_signals", ["task_id"])
++    op.create_index(
++        "ix_feedback_signals_task_id_kind",
++        "feedback_signals",
++        ["task_id", "kind"],
++    )
++
++    op.create_table(
++        "progress_events",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("task_id", sa.String(length=36), nullable=False),
++        sa.Column("event_type", sa.String(length=32), nullable=False),
++        sa.Column("summary", sa.String(length=2048), nullable=False),
++        sa.Column("evidence_json", sa.Text(), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint(
++            f"event_type IN {_quoted_values(EVENT_TYPES)}", name="event_type_values"
++        ),
++        sa.CheckConstraint("length(trim(summary)) > 0", name="summary_non_empty"),
++        sa.CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        sa.ForeignKeyConstraint(["task_id"], ["change_tasks.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index("ix_progress_events_task_id", "progress_events", ["task_id"])
++    op.create_index(
++        "ix_progress_events_task_id_event_type",
++        "progress_events",
++        ["task_id", "event_type"],
++    )
++
++
++def downgrade() -> None:
++    op.drop_index("ix_progress_events_task_id_event_type", table_name="progress_events")
++    op.drop_index("ix_progress_events_task_id", table_name="progress_events")
++    op.drop_table("progress_events")
++    op.drop_index("ix_feedback_signals_task_id_kind", table_name="feedback_signals")
++    op.drop_index("ix_feedback_signals_task_id", table_name="feedback_signals")
++    op.drop_table("feedback_signals")
++    op.drop_index("ix_validation_runs_plan_order", table_name="validation_runs")
++    op.drop_index("ix_validation_runs_validation_plan_id", table_name="validation_runs")
++    op.drop_table("validation_runs")
++    op.drop_index("ix_validation_plans_task_id_status", table_name="validation_plans")
++    op.drop_index("ix_validation_plans_proposal_policy_version", table_name="validation_plans")
++    op.drop_index("ix_validation_plans_execution_policy_id", table_name="validation_plans")
++    op.drop_index("ix_validation_plans_proposal_id", table_name="validation_plans")
++    op.drop_index("ix_validation_plans_task_id", table_name="validation_plans")
++    op.drop_table("validation_plans")
++
++
++def _quoted_values(values: tuple[str, ...]) -> str:
++    return "(" + ", ".join(f"'{value}'" for value in values) + ")"
+diff --git a/backend/src/se_mentor/models/validation.py b/backend/src/se_mentor/models/validation.py
+new file mode 100644
+index 0000000..bfd92c8
+--- /dev/null
++++ b/backend/src/se_mentor/models/validation.py
+@@ -0,0 +1,187 @@
++from __future__ import annotations
++
++from datetime import UTC, datetime
++from enum import StrEnum
++from uuid import uuid4
++
++from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, Text
++from sqlalchemy.orm import Mapped, mapped_column, relationship
++
++from se_mentor.contracts.enums import EventType, FeedbackKind, FeedbackSeverity
++from se_mentor.db.base import Base
++from se_mentor.models.approval import ExecutionPolicy
++from se_mentor.models.task import ChangeProposal, ChangeTask
++
++
++class ValidationPlanStatus(StrEnum):
++    ACTIVE = "ACTIVE"
++    SUPERSEDED = "SUPERSEDED"
++    EXPIRED = "EXPIRED"
++
++
++class ValidationType(StrEnum):
++    TEST = "TEST"
++    LINT = "LINT"
++    TYPE_CHECK = "TYPE_CHECK"
++    MIGRATION = "MIGRATION"
++    MANUAL = "MANUAL"
++
++
++class ValidationRunStatus(StrEnum):
++    PASSED = "PASSED"
++    FAILED = "FAILED"
++    ERROR = "ERROR"
++    SKIPPED = "SKIPPED"
++    INCONCLUSIVE = "INCONCLUSIVE"
++
++
++def _new_id() -> str:
++    return str(uuid4())
++
++
++def _utcnow() -> datetime:
++    return datetime.now(UTC)
++
++
++def _in_values(values: type[StrEnum]) -> str:
++    quoted_values = ", ".join(f"'{item.value}'" for item in values)
++    return f"({quoted_values})"
++
++
++class ValidationPlan(Base):
++    __tablename__ = "validation_plans"
++    __table_args__ = (
++        CheckConstraint("version >= 1", name="version_positive"),
++        CheckConstraint(f"status IN {_in_values(ValidationPlanStatus)}", name="status_values"),
++        CheckConstraint("length(trim(required_checks_json)) > 0", name="required_checks_non_empty"),
++        CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        Index(
++            "ix_validation_plans_proposal_policy_version",
++            "proposal_id",
++            "execution_policy_id",
++            "version",
++            unique=True,
++        ),
++        Index("ix_validation_plans_task_id_status", "task_id", "status"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    task_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("change_tasks.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    proposal_id: Mapped[str] = mapped_column(
++        String(36),
++        ForeignKey("change_proposals.id", ondelete="RESTRICT"),
++        nullable=False,
++        index=True,
++    )
++    execution_policy_id: Mapped[str] = mapped_column(
++        String(36),
++        ForeignKey("execution_policies.id", ondelete="RESTRICT"),
++        nullable=False,
++        index=True,
++    )
++    version: Mapped[int] = mapped_column(nullable=False)
++    status: Mapped[str] = mapped_column(String(16), nullable=False)
++    required_checks_json: Mapped[str] = mapped_column(Text, nullable=False)
++    evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++
++    task: Mapped[ChangeTask] = relationship()
++    proposal: Mapped[ChangeProposal] = relationship()
++    execution_policy: Mapped[ExecutionPolicy] = relationship()
++    runs: Mapped[list[ValidationRun]] = relationship(
++        "ValidationRun", back_populates="validation_plan"
++    )
++
++
++class ValidationRun(Base):
++    __tablename__ = "validation_runs"
++    __table_args__ = (
++        CheckConstraint("run_order >= 1", name="run_order_positive"),
++        CheckConstraint(
++            f"validation_type IN {_in_values(ValidationType)}", name="validation_type_values"
++        ),
++        CheckConstraint(f"status IN {_in_values(ValidationRunStatus)}", name="status_values"),
++        CheckConstraint("exit_code IS NULL OR exit_code >= 0", name="exit_code_non_negative"),
++        CheckConstraint("length(trim(command_summary)) > 0", name="command_summary_non_empty"),
++        CheckConstraint("length(trim(log_artifact_ref)) > 0", name="log_artifact_ref_non_empty"),
++        CheckConstraint(
++            "status != 'PASSED' OR (exit_code = 0 AND required_failure = 0)",
++            name="passed_requires_zero_exit_no_required_failure",
++        ),
++        Index(
++            "ix_validation_runs_plan_order",
++            "validation_plan_id",
++            "run_order",
++            unique=True,
++        ),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    validation_plan_id: Mapped[str] = mapped_column(
++        String(36),
++        ForeignKey("validation_plans.id", ondelete="RESTRICT"),
++        nullable=False,
++        index=True,
++    )
++    run_order: Mapped[int] = mapped_column(nullable=False)
++    validation_type: Mapped[str] = mapped_column(String(16), nullable=False)
++    command_summary: Mapped[str] = mapped_column(String(2048), nullable=False)
++    exit_code: Mapped[int | None] = mapped_column(nullable=True)
++    status: Mapped[str] = mapped_column(String(16), nullable=False)
++    required: Mapped[bool] = mapped_column(Boolean, nullable=False)
++    required_failure: Mapped[bool] = mapped_column(Boolean, nullable=False)
++    failure_category: Mapped[str | None] = mapped_column(String(64), nullable=True)
++    log_artifact_ref: Mapped[str] = mapped_column(String(512), nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++
++    validation_plan: Mapped[ValidationPlan] = relationship(back_populates="runs")
++
++
++class FeedbackSignal(Base):
++    __tablename__ = "feedback_signals"
++    __table_args__ = (
++        CheckConstraint(f"kind IN {_in_values(FeedbackKind)}", name="kind_values"),
++        CheckConstraint(f"severity IN {_in_values(FeedbackSeverity)}", name="severity_values"),
++        CheckConstraint("length(trim(summary)) > 0", name="summary_non_empty"),
++        CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        Index("ix_feedback_signals_task_id_kind", "task_id", "kind"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    task_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("change_tasks.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    kind: Mapped[str] = mapped_column(String(16), nullable=False)
++    severity: Mapped[str] = mapped_column(String(16), nullable=False)
++    summary: Mapped[str] = mapped_column(String(2048), nullable=False)
++    evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++
++
++class ProgressEvent(Base):
++    __tablename__ = "progress_events"
++    __table_args__ = (
++        CheckConstraint(f"event_type IN {_in_values(EventType)}", name="event_type_values"),
++        CheckConstraint("length(trim(summary)) > 0", name="summary_non_empty"),
++        CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        Index("ix_progress_events_task_id_event_type", "task_id", "event_type"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    task_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("change_tasks.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    event_type: Mapped[str] = mapped_column(String(32), nullable=False)
++    summary: Mapped[str] = mapped_column(String(2048), nullable=False)
++    evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
+diff --git a/backend/tests/models/test_validation_models.py b/backend/tests/models/test_validation_models.py
+new file mode 100644
+index 0000000..735ea63
+--- /dev/null
++++ b/backend/tests/models/test_validation_models.py
+@@ -0,0 +1,168 @@
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++from phase1_test_helpers import PROPOSAL_HASH, REVISION, create_schema, execute, seed_task_graph
++from sqlalchemy import Engine, exc
++
++from se_mentor.contracts.enums import EventType, FeedbackKind, FeedbackSeverity
++from se_mentor.db.session import create_session_factory, session_scope
++from se_mentor.models.approval import ExecutionPolicy, ExecutionPolicyStatus
++from se_mentor.models.validation import (
++    FeedbackSignal,
++    ProgressEvent,
++    ValidationPlan,
++    ValidationPlanStatus,
++    ValidationRun,
++    ValidationRunStatus,
++    ValidationType,
++)
++
++
++def test_T015_passed_validation_requires_zero_exit_and_no_required_failure(
++    tmp_path: Path,
++) -> None:
++    engine = create_schema(tmp_path / "validation.sqlite3")
++    ids = seed_task_graph(engine, tmp_path)
++    policy_id = _insert_policy(engine, ids)
++
++    with pytest.raises(exc.IntegrityError):
++        execute(
++            engine,
++            """
++            INSERT INTO validation_runs (
++                id, validation_plan_id, run_order, validation_type, command_summary,
++                exit_code, status, required, required_failure, log_artifact_ref, created_at
++            )
++            VALUES (
++                'bad-passed', :plan_id, 1, 'TEST', 'pytest', 1, 'PASSED',
++                1, 0, 'artifact://logs/bad.log', CURRENT_TIMESTAMP
++            )
++            """,
++            {"plan_id": _insert_plan(engine, ids, policy_id)},
++        )
++
++    with pytest.raises(exc.IntegrityError):
++        execute(
++            engine,
++            """
++            INSERT INTO validation_runs (
++                id, validation_plan_id, run_order, validation_type, command_summary,
++                exit_code, status, required, required_failure, log_artifact_ref, created_at
++            )
++            VALUES (
++                'bad-required', :plan_id, 2, 'TEST', 'pytest', 0, 'PASSED',
++                1, 1, 'artifact://logs/bad.log', CURRENT_TIMESTAMP
++            )
++            """,
++            {"plan_id": _insert_plan(engine, ids, policy_id, version=2)},
++        )
++
++
++def test_T015_plan_version_run_order_and_shared_feedback_enums(tmp_path: Path) -> None:
++    engine = create_schema(tmp_path / "validation-ok.sqlite3")
++    ids = seed_task_graph(engine, tmp_path)
++    policy_id = _insert_policy(engine, ids)
++    session_factory = create_session_factory(engine)
++
++    with session_scope(session_factory) as session:
++        plan = ValidationPlan(
++            task_id=ids["task_id"],
++            proposal_id=ids["proposal_id"],
++            execution_policy_id=policy_id,
++            version=1,
++            status=ValidationPlanStatus.ACTIVE,
++            required_checks_json='["pytest"]',
++            evidence_json='[{"source":"T015","summary":"plan"}]',
++        )
++        session.add(plan)
++        session.flush()
++        session.add(
++            ValidationRun(
++                validation_plan_id=plan.id,
++                run_order=1,
++                validation_type=ValidationType.TEST,
++                command_summary="pytest",
++                exit_code=0,
++                status=ValidationRunStatus.PASSED,
++                required=True,
++                required_failure=False,
++                log_artifact_ref="artifact://logs/pytest.log",
++            )
++        )
++        session.add(
++            FeedbackSignal(
++                task_id=ids["task_id"],
++                kind=FeedbackKind.VALIDATION,
++                severity=FeedbackSeverity.INFO,
++                summary="Validation passed.",
++                evidence_json='[{"source":"T015","summary":"feedback"}]',
++            )
++        )
++        session.add(
++            ProgressEvent(
++                task_id=ids["task_id"],
++                event_type=EventType.VALIDATION_RECORDED,
++                summary="Validation recorded.",
++                evidence_json='[{"source":"T015","summary":"progress"}]',
++            )
++        )
++        session.flush()
++
++    with pytest.raises(exc.IntegrityError):
++        execute(
++            engine,
++            """
++            INSERT INTO validation_runs (
++                id, validation_plan_id, run_order, validation_type, command_summary,
++                exit_code, status, required, required_failure, log_artifact_ref, created_at
++            )
++            SELECT 'duplicate-order', id, 1, 'TEST', 'pytest', 0, 'PASSED',
++                   1, 0, 'artifact://logs/dup.log', CURRENT_TIMESTAMP
++            FROM validation_plans LIMIT 1
++            """,
++            {},
++        )
++
++
++def _insert_policy(engine: Engine, ids: dict[str, str]) -> str:
++    session_factory = create_session_factory(engine)
++    with session_scope(session_factory) as session:
++        policy = ExecutionPolicy(
++            task_id=ids["task_id"],
++            action_id=ids["action_id"],
++            governance_decision_id=ids["decision_id"],
++            proposal_hash=PROPOSAL_HASH,
++            revision=REVISION,
++            status=ExecutionPolicyStatus.ACTIVE,
++            executable=True,
++            read_paths_json='["backend/src"]',
++            write_paths_json='["backend/src"]',
++            protected_paths_json='[".env"]',
++            commands_json='["pytest"]',
++            network_json='{"enabled": false}',
++            resource_limits_json='{"timeout_seconds": 120}',
++            invalidation_json='{"proposal_hash": true}',
++            evidence_json='[{"source":"T015","summary":"policy"}]',
++        )
++        session.add(policy)
++        session.flush()
++        return policy.id
++
++
++def _insert_plan(engine: Engine, ids: dict[str, str], policy_id: str, *, version: int = 1) -> str:
++    session_factory = create_session_factory(engine)
++    with session_scope(session_factory) as session:
++        plan = ValidationPlan(
++            task_id=ids["task_id"],
++            proposal_id=ids["proposal_id"],
++            execution_policy_id=policy_id,
++            version=version,
++            status=ValidationPlanStatus.ACTIVE,
++            required_checks_json='["pytest"]',
++            evidence_json='[{"source":"T015","summary":"plan"}]',
++        )
++        session.add(plan)
++        session.flush()
++        return plan.id

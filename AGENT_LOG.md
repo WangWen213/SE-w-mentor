@@ -2,6 +2,45 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 T015 Validation Feedback Progress Data Model
+
+### Task ID
+T015
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`5759f34`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T015_passed_validation_requires_zero_exit_and_no_required_failure` was introduced before
+T013 existed and collection first failed on the missing approval dependency. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added versioned `ValidationPlan` bound to proposal and execution policy, `ValidationRun` with
+stable run order, command summary, exit code, validation type, failure category and artifact log
+reference, plus `FeedbackSignal`/`ProgressEvent` using frozen contract enums. PASSED runs require
+zero exit code and no required failure.
+
+### Evidence
+`evidence/tdd/T015-red.log`
+`evidence/tdd/T015-green.log`
+`evidence/test-reports/T015.xml`
+`evidence/diffs/T015.patch`
+
+### Result
+T015 branch GREEN. T019 NOT STARTED.
+
 ## 2026-08-08 T014 Execution Transaction Backup FileChange Lock Data Model
 
 ### Task ID
