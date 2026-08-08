@@ -2,6 +2,56 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 Phase 1 Schema Branch Validation
+
+### Task ID
+T013-T018
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`9ee8dcc`
+
+### End Commit
+`80732e9`
+
+### Status
+T013-T018 branch GREEN; final `[x]` waits for one main integration regression.
+
+### Validation
+T013-T018 scoped regression passed 12 tests. T009-T018 model regression passed 30 tests. Meta plus
+backend regression passed 66 tests with existing third-party/Alembic warnings. Alembic
+upgrade/downgrade/re-upgrade passed. `alembic heads` and `scripts/check_alembic_heads.py` reported
+one head: `0100_audit_alert`. Ruff format/check and mypy passed.
+
+Canonical `scripts/check_all.py` passed format, lint, mypy, Alembic gate, meta tests, backend tests,
+and frontend type-check, then reached the known Codex Vitest/esbuild sandbox directory access
+restriction.
+
+### Evidence
+`evidence/logs/phase1/t013-t018-scoped-regression.log`
+`evidence/logs/phase1/t009-t018-model-regression.log`
+`evidence/logs/phase1/meta-backend-regression.log`
+`evidence/logs/phase1/alembic-heads.log`
+`evidence/logs/phase1/alembic-upgrade.log`
+`evidence/logs/phase1/alembic-downgrade.log`
+`evidence/logs/phase1/alembic-reupgrade.log`
+`evidence/logs/phase1/alembic-gate.log`
+`evidence/logs/phase1/ruff-format.log`
+`evidence/logs/phase1/ruff.log`
+`evidence/logs/phase1/mypy.log`
+`evidence/logs/phase1/check-all.log`
+
+### Result
+Phase 1 schema branch ready for main merge. T019 NOT STARTED.
+
 ## 2026-08-08 T018 Audit Alert Retention Data Model
 
 ### Task ID
