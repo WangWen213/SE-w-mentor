@@ -2,6 +2,45 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 T014 Execution Transaction Backup FileChange Lock Data Model
+
+### Task ID
+T014
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`d2f38fc`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T014_committed_transaction_requires_manifest_and_active_write_lock` failed during collection
+because `se_mentor.models.execution` did not exist. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added `ToolExecution`, `TaskTransaction`, `BackupEntry`, `FileChange`, and `WorkspaceLock`.
+Transactions constrain valid states, COMMITTED requires a manifest and active WRITE lock, only one
+active WRITE lock is allowed per project, and file changes trace back to tool execution plus
+agent action.
+
+### Evidence
+`evidence/tdd/T014-red.log`
+`evidence/tdd/T014-green.log`
+`evidence/test-reports/T014.xml`
+`evidence/diffs/T014.patch`
+
+### Result
+T014 branch GREEN. T019 NOT STARTED.
+
 ## 2026-08-08 T013 Approval And Execution Policy Data Model
 
 ### Task ID
