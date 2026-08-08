@@ -477,7 +477,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T013 — 审批与执行策略域数据模型
 
-- **状态**：[ ] 未开始
+- **状态**：[x] 已完成
 - **阻塞说明**：无
 - **Worktree**：`wt-schema`
 - **覆盖需求**：`ApprovalRequest`, `ApprovalDecision`, `ExecutionPolicy`, `FR-06-03～05`
@@ -502,11 +502,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T013.xml
   - evidence/diffs/T013.patch
   - `AGENT_LOG.md` 中的 T013 记录
-- **Commit**：`未填写`
+- **Commit**：implementation/evidence `d2f38fc`; main integration merge `7fd8bd4`
 
 ## T014 — 工具、事务、备份、文件变化与锁模型
 
-- **状态**：[ ] 未开始
+- **状态**：[x] 已完成
 - **阻塞说明**：无
 - **Worktree**：`wt-schema`
 - **覆盖需求**：`ToolExecution`, `TaskTransaction`, `BackupEntry`, `FileChange`, `WorkspaceLock`, `FR-07`, `NFR-SEC-03～04`
@@ -531,11 +531,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T014.xml
   - evidence/diffs/T014.patch
   - `AGENT_LOG.md` 中的 T014 记录
-- **Commit**：`未填写`
+- **Commit**：implementation/evidence `5759f34`; main integration merge `7fd8bd4`
 
 ## T015 — 验证、反馈与进展模型
 
-- **状态**：[ ] 未开始
+- **状态**：[x] 已完成
 - **阻塞说明**：无
 - **Worktree**：`wt-schema`
 - **覆盖需求**：`ValidationPlan`, `ValidationRun`, `FeedbackSignal`, `ProgressEvent`, `FR-08`, `NFR-OBS-07`
@@ -560,11 +560,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T015.xml
   - evidence/diffs/T015.patch
   - `AGENT_LOG.md` 中的 T015 记录
-- **Commit**：`未填写`
+- **Commit**：implementation/evidence `33f306e`; main integration merge `7fd8bd4`
 
 ## T016 — 工程知识域数据模型
 
-- **状态**：[ ] 未开始
+- **状态**：[x] 已完成
 - **阻塞说明**：无
 - **Worktree**：`wt-schema`
 - **覆盖需求**：`EngineeringKnowledge`, `KnowledgeSignature`, `KnowledgeSource`, `KnowledgeRelation`, `FR-09`
@@ -589,11 +589,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T016.xml
   - evidence/diffs/T016.patch
   - `AGENT_LOG.md` 中的 T016 记录
-- **Commit**：`未填写`
+- **Commit**：implementation/evidence `546a043`; main integration merge `7fd8bd4`
 
 ## T017 — 代码索引域数据模型
 
-- **状态**：[ ] 未开始
+- **状态**：[x] 已完成
 - **阻塞说明**：无
 - **Worktree**：`wt-schema`
 - **覆盖需求**：`CodeIndex`, `CodeSymbol`, `FR-03-01`
@@ -618,11 +618,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T017.xml
   - evidence/diffs/T017.patch
   - `AGENT_LOG.md` 中的 T017 记录
-- **Commit**：`未填写`
+- **Commit**：implementation/evidence `988dab6`; main integration merge `7fd8bd4`
 
 ## T018 — 审计、告警与保留策略模型
 
-- **状态**：[ ] 未开始
+- **状态**：[x] 已完成
 - **阻塞说明**：无
 - **Worktree**：`wt-schema`
 - **覆盖需求**：`AuditEvent`, `NFR-OBS-10～11`, `数据删除与保留策略`
@@ -648,7 +648,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T018.xml
   - evidence/diffs/T018.patch
   - `AGENT_LOG.md` 中的 T018 记录
-- **Commit**：`未填写`
+- **Commit**：implementation/evidence `80732e9`; branch validation `1c5eac0`; main integration merge `7fd8bd4`
 
 # Phase 2 项目与提案
 

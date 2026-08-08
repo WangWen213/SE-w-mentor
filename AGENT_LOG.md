@@ -2,6 +2,55 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 Phase 1 Data Model Main Integration Closure
+
+### Task ID
+T013-T018
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+main
+
+### Start Commit
+`9ee8dcc`
+
+### End Commit
+Merge `7fd8bd4`
+
+### Status Before
+T013-T018 branch GREEN at `1c5eac0`.
+
+### Status After
+T013 `[x]`, T014 `[x]`, T015 `[x]`, T016 `[x]`, T017 `[x]`, T018 `[x]`.
+
+### Dependency Check
+T012 was complete and pushed before Phase 1 schema branch work started. T019 was not started.
+
+### Main Regression Evidence
+T013-T018 scoped regression passed 12 tests. T009-T018 model regression passed 30 tests. Meta plus
+backend regression passed 66 tests with existing third-party/Alembic warnings. `alembic heads` and
+`scripts/check_alembic_heads.py` reported exactly one head: `0100_audit_alert`.
+
+Canonical `scripts/check_all.py` passed format, lint, mypy, Alembic gate, meta tests, backend tests,
+and frontend type-check, then reached the known Codex Vitest/esbuild sandbox directory access
+restriction.
+
+### Evidence
+`evidence/logs/integration/phase1-main-scoped-regression.log`
+`evidence/logs/integration/phase1-main-model-regression.log`
+`evidence/logs/integration/phase1-main-meta-backend-regression.log`
+`evidence/logs/integration/phase1-main-alembic-heads.log`
+`evidence/logs/integration/phase1-main-alembic-gate.log`
+`evidence/logs/integration/phase1-main-check-all.log`
+
+### Result
+Phase 1 Data Model complete. T019 NOT STARTED.
+
 ## 2026-08-08 Phase 1 Schema Branch Validation
 
 ### Task ID
