@@ -2,6 +2,44 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 T016 Engineering Knowledge Data Model
+
+### Task ID
+T016
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`33f306e`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T016_unverified_llm_summary_cannot_be_verified_without_evidence` failed during collection
+because `se_mentor.models.knowledge` did not exist. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added `EngineeringKnowledge`, `KnowledgeSignature`, `KnowledgeSource`, and `KnowledgeRelation`.
+Knowledge uses the planned status set, requires evidence before VERIFIED, indexes project/type/status,
+keeps explicit supersedes/conflicts relations, and rejects cross-project knowledge relations.
+
+### Evidence
+`evidence/tdd/T016-red.log`
+`evidence/tdd/T016-green.log`
+`evidence/test-reports/T016.xml`
+`evidence/diffs/T016.patch`
+
+### Result
+T016 branch GREEN. T019 NOT STARTED.
+
 ## 2026-08-08 T015 Validation Feedback Progress Data Model
 
 ### Task ID
