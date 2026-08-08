@@ -69,11 +69,10 @@ class WorkspaceLockService:
             return self._acquire_in_session(
                 session, project_id, task_id, mode, owner_instance, reason, ttl_seconds
             )
-        with _LOCK_GUARD:
-            with session_scope(self._session_factory) as owned_session:
-                return self._acquire_in_session(
-                    owned_session, project_id, task_id, mode, owner_instance, reason, ttl_seconds
-                )
+        with _LOCK_GUARD, session_scope(self._session_factory) as owned_session:
+            return self._acquire_in_session(
+                owned_session, project_id, task_id, mode, owner_instance, reason, ttl_seconds
+            )
 
     def heartbeat(
         self,

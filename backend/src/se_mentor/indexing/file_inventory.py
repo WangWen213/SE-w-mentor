@@ -104,6 +104,15 @@ def _git_status(root: Path) -> dict[str, str]:
 
 
 def _is_git_ignored(root: Path, relative_path: str) -> bool:
+    toplevel = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if toplevel.returncode != 0 or Path(toplevel.stdout.strip()).resolve() != root:
+        return False
     result = subprocess.run(
         ["git", "check-ignore", "--quiet", relative_path],
         cwd=root,

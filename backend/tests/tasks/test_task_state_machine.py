@@ -28,7 +28,9 @@ def test_T024_created_cannot_jump_to_completed_and_blocked_cannot_execute(
         )
         assert result.accepted is False
         assert result.reason == "ILLEGAL_TRANSITION"
-        assert session.get(ChangeTask, ids["task_id"]).status == TaskStatus.CREATED
+        stored_task = session.get(ChangeTask, ids["task_id"])
+        assert stored_task is not None
+        assert stored_task.status == TaskStatus.CREATED
         assert session.query(AuditEvent).count() == 0
 
         task = session.get(ChangeTask, ids["task_id"])
@@ -46,7 +48,9 @@ def test_T024_created_cannot_jump_to_completed_and_blocked_cannot_execute(
         )
         assert blocked.accepted is False
         assert blocked.reason == "BLOCKED_TASK_CANNOT_EXECUTE"
-        assert session.get(ChangeTask, ids["task_id"]).status == TaskStatus.BLOCKED
+        stored_blocked_task = session.get(ChangeTask, ids["task_id"])
+        assert stored_blocked_task is not None
+        assert stored_blocked_task.status == TaskStatus.BLOCKED
         assert session.query(AuditEvent).count() == 0
 
     created = service.create_task(

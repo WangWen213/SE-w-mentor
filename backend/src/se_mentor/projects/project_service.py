@@ -6,6 +6,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from se_mentor.models.project import Project
 from se_mentor.projects.project_repository import add_project, find_project_by_root
 
 
@@ -15,7 +16,7 @@ class ProjectRegistrationError(ValueError):
 
 @dataclass(frozen=True)
 class RegisteredProject:
-    project: object
+    project: Project
     current_revision: str
 
 

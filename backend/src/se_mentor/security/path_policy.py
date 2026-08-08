@@ -23,10 +23,7 @@ class PathPolicy:
 
     def resolve(self, relative_path: str | Path) -> PathDecision:
         candidate = Path(relative_path)
-        if candidate.is_absolute():
-            path = candidate
-        else:
-            path = self.project_root / candidate
+        path = candidate if candidate.is_absolute() else self.project_root / candidate
         try:
             resolved = path.resolve(strict=True)
         except FileNotFoundError:

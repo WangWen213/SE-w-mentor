@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
 from os.path import normcase
+from pathlib import Path
 
 import pytest
 from phase1_test_helpers import create_schema
@@ -46,9 +46,11 @@ def test_AC_FR01_01_rejects_non_git_outside_and_duplicate_project(tmp_path: Path
     ).stdout
     assert after_status == before_status
 
-    with session_scope(session_factory) as session:
-        with pytest.raises(ProjectRegistrationError, match="duplicate"):
-            register_project(session, repo, authorized_root=allowed)
+    with (
+        session_scope(session_factory) as session,
+        pytest.raises(ProjectRegistrationError, match="duplicate"),
+    ):
+        register_project(session, repo, authorized_root=allowed)
 
     with session_scope(session_factory) as session:
         (allowed / "not-git").mkdir()
@@ -57,18 +59,22 @@ def test_AC_FR01_01_rejects_non_git_outside_and_duplicate_project(tmp_path: Path
 
     outside = tmp_path / "outside"
     _git_repo(outside)
-    with session_scope(session_factory) as session:
-        with pytest.raises(ProjectRegistrationError, match="authorized"):
-            register_project(session, outside, authorized_root=allowed)
+    with (
+        session_scope(session_factory) as session,
+        pytest.raises(ProjectRegistrationError, match="authorized"),
+    ):
+        register_project(session, outside, authorized_root=allowed)
 
     escape_link = allowed / "escape-link"
     try:
         escape_link.symlink_to(outside, target_is_directory=True)
     except OSError:
         pytest.skip("symlink creation is not available in this environment")
-    with session_scope(session_factory) as session:
-        with pytest.raises(ProjectRegistrationError, match="authorized"):
-            register_project(session, escape_link, authorized_root=allowed)
+    with (
+        session_scope(session_factory) as session,
+        pytest.raises(ProjectRegistrationError, match="authorized"),
+    ):
+        register_project(session, escape_link, authorized_root=allowed)
 
     with session_scope(session_factory) as session:
         assert session.query(Project).count() == 1

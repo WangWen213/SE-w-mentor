@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from se_mentor.models.code_index import CodeIndex, CodeIndexStatus, CodeSymbol, CodeSymbolKind

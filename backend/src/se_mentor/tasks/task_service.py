@@ -4,7 +4,6 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from se_mentor.contracts.enums import EventType
