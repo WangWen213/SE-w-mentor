@@ -1,0 +1,493 @@
+﻿diff --git a/backend/migrations/versions/0090_code_index.py b/backend/migrations/versions/0090_code_index.py
+new file mode 100644
+index 0000000..ab7ae6e
+--- /dev/null
++++ b/backend/migrations/versions/0090_code_index.py
+@@ -0,0 +1,144 @@
++"""Code index persistence.
++
++Revision ID: 0090_code_index
++Revises: 0080_knowledge
++Create Date: 2026-08-08
++"""
++
++from __future__ import annotations
++
++import sqlalchemy as sa
++from alembic import op
++
++revision = "0090_code_index"
++down_revision = "0080_knowledge"
++branch_labels = None
++depends_on = None
++
++INDEX_STATUSES = ("BUILDING", "READY", "STALE", "FAILED")
++SYMBOL_KINDS = ("MODULE", "CLASS", "FUNCTION", "METHOD", "API", "DTO", "TABLE", "TEST")
++RELATION_TYPES = ("IMPORTS", "CALLS", "TESTS", "SERIALIZES", "READS_TABLE", "WRITES_TABLE")
++
++
++def upgrade() -> None:
++    op.create_table(
++        "code_indexes",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("project_id", sa.String(length=36), nullable=False),
++        sa.Column("revision", sa.String(length=64), nullable=False),
++        sa.Column("language", sa.String(length=64), nullable=False),
++        sa.Column("status", sa.String(length=16), nullable=False),
++        sa.Column("index_generation", sa.Integer(), nullable=False),
++        sa.Column("evidence_json", sa.Text(), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint(f"status IN {_quoted_values(INDEX_STATUSES)}", name="status_values"),
++        sa.CheckConstraint("index_generation >= 1", name="index_generation_positive"),
++        sa.CheckConstraint("length(trim(revision)) > 0", name="revision_non_empty"),
++        sa.CheckConstraint("length(trim(language)) > 0", name="language_non_empty"),
++        sa.CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++        sa.UniqueConstraint(
++            "project_id",
++            "revision",
++            "language",
++            name="uq_code_indexes_project_revision_language",
++        ),
++    )
++    op.create_index("ix_code_indexes_project_id", "code_indexes", ["project_id"])
++    op.create_index("ix_code_indexes_project_status", "code_indexes", ["project_id", "status"])
++
++    op.create_table(
++        "code_symbols",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("code_index_id", sa.String(length=36), nullable=False),
++        sa.Column("project_id", sa.String(length=36), nullable=False),
++        sa.Column("revision", sa.String(length=64), nullable=False),
++        sa.Column("symbol_key", sa.String(length=512), nullable=False),
++        sa.Column("qualified_name", sa.String(length=512), nullable=False),
++        sa.Column("kind", sa.String(length=32), nullable=False),
++        sa.Column("relative_path", sa.String(length=1024), nullable=False),
++        sa.Column("signature_hash", sa.String(length=64), nullable=True),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint(f"kind IN {_quoted_values(SYMBOL_KINDS)}", name="kind_values"),
++        sa.CheckConstraint("length(trim(symbol_key)) > 0", name="symbol_key_non_empty"),
++        sa.CheckConstraint("length(trim(qualified_name)) > 0", name="qualified_name_non_empty"),
++        sa.CheckConstraint("length(trim(relative_path)) > 0", name="relative_path_non_empty"),
++        sa.ForeignKeyConstraint(["code_index_id"], ["code_indexes.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++        sa.UniqueConstraint(
++            "id", "project_id", "revision", name="uq_code_symbols_id_project_revision"
++        ),
++        sa.UniqueConstraint("code_index_id", "symbol_key", name="uq_code_symbols_index_symbol_key"),
++    )
++    op.create_index("ix_code_symbols_code_index_id", "code_symbols", ["code_index_id"])
++    op.create_index("ix_code_symbols_project_id", "code_symbols", ["project_id"])
++    op.create_index(
++        "ix_code_symbols_project_revision_kind",
++        "code_symbols",
++        ["project_id", "revision", "kind"],
++    )
++
++    op.create_table(
++        "code_symbol_relations",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("source_symbol_id", sa.String(length=36), nullable=False),
++        sa.Column("source_project_id", sa.String(length=36), nullable=False),
++        sa.Column("source_revision", sa.String(length=64), nullable=False),
++        sa.Column("target_symbol_id", sa.String(length=36), nullable=False),
++        sa.Column("target_project_id", sa.String(length=36), nullable=False),
++        sa.Column("target_revision", sa.String(length=64), nullable=False),
++        sa.Column("relation_type", sa.String(length=32), nullable=False),
++        sa.Column("evidence_json", sa.Text(), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint(
++            f"relation_type IN {_quoted_values(RELATION_TYPES)}",
++            name="relation_type_values",
++        ),
++        sa.CheckConstraint("source_project_id = target_project_id", name="same_project"),
++        sa.CheckConstraint("source_revision = target_revision", name="same_revision"),
++        sa.CheckConstraint("source_symbol_id != target_symbol_id", name="no_self_relation"),
++        sa.CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        sa.ForeignKeyConstraint(
++            ["source_symbol_id", "source_project_id", "source_revision"],
++            ["code_symbols.id", "code_symbols.project_id", "code_symbols.revision"],
++            ondelete="RESTRICT",
++        ),
++        sa.ForeignKeyConstraint(
++            ["target_symbol_id", "target_project_id", "target_revision"],
++            ["code_symbols.id", "code_symbols.project_id", "code_symbols.revision"],
++            ondelete="RESTRICT",
++        ),
++        sa.PrimaryKeyConstraint("id"),
++        sa.UniqueConstraint(
++            "source_symbol_id",
++            "target_symbol_id",
++            "relation_type",
++            name="uq_code_symbol_relations_source_target_type",
++        ),
++    )
++    op.create_index(
++        "ix_code_symbol_relations_source", "code_symbol_relations", ["source_symbol_id"]
++    )
++    op.create_index(
++        "ix_code_symbol_relations_target", "code_symbol_relations", ["target_symbol_id"]
++    )
++
++
++def downgrade() -> None:
++    op.drop_index("ix_code_symbol_relations_target", table_name="code_symbol_relations")
++    op.drop_index("ix_code_symbol_relations_source", table_name="code_symbol_relations")
++    op.drop_table("code_symbol_relations")
++    op.drop_index("ix_code_symbols_project_revision_kind", table_name="code_symbols")
++    op.drop_index("ix_code_symbols_project_id", table_name="code_symbols")
++    op.drop_index("ix_code_symbols_code_index_id", table_name="code_symbols")
++    op.drop_table("code_symbols")
++    op.drop_index("ix_code_indexes_project_status", table_name="code_indexes")
++    op.drop_index("ix_code_indexes_project_id", table_name="code_indexes")
++    op.drop_table("code_indexes")
++
++
++def _quoted_values(values: tuple[str, ...]) -> str:
++    return "(" + ", ".join(f"'{value}'" for value in values) + ")"
+diff --git a/backend/src/se_mentor/models/code_index.py b/backend/src/se_mentor/models/code_index.py
+new file mode 100644
+index 0000000..9f1ed92
+--- /dev/null
++++ b/backend/src/se_mentor/models/code_index.py
+@@ -0,0 +1,174 @@
++from __future__ import annotations
++
++from datetime import UTC, datetime
++from enum import StrEnum
++from uuid import uuid4
++
++from sqlalchemy import (
++    CheckConstraint,
++    DateTime,
++    ForeignKey,
++    ForeignKeyConstraint,
++    Index,
++    String,
++    Text,
++    UniqueConstraint,
++)
++from sqlalchemy.orm import Mapped, mapped_column, relationship
++
++from se_mentor.db.base import Base
++from se_mentor.models.project import Project
++
++
++class CodeIndexStatus(StrEnum):
++    BUILDING = "BUILDING"
++    READY = "READY"
++    STALE = "STALE"
++    FAILED = "FAILED"
++
++
++class CodeSymbolKind(StrEnum):
++    MODULE = "MODULE"
++    CLASS = "CLASS"
++    FUNCTION = "FUNCTION"
++    METHOD = "METHOD"
++    API = "API"
++    DTO = "DTO"
++    TABLE = "TABLE"
++    TEST = "TEST"
++
++
++class CodeSymbolRelationType(StrEnum):
++    IMPORTS = "IMPORTS"
++    CALLS = "CALLS"
++    TESTS = "TESTS"
++    SERIALIZES = "SERIALIZES"
++    READS_TABLE = "READS_TABLE"
++    WRITES_TABLE = "WRITES_TABLE"
++
++
++def _new_id() -> str:
++    return str(uuid4())
++
++
++def _utcnow() -> datetime:
++    return datetime.now(UTC)
++
++
++def _in_values(values: type[StrEnum]) -> str:
++    quoted_values = ", ".join(f"'{item.value}'" for item in values)
++    return f"({quoted_values})"
++
++
++class CodeIndex(Base):
++    __tablename__ = "code_indexes"
++    __table_args__ = (
++        UniqueConstraint(
++            "project_id", "revision", "language", name="uq_code_indexes_project_revision_language"
++        ),
++        CheckConstraint(f"status IN {_in_values(CodeIndexStatus)}", name="status_values"),
++        CheckConstraint("index_generation >= 1", name="index_generation_positive"),
++        CheckConstraint("length(trim(revision)) > 0", name="revision_non_empty"),
++        CheckConstraint("length(trim(language)) > 0", name="language_non_empty"),
++        CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        Index("ix_code_indexes_project_status", "project_id", "status"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    project_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    revision: Mapped[str] = mapped_column(String(64), nullable=False)
++    language: Mapped[str] = mapped_column(String(64), nullable=False)
++    status: Mapped[str] = mapped_column(String(16), nullable=False)
++    index_generation: Mapped[int] = mapped_column(nullable=False)
++    evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++    updated_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
++    )
++
++    project: Mapped[Project] = relationship()
++    symbols: Mapped[list[CodeSymbol]] = relationship("CodeSymbol", back_populates="code_index")
++
++
++class CodeSymbol(Base):
++    __tablename__ = "code_symbols"
++    __table_args__ = (
++        UniqueConstraint(
++            "id", "project_id", "revision", name="uq_code_symbols_id_project_revision"
++        ),
++        UniqueConstraint("code_index_id", "symbol_key", name="uq_code_symbols_index_symbol_key"),
++        CheckConstraint(f"kind IN {_in_values(CodeSymbolKind)}", name="kind_values"),
++        CheckConstraint("length(trim(symbol_key)) > 0", name="symbol_key_non_empty"),
++        CheckConstraint("length(trim(qualified_name)) > 0", name="qualified_name_non_empty"),
++        CheckConstraint("length(trim(relative_path)) > 0", name="relative_path_non_empty"),
++        Index("ix_code_symbols_project_revision_kind", "project_id", "revision", "kind"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    code_index_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("code_indexes.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    project_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    revision: Mapped[str] = mapped_column(String(64), nullable=False)
++    symbol_key: Mapped[str] = mapped_column(String(512), nullable=False)
++    qualified_name: Mapped[str] = mapped_column(String(512), nullable=False)
++    kind: Mapped[str] = mapped_column(String(32), nullable=False)
++    relative_path: Mapped[str] = mapped_column(String(1024), nullable=False)
++    signature_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++
++    code_index: Mapped[CodeIndex] = relationship(back_populates="symbols")
++
++
++class CodeSymbolRelation(Base):
++    __tablename__ = "code_symbol_relations"
++    __table_args__ = (
++        ForeignKeyConstraint(
++            ["source_symbol_id", "source_project_id", "source_revision"],
++            ["code_symbols.id", "code_symbols.project_id", "code_symbols.revision"],
++            name="fk_code_symbol_relations_source_symbol_project_revision_code_symbols",
++            ondelete="RESTRICT",
++        ),
++        ForeignKeyConstraint(
++            ["target_symbol_id", "target_project_id", "target_revision"],
++            ["code_symbols.id", "code_symbols.project_id", "code_symbols.revision"],
++            name="fk_code_symbol_relations_target_symbol_project_revision_code_symbols",
++            ondelete="RESTRICT",
++        ),
++        UniqueConstraint(
++            "source_symbol_id",
++            "target_symbol_id",
++            "relation_type",
++            name="uq_code_symbol_relations_source_target_type",
++        ),
++        CheckConstraint(
++            f"relation_type IN {_in_values(CodeSymbolRelationType)}", name="relation_type_values"
++        ),
++        CheckConstraint("source_project_id = target_project_id", name="same_project"),
++        CheckConstraint("source_revision = target_revision", name="same_revision"),
++        CheckConstraint("source_symbol_id != target_symbol_id", name="no_self_relation"),
++        CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        Index("ix_code_symbol_relations_source", "source_symbol_id"),
++        Index("ix_code_symbol_relations_target", "target_symbol_id"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    source_symbol_id: Mapped[str] = mapped_column(String(36), nullable=False)
++    source_project_id: Mapped[str] = mapped_column(String(36), nullable=False)
++    source_revision: Mapped[str] = mapped_column(String(64), nullable=False)
++    target_symbol_id: Mapped[str] = mapped_column(String(36), nullable=False)
++    target_project_id: Mapped[str] = mapped_column(String(36), nullable=False)
++    target_revision: Mapped[str] = mapped_column(String(64), nullable=False)
++    relation_type: Mapped[str] = mapped_column(String(32), nullable=False)
++    evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
+diff --git a/backend/tests/models/test_code_index_models.py b/backend/tests/models/test_code_index_models.py
+new file mode 100644
+index 0000000..142ee8a
+--- /dev/null
++++ b/backend/tests/models/test_code_index_models.py
+@@ -0,0 +1,157 @@
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++from phase1_test_helpers import REVISION, create_schema, execute, seed_task_graph
++from sqlalchemy import exc
++
++from se_mentor.db.session import create_session_factory, session_scope
++from se_mentor.models.code_index import (
++    CodeIndex,
++    CodeIndexStatus,
++    CodeSymbol,
++    CodeSymbolKind,
++    CodeSymbolRelation,
++    CodeSymbolRelationType,
++)
++
++
++def test_T017_symbol_relation_cannot_cross_project_or_revision(tmp_path: Path) -> None:
++    engine = create_schema(tmp_path / "code-index.sqlite3")
++    ids = seed_task_graph(engine, tmp_path)
++    other_ids = seed_task_graph(engine, tmp_path / "other")
++    session_factory = create_session_factory(engine)
++
++    with session_scope(session_factory) as session:
++        index = CodeIndex(
++            project_id=ids["project_id"],
++            revision=REVISION,
++            language="python",
++            status=CodeIndexStatus.READY,
++            index_generation=1,
++            evidence_json='[{"source":"T017","summary":"index"}]',
++        )
++        other_index = CodeIndex(
++            project_id=other_ids["project_id"],
++            revision=REVISION,
++            language="python",
++            status=CodeIndexStatus.READY,
++            index_generation=1,
++            evidence_json="[]",
++        )
++        session.add_all([index, other_index])
++        session.flush()
++        source = CodeSymbol(
++            code_index_id=index.id,
++            project_id=ids["project_id"],
++            revision=REVISION,
++            symbol_key="pkg.module:func",
++            qualified_name="pkg.module.func",
++            kind=CodeSymbolKind.FUNCTION,
++            relative_path="pkg/module.py",
++        )
++        target = CodeSymbol(
++            code_index_id=other_index.id,
++            project_id=other_ids["project_id"],
++            revision=REVISION,
++            symbol_key="pkg.other:func",
++            qualified_name="pkg.other.func",
++            kind=CodeSymbolKind.FUNCTION,
++            relative_path="pkg/other.py",
++        )
++        session.add_all([source, target])
++        session.flush()
++        source_id = source.id
++        target_id = target.id
++
++    with pytest.raises(exc.IntegrityError):
++        execute(
++            engine,
++            """
++            INSERT INTO code_symbol_relations (
++                id, source_symbol_id, source_project_id, source_revision,
++                target_symbol_id, target_project_id, target_revision, relation_type,
++                evidence_json, created_at
++            )
++            VALUES (
++                'bad-cross-project', :source_id, :source_project_id, :revision,
++                :target_id, :target_project_id, :revision, 'CALLS', '[]',
++                CURRENT_TIMESTAMP
++            )
++            """,
++            {
++                "source_id": source_id,
++                "source_project_id": ids["project_id"],
++                "target_id": target_id,
++                "target_project_id": other_ids["project_id"],
++                "revision": REVISION,
++            },
++        )
++
++
++def test_T017_index_identity_symbol_uniqueness_and_relation_types(tmp_path: Path) -> None:
++    engine = create_schema(tmp_path / "code-index-ok.sqlite3")
++    ids = seed_task_graph(engine, tmp_path)
++    session_factory = create_session_factory(engine)
++
++    with session_scope(session_factory) as session:
++        index = CodeIndex(
++            project_id=ids["project_id"],
++            revision=REVISION,
++            language="python",
++            status=CodeIndexStatus.READY,
++            index_generation=1,
++            evidence_json="[]",
++        )
++        session.add(index)
++        session.flush()
++        source = CodeSymbol(
++            code_index_id=index.id,
++            project_id=ids["project_id"],
++            revision=REVISION,
++            symbol_key="pkg.module:func",
++            qualified_name="pkg.module.func",
++            kind=CodeSymbolKind.FUNCTION,
++            relative_path="pkg/module.py",
++        )
++        target = CodeSymbol(
++            code_index_id=index.id,
++            project_id=ids["project_id"],
++            revision=REVISION,
++            symbol_key="pkg.module:Test",
++            qualified_name="pkg.module.Test",
++            kind=CodeSymbolKind.TEST,
++            relative_path="pkg/test_module.py",
++        )
++        session.add_all([source, target])
++        session.flush()
++        session.add(
++            CodeSymbolRelation(
++                source_symbol_id=target.id,
++                source_project_id=ids["project_id"],
++                source_revision=REVISION,
++                target_symbol_id=source.id,
++                target_project_id=ids["project_id"],
++                target_revision=REVISION,
++                relation_type=CodeSymbolRelationType.TESTS,
++                evidence_json='[{"source":"T017","summary":"relation"}]',
++            )
++        )
++        session.flush()
++
++    with pytest.raises(exc.IntegrityError):
++        execute(
++            engine,
++            """
++            INSERT INTO code_indexes (
++                id, project_id, revision, language, status, index_generation,
++                evidence_json, created_at, updated_at
++            )
++            VALUES (
++                'duplicate-index', :project_id, :revision, 'python', 'READY',
++                2, '[]', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
++            )
++            """,
++            {"project_id": ids["project_id"], "revision": REVISION},
++        )

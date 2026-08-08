@@ -2,6 +2,44 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 T017 Code Index Data Model
+
+### Task ID
+T017
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`546a043`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T017_symbol_relation_cannot_cross_project_or_revision` failed during collection because
+`se_mentor.models.code_index` did not exist. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added `CodeIndex`, `CodeSymbol`, and `CodeSymbolRelation`. Index identity is project/revision/language,
+symbols carry planned kinds, relations carry IMPORTS/CALLS/TESTS/SERIALIZES/READS_TABLE/WRITES_TABLE,
+and DB constraints reject cross-project or cross-revision relations.
+
+### Evidence
+`evidence/tdd/T017-red.log`
+`evidence/tdd/T017-green.log`
+`evidence/test-reports/T017.xml`
+`evidence/diffs/T017.patch`
+
+### Result
+T017 branch GREEN. T019 NOT STARTED.
+
 ## 2026-08-08 T016 Engineering Knowledge Data Model
 
 ### Task ID
