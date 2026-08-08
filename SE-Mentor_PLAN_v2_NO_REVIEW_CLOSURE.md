@@ -43,6 +43,22 @@
 |`wt-web`|T093～T099|React WebUI 与浏览器 E2E|
 |`wt-delivery`|T100～T116|NFR、分发、部署、文档、验收与发布|
 
+### 2.0.1 Batch Closure: T019-T032 Project/Index Core
+
+- **Closure commit**: `d9d9ea0` (merge) plus this closure docs commit.
+- **Starting main**: `b4fcb0b02e1f587f5d14cbc3a6c61d4122d955ee`.
+- **Batch branch**: `codex/T019-T032-project-index-core`.
+- **Worktree result**: `wt-project` and `wt-index` were each attempted once; both failed with `.git/refs/...lock` permission denial and were not retried.
+- **Completed**: T019 `[x]`, T020 `[x]`, T021 `[x]`, T022 `[x]`, T023 `[x]`, T024 `[x]`, T028 `[x]`, T029 `[x]`, T030 `[x]`, T031 `[x]`, T032 `[x]`.
+- **Dependency blocked / NOT STARTED**: T025 `[ ] dependency blocked`, T026 `[ ] dependency blocked`, T027 `[ ] dependency blocked`.
+- **T025 blocker**: T025 depends on T010, T053, and T056; T053 and T056 are still `[ ]`, so T025 must remain NOT STARTED. T026 depends on T025, and T027 depends on T026.
+- **T033**: `[ ] NOT STARTED`.
+- **PLAN_DEPENDENCY_CYCLE: T034 <-> T053**:
+  - T034 requires T053 because token-budget execution must call the same Provider interface used by Mock and real providers, and must prove over-budget requests pause before Provider invocation.
+  - T053 requires T034 because the LLM Provider interface and MockLLMProvider must record usage and enforce the pre-provider token-budget boundary, so Provider completion criteria depend on the T034 budgeting interface.
+- **Batch regression**: T019-T024 scoped tests PASS; T028-T032 scoped tests PASS; all model tests PASS; meta/backend regression PASS; Ruff PASS; Ruff format check PASS; mypy PASS; Alembic single head PASS (`0100_audit_alert`).
+- **check_all classification**: backend/meta/type-check portions PASS; final frontend Vitest config load fails in Codex sandbox with esbuild `Cannot read directory "../../.."` and `Could not resolve ...frontend/vitest.config.mjs`. This is classified as the known Codex Vitest/esbuild sandbox failure and was not escalated or re-diagnosed.
+
 ### 2.1 共享文件所有权
 
 |共享文件|Owner|规则|

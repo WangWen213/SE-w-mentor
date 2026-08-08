@@ -1906,6 +1906,58 @@ None for T005 branch implementation.
 Merge to main later and run project-level regression before setting project mainline status to
 `[x]`.
 
+## 2026-08-08 T019-T032 Project/Index Core Batch
+
+### Task IDs
+T019, T020, T021, T022, T023, T024, T028, T029, T030, T031, T032.
+
+### Agent
+Codex
+
+### Starting Main
+`b4fcb0b02e1f587f5d14cbc3a6c61d4122d955ee`
+
+### Branch And Worktree
+Batch branch: `codex/T019-T032-project-index-core`.
+`wt-project` and `wt-index` were each attempted once and failed with `.git/refs/...lock`
+permission denial; the batch continued on the ordinary branch.
+
+### Commits
+- T019: `382ce29` project path authorization and registration service.
+- T020: `0aae160` deterministic toolchain detector.
+- T021: `cacca96` effective config service and execution gate.
+- T022: `6330c1d` workspace READ/WRITE lock acquisition.
+- T023: `ef7e89e` lock lifecycle/recovery coverage.
+- T024: `c6624a5` task creation and state-machine service.
+- T028: `e2214f5` safe file inventory and PathPolicy.
+- T029: `df94db7` read-only repository readers/search.
+- T030: `d492a21` Python AST symbol indexer.
+- T031: `dc87048` P0 relation extractor.
+- T032: `dba865d` read-only Git service.
+- Batch regression fixes/evidence: `bf762ea`.
+- Merge to main: `d9d9ea0`.
+
+### Dependency Decisions
+T025 remains `[ ] dependency blocked` and NOT STARTED because T053 and T056 are incomplete.
+T026 and T027 remain `[ ] dependency blocked` and NOT STARTED because they depend on T025/T026.
+T033 remains NOT STARTED.
+
+### PLAN_DEPENDENCY_CYCLE
+`PLAN_DEPENDENCY_CYCLE: T034 <-> T053`.
+T034 requires T053 for the shared Provider interface and proof that over-budget requests pause
+before Provider invocation. T053 requires T034 because Provider usage recording and mock/real
+Provider boundaries depend on the pre-provider token-budget interface.
+
+### Verification
+Scoped T019-T024 tests passed. Scoped T028-T032 tests passed. All model tests passed.
+Meta/backend regression passed. Ruff, Ruff format check, mypy, and Alembic single-head check
+passed with head `0100_audit_alert`.
+
+`scripts/check_all.py` ran on the branch and again on main. Backend/meta/type-check stages passed;
+the final frontend Vitest stage failed with the known Codex sandbox/esbuild directory-read failure
+(`Cannot read directory "../../.."` and unresolved `frontend/vitest.config.mjs`). No escalation or
+repeat diagnosis was performed.
+
 ## 2026-08-07 T005/T006 Main Integration Metadata
 
 ### Task ID
