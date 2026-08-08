@@ -2,6 +2,44 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 T018 Audit Alert Retention Data Model
+
+### Task ID
+T018
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`988dab6`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T018_audit_update_delete_is_rejected_and_alert_requires_task_or_system_scope` failed during
+collection because `se_mentor.models.audit` did not exist. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added `AuditEvent` and `AlertEvent`, registered all Phase 1 model modules, and documented data
+retention. Audit events are append-only using database triggers. Alerts require task scope or
+system scope and persist severity, handling status, summary, and evidence.
+
+### Evidence
+`evidence/tdd/T018-red.log`
+`evidence/tdd/T018-green.log`
+`evidence/test-reports/T018.xml`
+`evidence/diffs/T018.patch`
+
+### Result
+T018 branch GREEN. T019 NOT STARTED.
+
 ## 2026-08-08 T017 Code Index Data Model
 
 ### Task ID

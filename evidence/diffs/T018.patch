@@ -1,0 +1,578 @@
+﻿diff --git a/backend/migrations/versions/0100_audit_alert.py b/backend/migrations/versions/0100_audit_alert.py
+new file mode 100644
+index 0000000..60b30e6
+--- /dev/null
++++ b/backend/migrations/versions/0100_audit_alert.py
+@@ -0,0 +1,122 @@
++"""Audit, alert, and retention persistence.
++
++Revision ID: 0100_audit_alert
++Revises: 0090_code_index
++Create Date: 2026-08-08
++"""
++
++from __future__ import annotations
++
++import sqlalchemy as sa
++from alembic import op
++
++revision = "0100_audit_alert"
++down_revision = "0090_code_index"
++branch_labels = None
++depends_on = None
++
++ACTOR_TYPES = ("SYSTEM", "USER", "AGENT", "TOOL")
++EVENT_TYPES = (
++    "TASK_CREATED",
++    "ACTION_PARSED",
++    "GOVERNANCE_DECIDED",
++    "TOOL_EXECUTED",
++    "VALIDATION_RECORDED",
++)
++ALERT_SEVERITIES = ("INFO", "WARNING", "HIGH", "CRITICAL")
++ALERT_STATUSES = ("OPEN", "ACKNOWLEDGED", "RESOLVED", "DISMISSED")
++
++
++def upgrade() -> None:
++    op.create_table(
++        "audit_events",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("task_id", sa.String(length=36), nullable=True),
++        sa.Column("correlation_id", sa.String(length=128), nullable=False),
++        sa.Column("actor_type", sa.String(length=16), nullable=False),
++        sa.Column("actor_id", sa.String(length=128), nullable=False),
++        sa.Column("event_type", sa.String(length=32), nullable=False),
++        sa.Column("payload_summary", sa.String(length=2048), nullable=False),
++        sa.Column("evidence_json", sa.Text(), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint(
++            f"actor_type IN {_quoted_values(ACTOR_TYPES)}", name="actor_type_values"
++        ),
++        sa.CheckConstraint(
++            f"event_type IN {_quoted_values(EVENT_TYPES)}", name="event_type_values"
++        ),
++        sa.CheckConstraint("length(trim(correlation_id)) > 0", name="correlation_id_non_empty"),
++        sa.CheckConstraint("length(trim(actor_id)) > 0", name="actor_id_non_empty"),
++        sa.CheckConstraint(
++            "length(trim(payload_summary)) > 0",
++            name="payload_summary_non_empty",
++        ),
++        sa.CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        sa.ForeignKeyConstraint(["task_id"], ["change_tasks.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index("ix_audit_events_task_id", "audit_events", ["task_id"])
++    op.create_index("ix_audit_events_task_id_created_at", "audit_events", ["task_id", "created_at"])
++    op.create_index("ix_audit_events_correlation_id", "audit_events", ["correlation_id"])
++    op.execute(
++        """
++        CREATE TRIGGER trg_audit_events_no_update
++        BEFORE UPDATE ON audit_events
++        BEGIN
++            SELECT RAISE(ABORT, 'audit_events are append-only');
++        END
++        """
++    )
++    op.execute(
++        """
++        CREATE TRIGGER trg_audit_events_no_delete
++        BEFORE DELETE ON audit_events
++        BEGIN
++            SELECT RAISE(ABORT, 'audit_events are append-only');
++        END
++        """
++    )
++
++    op.create_table(
++        "alert_events",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("task_id", sa.String(length=36), nullable=True),
++        sa.Column("system_scope", sa.Boolean(), nullable=False),
++        sa.Column("severity", sa.String(length=16), nullable=False),
++        sa.Column("status", sa.String(length=16), nullable=False),
++        sa.Column("summary", sa.String(length=2048), nullable=False),
++        sa.Column("evidence_json", sa.Text(), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
++        sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
++        sa.CheckConstraint(
++            f"severity IN {_quoted_values(ALERT_SEVERITIES)}",
++            name="severity_values",
++        ),
++        sa.CheckConstraint(f"status IN {_quoted_values(ALERT_STATUSES)}", name="status_values"),
++        sa.CheckConstraint("task_id IS NOT NULL OR system_scope = 1", name="task_or_system_scope"),
++        sa.CheckConstraint("length(trim(summary)) > 0", name="summary_non_empty"),
++        sa.CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        sa.ForeignKeyConstraint(["task_id"], ["change_tasks.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index("ix_alert_events_task_id", "alert_events", ["task_id"])
++    op.create_index("ix_alert_events_task_id_status", "alert_events", ["task_id", "status"])
++    op.create_index("ix_alert_events_severity_status", "alert_events", ["severity", "status"])
++
++
++def downgrade() -> None:
++    op.drop_index("ix_alert_events_severity_status", table_name="alert_events")
++    op.drop_index("ix_alert_events_task_id_status", table_name="alert_events")
++    op.drop_index("ix_alert_events_task_id", table_name="alert_events")
++    op.drop_table("alert_events")
++    op.execute("DROP TRIGGER IF EXISTS trg_audit_events_no_delete")
++    op.execute("DROP TRIGGER IF EXISTS trg_audit_events_no_update")
++    op.drop_index("ix_audit_events_correlation_id", table_name="audit_events")
++    op.drop_index("ix_audit_events_task_id_created_at", table_name="audit_events")
++    op.drop_index("ix_audit_events_task_id", table_name="audit_events")
++    op.drop_table("audit_events")
++
++
++def _quoted_values(values: tuple[str, ...]) -> str:
++    return "(" + ", ".join(f"'{value}'" for value in values) + ")"
+diff --git a/backend/src/se_mentor/models/__init__.py b/backend/src/se_mentor/models/__init__.py
+index 70b8a80..8ac55d8 100644
+--- a/backend/src/se_mentor/models/__init__.py
++++ b/backend/src/se_mentor/models/__init__.py
+@@ -1,5 +1,40 @@
+ from __future__ import annotations
+ 
++from se_mentor.models.approval import (
++    ApprovalDecision,
++    ApprovalDecisionOutcome,
++    ApprovalRequest,
++    ApprovalRequestStatus,
++    ExecutionPolicy,
++    ExecutionPolicyStatus,
++)
++from se_mentor.models.audit import (
++    AlertEvent,
++    AlertSeverity,
++    AlertStatus,
++    AuditActorType,
++    AuditEvent,
++)
++from se_mentor.models.code_index import (
++    CodeIndex,
++    CodeIndexStatus,
++    CodeSymbol,
++    CodeSymbolKind,
++    CodeSymbolRelation,
++    CodeSymbolRelationType,
++)
++from se_mentor.models.execution import (
++    BackupEntry,
++    FileChange,
++    FileChangeType,
++    TaskTransaction,
++    ToolExecution,
++    ToolExecutionStatus,
++    TransactionState,
++    WorkspaceLock,
++    WorkspaceLockMode,
++    WorkspaceLockStatus,
++)
+ from se_mentor.models.governance import (
+     GovernanceDecision,
+     GovernanceDecisionStatus,
+@@ -11,6 +46,16 @@ from se_mentor.models.governance import (
+     ImpactReport,
+     ImpactReportStatus,
+ )
++from se_mentor.models.knowledge import (
++    EngineeringKnowledge,
++    KnowledgeRelation,
++    KnowledgeRelationType,
++    KnowledgeSignature,
++    KnowledgeSource,
++    KnowledgeSourceType,
++    KnowledgeStatus,
++    KnowledgeType,
++)
+ from se_mentor.models.llm import (
+     AgentAction,
+     AgentActionStatus,
+@@ -36,13 +81,44 @@ from se_mentor.models.task import (
+     TaskIterationResult,
+     TaskStatus,
+ )
++from se_mentor.models.validation import (
++    FeedbackSignal,
++    ProgressEvent,
++    ValidationPlan,
++    ValidationPlanStatus,
++    ValidationRun,
++    ValidationRunStatus,
++    ValidationType,
++)
+ 
+ __all__ = [
+     "AgentAction",
+     "AgentActionStatus",
++    "AlertEvent",
++    "AlertSeverity",
++    "AlertStatus",
++    "ApprovalDecision",
++    "ApprovalDecisionOutcome",
++    "ApprovalRequest",
++    "ApprovalRequestStatus",
++    "AuditActorType",
++    "AuditEvent",
++    "BackupEntry",
+     "ChangeProposal",
+     "ChangeTask",
++    "CodeIndex",
++    "CodeIndexStatus",
++    "CodeSymbol",
++    "CodeSymbolKind",
++    "CodeSymbolRelation",
++    "CodeSymbolRelationType",
+     "CredentialProfile",
++    "EngineeringKnowledge",
++    "ExecutionPolicy",
++    "ExecutionPolicyStatus",
++    "FeedbackSignal",
++    "FileChange",
++    "FileChangeType",
+     "GovernanceDecision",
+     "GovernanceDecisionStatus",
+     "GovernanceRule",
+@@ -52,18 +128,38 @@ __all__ = [
+     "GovernanceVerdict",
+     "ImpactReport",
+     "ImpactReportStatus",
++    "KnowledgeRelation",
++    "KnowledgeRelationType",
++    "KnowledgeSignature",
++    "KnowledgeSource",
++    "KnowledgeSourceType",
++    "KnowledgeStatus",
++    "KnowledgeType",
+     "LLMCall",
+     "LLMCallStatus",
+     "ParseStatus",
++    "ProgressEvent",
+     "Project",
+     "ProjectConfig",
+     "ProposalCompleteness",
+     "ProposalCreatedByType",
+     "ProposalStatus",
+     "RiskLevel",
++    "TaskTransaction",
+     "TaskIteration",
+     "TaskIterationPhase",
+     "TaskIterationResult",
+     "TaskStatus",
++    "ToolExecution",
++    "ToolExecutionStatus",
++    "TransactionState",
++    "ValidationPlan",
++    "ValidationPlanStatus",
++    "ValidationRun",
++    "ValidationRunStatus",
++    "ValidationType",
++    "WorkspaceLock",
++    "WorkspaceLockMode",
++    "WorkspaceLockStatus",
+     "normalize_project_root_path",
+ ]
+diff --git a/backend/src/se_mentor/models/audit.py b/backend/src/se_mentor/models/audit.py
+new file mode 100644
+index 0000000..75b2b06
+--- /dev/null
++++ b/backend/src/se_mentor/models/audit.py
+@@ -0,0 +1,142 @@
++from __future__ import annotations
++
++from datetime import UTC, datetime
++from enum import StrEnum
++from uuid import uuid4
++
++from sqlalchemy import (
++    DDL,
++    Boolean,
++    CheckConstraint,
++    DateTime,
++    ForeignKey,
++    Index,
++    String,
++    Text,
++    event,
++)
++from sqlalchemy.orm import Mapped, mapped_column, relationship
++
++from se_mentor.contracts.enums import EventType
++from se_mentor.db.base import Base
++from se_mentor.models.task import ChangeTask
++
++
++class AuditActorType(StrEnum):
++    SYSTEM = "SYSTEM"
++    USER = "USER"
++    AGENT = "AGENT"
++    TOOL = "TOOL"
++
++
++class AlertSeverity(StrEnum):
++    INFO = "INFO"
++    WARNING = "WARNING"
++    HIGH = "HIGH"
++    CRITICAL = "CRITICAL"
++
++
++class AlertStatus(StrEnum):
++    OPEN = "OPEN"
++    ACKNOWLEDGED = "ACKNOWLEDGED"
++    RESOLVED = "RESOLVED"
++    DISMISSED = "DISMISSED"
++
++
++def _new_id() -> str:
++    return str(uuid4())
++
++
++def _utcnow() -> datetime:
++    return datetime.now(UTC)
++
++
++def _in_values(values: type[StrEnum]) -> str:
++    quoted_values = ", ".join(f"'{item.value}'" for item in values)
++    return f"({quoted_values})"
++
++
++class AuditEvent(Base):
++    __tablename__ = "audit_events"
++    __table_args__ = (
++        CheckConstraint(f"actor_type IN {_in_values(AuditActorType)}", name="actor_type_values"),
++        CheckConstraint(f"event_type IN {_in_values(EventType)}", name="event_type_values"),
++        CheckConstraint("length(trim(correlation_id)) > 0", name="correlation_id_non_empty"),
++        CheckConstraint("length(trim(actor_id)) > 0", name="actor_id_non_empty"),
++        CheckConstraint("length(trim(payload_summary)) > 0", name="payload_summary_non_empty"),
++        CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        Index("ix_audit_events_task_id_created_at", "task_id", "created_at"),
++        Index("ix_audit_events_correlation_id", "correlation_id"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    task_id: Mapped[str | None] = mapped_column(
++        String(36), ForeignKey("change_tasks.id", ondelete="RESTRICT"), nullable=True, index=True
++    )
++    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
++    actor_type: Mapped[str] = mapped_column(String(16), nullable=False)
++    actor_id: Mapped[str] = mapped_column(String(128), nullable=False)
++    event_type: Mapped[str] = mapped_column(String(32), nullable=False)
++    payload_summary: Mapped[str] = mapped_column(String(2048), nullable=False)
++    evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++
++    task: Mapped[ChangeTask | None] = relationship()
++
++
++class AlertEvent(Base):
++    __tablename__ = "alert_events"
++    __table_args__ = (
++        CheckConstraint(f"severity IN {_in_values(AlertSeverity)}", name="severity_values"),
++        CheckConstraint(f"status IN {_in_values(AlertStatus)}", name="status_values"),
++        CheckConstraint("task_id IS NOT NULL OR system_scope = 1", name="task_or_system_scope"),
++        CheckConstraint("length(trim(summary)) > 0", name="summary_non_empty"),
++        CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        Index("ix_alert_events_task_id_status", "task_id", "status"),
++        Index("ix_alert_events_severity_status", "severity", "status"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    task_id: Mapped[str | None] = mapped_column(
++        String(36), ForeignKey("change_tasks.id", ondelete="RESTRICT"), nullable=True, index=True
++    )
++    system_scope: Mapped[bool] = mapped_column(Boolean, nullable=False)
++    severity: Mapped[str] = mapped_column(String(16), nullable=False)
++    status: Mapped[str] = mapped_column(String(16), nullable=False)
++    summary: Mapped[str] = mapped_column(String(2048), nullable=False)
++    evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++    updated_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
++    )
++    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
++
++    task: Mapped[ChangeTask | None] = relationship()
++
++
++_AUDIT_NO_UPDATE = DDL(  # type: ignore[no-untyped-call]
++    """
++    CREATE TRIGGER IF NOT EXISTS trg_audit_events_no_update
++    BEFORE UPDATE ON audit_events
++    BEGIN
++        SELECT RAISE(ABORT, 'audit_events are append-only');
++    END
++    """
++).execute_if(dialect="sqlite")
++
++_AUDIT_NO_DELETE = DDL(  # type: ignore[no-untyped-call]
++    """
++    CREATE TRIGGER IF NOT EXISTS trg_audit_events_no_delete
++    BEFORE DELETE ON audit_events
++    BEGIN
++        SELECT RAISE(ABORT, 'audit_events are append-only');
++    END
++    """
++).execute_if(dialect="sqlite")
++
++event.listen(AuditEvent.__table__, "after_create", _AUDIT_NO_UPDATE)
++event.listen(AuditEvent.__table__, "after_create", _AUDIT_NO_DELETE)
+diff --git a/backend/tests/models/test_audit_models.py b/backend/tests/models/test_audit_models.py
+new file mode 100644
+index 0000000..2d4be35
+--- /dev/null
++++ b/backend/tests/models/test_audit_models.py
+@@ -0,0 +1,100 @@
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++from phase1_test_helpers import create_schema, execute, row_count, seed_task_graph
++from sqlalchemy import exc
++
++from se_mentor.contracts.enums import EventType
++from se_mentor.db.session import create_session_factory, session_scope
++from se_mentor.models.audit import (
++    AlertEvent,
++    AlertSeverity,
++    AlertStatus,
++    AuditActorType,
++    AuditEvent,
++)
++
++
++def test_T018_audit_update_delete_is_rejected_and_alert_requires_task_or_system_scope(
++    tmp_path: Path,
++) -> None:
++    engine = create_schema(tmp_path / "audit.sqlite3")
++    ids = seed_task_graph(engine, tmp_path)
++    session_factory = create_session_factory(engine)
++
++    with session_scope(session_factory) as session:
++        event = AuditEvent(
++            task_id=ids["task_id"],
++            correlation_id="corr-1",
++            actor_type=AuditActorType.SYSTEM,
++            actor_id="codex",
++            event_type=EventType.TASK_CREATED,
++            payload_summary="Task created.",
++            evidence_json='[{"source":"T018","summary":"audit"}]',
++        )
++        session.add(event)
++        session.flush()
++        event_id = event.id
++
++    with pytest.raises(exc.IntegrityError):
++        execute(
++            engine,
++            "UPDATE audit_events SET payload_summary = 'changed' WHERE id = :event_id",
++            {"event_id": event_id},
++        )
++    with pytest.raises(exc.IntegrityError):
++        execute(engine, "DELETE FROM audit_events WHERE id = :event_id", {"event_id": event_id})
++    assert row_count(engine, "audit_events") == 1
++
++    with pytest.raises(exc.IntegrityError):
++        execute(
++            engine,
++            """
++            INSERT INTO alert_events (
++                id, task_id, system_scope, severity, status, summary, evidence_json,
++                created_at, updated_at
++            )
++            VALUES (
++                'orphan-alert', NULL, 0, 'HIGH', 'OPEN', 'orphan', '[]',
++                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
++            )
++            """,
++            {},
++        )
++
++
++def test_T018_alert_status_and_retention_doc(tmp_path: Path) -> None:
++    engine = create_schema(tmp_path / "alert.sqlite3")
++    ids = seed_task_graph(engine, tmp_path)
++    session_factory = create_session_factory(engine)
++
++    with session_scope(session_factory) as session:
++        session.add(
++            AlertEvent(
++                task_id=ids["task_id"],
++                system_scope=False,
++                severity=AlertSeverity.HIGH,
++                status=AlertStatus.OPEN,
++                summary="Governance warning.",
++                evidence_json='[{"source":"T018","summary":"alert"}]',
++            )
++        )
++        session.add(
++            AlertEvent(
++                system_scope=True,
++                severity=AlertSeverity.INFO,
++                status=AlertStatus.RESOLVED,
++                summary="System retention note.",
++                evidence_json='[{"source":"T018","summary":"system"}]',
++            )
++        )
++        session.flush()
++
++    retention_text = (Path(__file__).resolve().parents[3] / "docs" / "DATA_RETENTION.md").read_text(
++        encoding="utf-8"
++    )
++    assert "audit_events" in retention_text
++    assert "governance_decisions" in retention_text
++    assert "artifact" in retention_text.lower()
+diff --git a/docs/DATA_RETENTION.md b/docs/DATA_RETENTION.md
+new file mode 100644
+index 0000000..1b07d56
+--- /dev/null
++++ b/docs/DATA_RETENTION.md
+@@ -0,0 +1,44 @@
++# Data Retention
++
++Phase 1 data model retention keeps audit, governance, and decision traceability intact while
++allowing runtime artifacts to be pruned through controlled artifact references.
++
++## Core History
++
++The following tables are core history and must not be physically deleted by normal cleanup:
++
++- `audit_events`
++- `governance_decisions`
++- `governance_rule_hits`
++- `approval_requests`
++- `approval_decisions`
++- `execution_policies`
++- `task_transactions`
++- `validation_plans`
++- `validation_runs`
++- `engineering_knowledge`
++- `knowledge_relations`
++
++`audit_events` are append-only. Updates and deletes are rejected by database triggers in the P0
++SQLite runtime.
++
++## Runtime Artifacts
++
++Large runtime outputs stay outside the database behind controlled artifact references. Cleanup may
++remove expired artifact files only when doing so does not break core history or evidence references.
++
++Cleanup-eligible examples:
++
++- validation log artifacts
++- backup artifact files after their task and retention window are closed
++- temporary tool output artifacts
++- code index rebuild scratch files
++
++The database stores summaries and artifact references, not raw prompts, secrets, complete source
++dumps, unbounded logs, or backup file contents.
++
++## Traceability Rule
++
++Retention must not break audit, governance, approval, execution, validation, or knowledge
++traceability. If an artifact is removed, the retention job must keep enough metadata to explain why
++the artifact was eligible for cleanup and which immutable history row referenced it.
