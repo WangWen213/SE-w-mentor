@@ -119,6 +119,12 @@ class ImpactReport(Base):
 class GovernanceDecision(Base):
     __tablename__ = "governance_decisions"
     __table_args__ = (
+        UniqueConstraint(
+            "id",
+            "proposal_hash",
+            "revision",
+            name="uq_governance_decisions_id_proposal_revision",
+        ),
         CheckConstraint(
             f"decision IN {_in_values(GovernanceVerdict)}",
             name="decision_values",

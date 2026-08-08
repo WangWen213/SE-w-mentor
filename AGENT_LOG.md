@@ -2,6 +2,289 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 Phase 1 Schema Branch Validation
+
+### Task ID
+T013-T018
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`9ee8dcc`
+
+### End Commit
+`80732e9`
+
+### Status
+T013-T018 branch GREEN; final `[x]` waits for one main integration regression.
+
+### Validation
+T013-T018 scoped regression passed 12 tests. T009-T018 model regression passed 30 tests. Meta plus
+backend regression passed 66 tests with existing third-party/Alembic warnings. Alembic
+upgrade/downgrade/re-upgrade passed. `alembic heads` and `scripts/check_alembic_heads.py` reported
+one head: `0100_audit_alert`. Ruff format/check and mypy passed.
+
+Canonical `scripts/check_all.py` passed format, lint, mypy, Alembic gate, meta tests, backend tests,
+and frontend type-check, then reached the known Codex Vitest/esbuild sandbox directory access
+restriction.
+
+### Evidence
+`evidence/logs/phase1/t013-t018-scoped-regression.log`
+`evidence/logs/phase1/t009-t018-model-regression.log`
+`evidence/logs/phase1/meta-backend-regression.log`
+`evidence/logs/phase1/alembic-heads.log`
+`evidence/logs/phase1/alembic-upgrade.log`
+`evidence/logs/phase1/alembic-downgrade.log`
+`evidence/logs/phase1/alembic-reupgrade.log`
+`evidence/logs/phase1/alembic-gate.log`
+`evidence/logs/phase1/ruff-format.log`
+`evidence/logs/phase1/ruff.log`
+`evidence/logs/phase1/mypy.log`
+`evidence/logs/phase1/check-all.log`
+
+### Result
+Phase 1 schema branch ready for main merge. T019 NOT STARTED.
+
+## 2026-08-08 T018 Audit Alert Retention Data Model
+
+### Task ID
+T018
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`988dab6`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T018_audit_update_delete_is_rejected_and_alert_requires_task_or_system_scope` failed during
+collection because `se_mentor.models.audit` did not exist. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added `AuditEvent` and `AlertEvent`, registered all Phase 1 model modules, and documented data
+retention. Audit events are append-only using database triggers. Alerts require task scope or
+system scope and persist severity, handling status, summary, and evidence.
+
+### Evidence
+`evidence/tdd/T018-red.log`
+`evidence/tdd/T018-green.log`
+`evidence/test-reports/T018.xml`
+`evidence/diffs/T018.patch`
+
+### Result
+T018 branch GREEN. T019 NOT STARTED.
+
+## 2026-08-08 T017 Code Index Data Model
+
+### Task ID
+T017
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`546a043`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T017_symbol_relation_cannot_cross_project_or_revision` failed during collection because
+`se_mentor.models.code_index` did not exist. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added `CodeIndex`, `CodeSymbol`, and `CodeSymbolRelation`. Index identity is project/revision/language,
+symbols carry planned kinds, relations carry IMPORTS/CALLS/TESTS/SERIALIZES/READS_TABLE/WRITES_TABLE,
+and DB constraints reject cross-project or cross-revision relations.
+
+### Evidence
+`evidence/tdd/T017-red.log`
+`evidence/tdd/T017-green.log`
+`evidence/test-reports/T017.xml`
+`evidence/diffs/T017.patch`
+
+### Result
+T017 branch GREEN. T019 NOT STARTED.
+
+## 2026-08-08 T016 Engineering Knowledge Data Model
+
+### Task ID
+T016
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`33f306e`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T016_unverified_llm_summary_cannot_be_verified_without_evidence` failed during collection
+because `se_mentor.models.knowledge` did not exist. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added `EngineeringKnowledge`, `KnowledgeSignature`, `KnowledgeSource`, and `KnowledgeRelation`.
+Knowledge uses the planned status set, requires evidence before VERIFIED, indexes project/type/status,
+keeps explicit supersedes/conflicts relations, and rejects cross-project knowledge relations.
+
+### Evidence
+`evidence/tdd/T016-red.log`
+`evidence/tdd/T016-green.log`
+`evidence/test-reports/T016.xml`
+`evidence/diffs/T016.patch`
+
+### Result
+T016 branch GREEN. T019 NOT STARTED.
+
+## 2026-08-08 T015 Validation Feedback Progress Data Model
+
+### Task ID
+T015
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`5759f34`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T015_passed_validation_requires_zero_exit_and_no_required_failure` was introduced before
+T013 existed and collection first failed on the missing approval dependency. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added versioned `ValidationPlan` bound to proposal and execution policy, `ValidationRun` with
+stable run order, command summary, exit code, validation type, failure category and artifact log
+reference, plus `FeedbackSignal`/`ProgressEvent` using frozen contract enums. PASSED runs require
+zero exit code and no required failure.
+
+### Evidence
+`evidence/tdd/T015-red.log`
+`evidence/tdd/T015-green.log`
+`evidence/test-reports/T015.xml`
+`evidence/diffs/T015.patch`
+
+### Result
+T015 branch GREEN. T019 NOT STARTED.
+
+## 2026-08-08 T014 Execution Transaction Backup FileChange Lock Data Model
+
+### Task ID
+T014
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`.
+
+### Start Commit
+`d2f38fc`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T014_committed_transaction_requires_manifest_and_active_write_lock` failed during collection
+because `se_mentor.models.execution` did not exist. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added `ToolExecution`, `TaskTransaction`, `BackupEntry`, `FileChange`, and `WorkspaceLock`.
+Transactions constrain valid states, COMMITTED requires a manifest and active WRITE lock, only one
+active WRITE lock is allowed per project, and file changes trace back to tool execution plus
+agent action.
+
+### Evidence
+`evidence/tdd/T014-red.log`
+`evidence/tdd/T014-green.log`
+`evidence/test-reports/T014.xml`
+`evidence/diffs/T014.patch`
+
+### Result
+T014 branch GREEN. T019 NOT STARTED.
+
+## 2026-08-08 T013 Approval And Execution Policy Data Model
+
+### Task ID
+T013
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`. Requested
+`wt-schema` worktree creation failed once on Git ref lock sandbox permissions; no escalation was
+used.
+
+### Start Commit
+`9ee8dcc`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T013_approval_for_old_proposal_cannot_attach_to_new_policy` failed during collection because
+`se_mentor.models.approval` did not exist. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added `ApprovalRequest`, `ApprovalDecision`, and `ExecutionPolicy` persistence. Approval requests
+bind task, action, governance decision revision, and proposal hash. Policies bind proposal hash and
+revision, carry read/write/protected paths, command/network/resource/invalidation JSON, and reject
+ACTIVE executable policy for BLOCK governance decisions.
+
+### Evidence
+`evidence/tdd/T013-red.log`
+`evidence/tdd/T013-green.log`
+`evidence/test-reports/T013.xml`
+`evidence/diffs/T013.patch`
+
+### Result
+T013 branch GREEN. T019 NOT STARTED.
+
 ## 2026-08-08 T012 Main Integration Closure
 
 ### Task ID

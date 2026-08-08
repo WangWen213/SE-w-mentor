@@ -1,0 +1,699 @@
+﻿diff --git a/backend/migrations/versions/0060_execution_transaction.py b/backend/migrations/versions/0060_execution_transaction.py
+new file mode 100644
+index 0000000..bc4d741
+--- /dev/null
++++ b/backend/migrations/versions/0060_execution_transaction.py
+@@ -0,0 +1,242 @@
++"""Execution, transaction, backup, file change, and lock persistence.
++
++Revision ID: 0060_execution_transaction
++Revises: 0050_approval_policy
++Create Date: 2026-08-08
++"""
++
++from __future__ import annotations
++
++import sqlalchemy as sa
++from alembic import op
++
++revision = "0060_execution_transaction"
++down_revision = "0050_approval_policy"
++branch_labels = None
++depends_on = None
++
++LOCK_MODES = ("READ", "WRITE")
++LOCK_STATUSES = ("ACTIVE", "RELEASED", "EXPIRED")
++TRANSACTION_STATES = ("PREPARED", "APPLYING", "COMMITTED", "ROLLED_BACK", "CONFLICT")
++TOOL_STATUSES = ("RUNNING", "SUCCEEDED", "FAILED", "BLOCKED", "CANCELLED")
++FILE_CHANGE_TYPES = ("CREATE", "MODIFY", "DELETE")
++
++
++def upgrade() -> None:
++    op.create_table(
++        "workspace_locks",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("project_id", sa.String(length=36), nullable=False),
++        sa.Column("task_id", sa.String(length=36), nullable=False),
++        sa.Column("lock_mode", sa.String(length=16), nullable=False),
++        sa.Column("status", sa.String(length=16), nullable=False),
++        sa.Column("owner", sa.String(length=128), nullable=False),
++        sa.Column("reason", sa.String(length=512), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
++        sa.Column("released_at", sa.DateTime(timezone=True), nullable=True),
++        sa.CheckConstraint(f"lock_mode IN {_quoted_values(LOCK_MODES)}", name="lock_mode_values"),
++        sa.CheckConstraint(f"status IN {_quoted_values(LOCK_STATUSES)}", name="status_values"),
++        sa.CheckConstraint("length(trim(owner)) > 0", name="owner_non_empty"),
++        sa.CheckConstraint("length(trim(reason)) > 0", name="reason_non_empty"),
++        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["task_id"], ["change_tasks.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index("ix_workspace_locks_project_id", "workspace_locks", ["project_id"])
++    op.create_index("ix_workspace_locks_task_id", "workspace_locks", ["task_id"])
++    op.create_index(
++        "ix_workspace_locks_one_active_write_per_project",
++        "workspace_locks",
++        ["project_id"],
++        unique=True,
++        sqlite_where=sa.text("lock_mode = 'WRITE' AND status = 'ACTIVE'"),
++    )
++    op.create_index(
++        "ix_workspace_locks_project_id_status",
++        "workspace_locks",
++        ["project_id", "status"],
++    )
++
++    op.create_table(
++        "task_transactions",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("task_id", sa.String(length=36), nullable=False),
++        sa.Column("project_id", sa.String(length=36), nullable=False),
++        sa.Column("workspace_lock_id", sa.String(length=36), nullable=True),
++        sa.Column("state", sa.String(length=16), nullable=False),
++        sa.Column("manifest_artifact_ref", sa.String(length=512), nullable=True),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint(f"state IN {_quoted_values(TRANSACTION_STATES)}", name="state_values"),
++        sa.CheckConstraint(
++            "state != 'COMMITTED' OR length(trim(manifest_artifact_ref)) > 0",
++            name="committed_manifest_required",
++        ),
++        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["task_id"], ["change_tasks.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["workspace_lock_id"], ["workspace_locks.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index("ix_task_transactions_task_id", "task_transactions", ["task_id"])
++    op.create_index("ix_task_transactions_project_id", "task_transactions", ["project_id"])
++    op.create_index(
++        "ix_task_transactions_workspace_lock_id",
++        "task_transactions",
++        ["workspace_lock_id"],
++    )
++    op.create_index(
++        "ix_task_transactions_task_id_state",
++        "task_transactions",
++        ["task_id", "state"],
++    )
++    op.execute(_committed_lock_trigger("insert"))
++    op.execute(_committed_lock_trigger("update"))
++
++    op.create_table(
++        "tool_executions",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("task_id", sa.String(length=36), nullable=False),
++        sa.Column("action_id", sa.String(length=36), nullable=False),
++        sa.Column("transaction_id", sa.String(length=36), nullable=True),
++        sa.Column("tool_name", sa.String(length=128), nullable=False),
++        sa.Column("command_summary", sa.String(length=2048), nullable=False),
++        sa.Column("status", sa.String(length=16), nullable=False),
++        sa.Column("exit_code", sa.Integer(), nullable=True),
++        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
++        sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
++        sa.Column("evidence_json", sa.Text(), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint(f"status IN {_quoted_values(TOOL_STATUSES)}", name="status_values"),
++        sa.CheckConstraint("exit_code IS NULL OR exit_code >= 0", name="exit_code_non_negative"),
++        sa.CheckConstraint("length(trim(tool_name)) > 0", name="tool_name_non_empty"),
++        sa.CheckConstraint(
++            "length(trim(command_summary)) > 0",
++            name="command_summary_non_empty",
++        ),
++        sa.CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        sa.ForeignKeyConstraint(["action_id"], ["agent_actions.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["task_id"], ["change_tasks.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["transaction_id"], ["task_transactions.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index("ix_tool_executions_task_id", "tool_executions", ["task_id"])
++    op.create_index("ix_tool_executions_action_id", "tool_executions", ["action_id"])
++    op.create_index("ix_tool_executions_transaction_id", "tool_executions", ["transaction_id"])
++    op.create_index(
++        "ix_tool_executions_task_id_status",
++        "tool_executions",
++        ["task_id", "status"],
++    )
++
++    op.create_table(
++        "backup_entries",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("task_id", sa.String(length=36), nullable=False),
++        sa.Column("project_id", sa.String(length=36), nullable=False),
++        sa.Column("original_hash", sa.String(length=64), nullable=False),
++        sa.Column("backup_artifact_ref", sa.String(length=512), nullable=False),
++        sa.Column("file_type", sa.String(length=128), nullable=False),
++        sa.Column("relative_path", sa.String(length=1024), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint("length(original_hash) = 64", name="original_hash_length"),
++        sa.CheckConstraint(
++            "length(trim(backup_artifact_ref)) > 0",
++            name="backup_artifact_ref_non_empty",
++        ),
++        sa.CheckConstraint("length(trim(file_type)) > 0", name="file_type_non_empty"),
++        sa.CheckConstraint("length(trim(relative_path)) > 0", name="relative_path_non_empty"),
++        sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["task_id"], ["change_tasks.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index("ix_backup_entries_task_id", "backup_entries", ["task_id"])
++    op.create_index("ix_backup_entries_project_id", "backup_entries", ["project_id"])
++    op.create_index(
++        "ix_backup_entries_task_id_relative_path",
++        "backup_entries",
++        ["task_id", "relative_path"],
++    )
++
++    op.create_table(
++        "file_changes",
++        sa.Column("id", sa.String(length=36), nullable=False),
++        sa.Column("task_id", sa.String(length=36), nullable=False),
++        sa.Column("tool_execution_id", sa.String(length=36), nullable=False),
++        sa.Column("action_id", sa.String(length=36), nullable=False),
++        sa.Column("backup_entry_id", sa.String(length=36), nullable=True),
++        sa.Column("change_type", sa.String(length=16), nullable=False),
++        sa.Column("relative_path", sa.String(length=1024), nullable=False),
++        sa.Column("before_hash", sa.String(length=64), nullable=True),
++        sa.Column("after_hash", sa.String(length=64), nullable=True),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint(
++            f"change_type IN {_quoted_values(FILE_CHANGE_TYPES)}",
++            name="change_type_values",
++        ),
++        sa.CheckConstraint("length(trim(relative_path)) > 0", name="relative_path_non_empty"),
++        sa.CheckConstraint(
++            "before_hash IS NULL OR length(before_hash) = 64", name="before_hash_length"
++        ),
++        sa.CheckConstraint(
++            "after_hash IS NULL OR length(after_hash) = 64", name="after_hash_length"
++        ),
++        sa.ForeignKeyConstraint(["action_id"], ["agent_actions.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["backup_entry_id"], ["backup_entries.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["task_id"], ["change_tasks.id"], ondelete="RESTRICT"),
++        sa.ForeignKeyConstraint(["tool_execution_id"], ["tool_executions.id"], ondelete="RESTRICT"),
++        sa.PrimaryKeyConstraint("id"),
++    )
++    op.create_index("ix_file_changes_task_id", "file_changes", ["task_id"])
++    op.create_index("ix_file_changes_tool_execution_id", "file_changes", ["tool_execution_id"])
++    op.create_index("ix_file_changes_action_id", "file_changes", ["action_id"])
++
++
++def downgrade() -> None:
++    op.drop_index("ix_file_changes_action_id", table_name="file_changes")
++    op.drop_index("ix_file_changes_tool_execution_id", table_name="file_changes")
++    op.drop_index("ix_file_changes_task_id", table_name="file_changes")
++    op.drop_table("file_changes")
++    op.drop_index("ix_backup_entries_task_id_relative_path", table_name="backup_entries")
++    op.drop_index("ix_backup_entries_project_id", table_name="backup_entries")
++    op.drop_index("ix_backup_entries_task_id", table_name="backup_entries")
++    op.drop_table("backup_entries")
++    op.drop_index("ix_tool_executions_task_id_status", table_name="tool_executions")
++    op.drop_index("ix_tool_executions_transaction_id", table_name="tool_executions")
++    op.drop_index("ix_tool_executions_action_id", table_name="tool_executions")
++    op.drop_index("ix_tool_executions_task_id", table_name="tool_executions")
++    op.drop_table("tool_executions")
++    op.execute("DROP TRIGGER IF EXISTS trg_task_transactions_committed_write_lock_insert")
++    op.execute("DROP TRIGGER IF EXISTS trg_task_transactions_committed_write_lock_update")
++    op.drop_index("ix_task_transactions_task_id_state", table_name="task_transactions")
++    op.drop_index("ix_task_transactions_workspace_lock_id", table_name="task_transactions")
++    op.drop_index("ix_task_transactions_project_id", table_name="task_transactions")
++    op.drop_index("ix_task_transactions_task_id", table_name="task_transactions")
++    op.drop_table("task_transactions")
++    op.drop_index("ix_workspace_locks_project_id_status", table_name="workspace_locks")
++    op.drop_index("ix_workspace_locks_one_active_write_per_project", table_name="workspace_locks")
++    op.drop_index("ix_workspace_locks_task_id", table_name="workspace_locks")
++    op.drop_index("ix_workspace_locks_project_id", table_name="workspace_locks")
++    op.drop_table("workspace_locks")
++
++
++def _quoted_values(values: tuple[str, ...]) -> str:
++    return "(" + ", ".join(f"'{value}'" for value in values) + ")"
++
++
++def _committed_lock_trigger(operation: str) -> str:
++    return f"""
++    CREATE TRIGGER trg_task_transactions_committed_write_lock_{operation}
++    BEFORE {operation.upper()} ON task_transactions
++    WHEN NEW.state = 'COMMITTED'
++         AND NOT EXISTS (
++             SELECT 1 FROM workspace_locks
++             WHERE id = NEW.workspace_lock_id
++               AND project_id = NEW.project_id
++               AND lock_mode = 'WRITE'
++               AND status = 'ACTIVE'
++         )
++    BEGIN
++        SELECT RAISE(ABORT, 'COMMITTED transaction requires active WRITE lock');
++    END
++    """
+diff --git a/backend/src/se_mentor/models/execution.py b/backend/src/se_mentor/models/execution.py
+new file mode 100644
+index 0000000..8a3be7f
+--- /dev/null
++++ b/backend/src/se_mentor/models/execution.py
+@@ -0,0 +1,284 @@
++from __future__ import annotations
++
++from datetime import UTC, datetime
++from enum import StrEnum
++from uuid import uuid4
++
++from sqlalchemy import (
++    DDL,
++    CheckConstraint,
++    DateTime,
++    ForeignKey,
++    Index,
++    String,
++    Text,
++    event,
++    text,
++)
++from sqlalchemy.orm import Mapped, mapped_column, relationship
++
++from se_mentor.db.base import Base
++from se_mentor.models.llm import AgentAction
++from se_mentor.models.project import Project
++from se_mentor.models.task import ChangeTask
++
++
++class WorkspaceLockMode(StrEnum):
++    READ = "READ"
++    WRITE = "WRITE"
++
++
++class WorkspaceLockStatus(StrEnum):
++    ACTIVE = "ACTIVE"
++    RELEASED = "RELEASED"
++    EXPIRED = "EXPIRED"
++
++
++class TransactionState(StrEnum):
++    PREPARED = "PREPARED"
++    APPLYING = "APPLYING"
++    COMMITTED = "COMMITTED"
++    ROLLED_BACK = "ROLLED_BACK"
++    CONFLICT = "CONFLICT"
++
++
++class ToolExecutionStatus(StrEnum):
++    RUNNING = "RUNNING"
++    SUCCEEDED = "SUCCEEDED"
++    FAILED = "FAILED"
++    BLOCKED = "BLOCKED"
++    CANCELLED = "CANCELLED"
++
++
++class FileChangeType(StrEnum):
++    CREATE = "CREATE"
++    MODIFY = "MODIFY"
++    DELETE = "DELETE"
++
++
++def _new_id() -> str:
++    return str(uuid4())
++
++
++def _utcnow() -> datetime:
++    return datetime.now(UTC)
++
++
++def _in_values(values: type[StrEnum]) -> str:
++    quoted_values = ", ".join(f"'{item.value}'" for item in values)
++    return f"({quoted_values})"
++
++
++class WorkspaceLock(Base):
++    __tablename__ = "workspace_locks"
++    __table_args__ = (
++        CheckConstraint(f"lock_mode IN {_in_values(WorkspaceLockMode)}", name="lock_mode_values"),
++        CheckConstraint(f"status IN {_in_values(WorkspaceLockStatus)}", name="status_values"),
++        CheckConstraint("length(trim(owner)) > 0", name="owner_non_empty"),
++        CheckConstraint("length(trim(reason)) > 0", name="reason_non_empty"),
++        Index(
++            "ix_workspace_locks_one_active_write_per_project",
++            "project_id",
++            unique=True,
++            sqlite_where=text("lock_mode = 'WRITE' AND status = 'ACTIVE'"),
++        ),
++        Index("ix_workspace_locks_project_id_status", "project_id", "status"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    project_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    task_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("change_tasks.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    lock_mode: Mapped[str] = mapped_column(String(16), nullable=False)
++    status: Mapped[str] = mapped_column(String(16), nullable=False)
++    owner: Mapped[str] = mapped_column(String(128), nullable=False)
++    reason: Mapped[str] = mapped_column(String(512), nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
++    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
++
++    project: Mapped[Project] = relationship()
++    task: Mapped[ChangeTask] = relationship()
++
++
++class TaskTransaction(Base):
++    __tablename__ = "task_transactions"
++    __table_args__ = (
++        CheckConstraint(f"state IN {_in_values(TransactionState)}", name="state_values"),
++        CheckConstraint(
++            "state != 'COMMITTED' OR length(trim(manifest_artifact_ref)) > 0",
++            name="committed_manifest_required",
++        ),
++        Index("ix_task_transactions_task_id_state", "task_id", "state"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    task_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("change_tasks.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    project_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    workspace_lock_id: Mapped[str | None] = mapped_column(
++        String(36), ForeignKey("workspace_locks.id", ondelete="RESTRICT"), nullable=True, index=True
++    )
++    state: Mapped[str] = mapped_column(String(16), nullable=False)
++    manifest_artifact_ref: Mapped[str | None] = mapped_column(String(512), nullable=True)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++    updated_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
++    )
++
++    task: Mapped[ChangeTask] = relationship()
++    project: Mapped[Project] = relationship()
++    workspace_lock: Mapped[WorkspaceLock | None] = relationship()
++
++
++class ToolExecution(Base):
++    __tablename__ = "tool_executions"
++    __table_args__ = (
++        CheckConstraint(f"status IN {_in_values(ToolExecutionStatus)}", name="status_values"),
++        CheckConstraint("exit_code IS NULL OR exit_code >= 0", name="exit_code_non_negative"),
++        CheckConstraint("length(trim(tool_name)) > 0", name="tool_name_non_empty"),
++        CheckConstraint("length(trim(command_summary)) > 0", name="command_summary_non_empty"),
++        CheckConstraint("length(trim(evidence_json)) > 0", name="evidence_non_empty"),
++        Index("ix_tool_executions_task_id_status", "task_id", "status"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    task_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("change_tasks.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    action_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("agent_actions.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    transaction_id: Mapped[str | None] = mapped_column(
++        String(36),
++        ForeignKey("task_transactions.id", ondelete="RESTRICT"),
++        nullable=True,
++        index=True,
++    )
++    tool_name: Mapped[str] = mapped_column(String(128), nullable=False)
++    command_summary: Mapped[str] = mapped_column(String(2048), nullable=False)
++    status: Mapped[str] = mapped_column(String(16), nullable=False)
++    exit_code: Mapped[int | None] = mapped_column(nullable=True)
++    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
++    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
++    evidence_json: Mapped[str] = mapped_column(Text, nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++
++    task: Mapped[ChangeTask] = relationship()
++    action: Mapped[AgentAction] = relationship()
++    transaction: Mapped[TaskTransaction | None] = relationship()
++
++
++class BackupEntry(Base):
++    __tablename__ = "backup_entries"
++    __table_args__ = (
++        CheckConstraint("length(original_hash) = 64", name="original_hash_length"),
++        CheckConstraint(
++            "length(trim(backup_artifact_ref)) > 0", name="backup_artifact_ref_non_empty"
++        ),
++        CheckConstraint("length(trim(file_type)) > 0", name="file_type_non_empty"),
++        CheckConstraint("length(trim(relative_path)) > 0", name="relative_path_non_empty"),
++        Index("ix_backup_entries_task_id_relative_path", "task_id", "relative_path"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    task_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("change_tasks.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    project_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    original_hash: Mapped[str] = mapped_column(String(64), nullable=False)
++    backup_artifact_ref: Mapped[str] = mapped_column(String(512), nullable=False)
++    file_type: Mapped[str] = mapped_column(String(128), nullable=False)
++    relative_path: Mapped[str] = mapped_column(String(1024), nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++
++
++class FileChange(Base):
++    __tablename__ = "file_changes"
++    __table_args__ = (
++        CheckConstraint(f"change_type IN {_in_values(FileChangeType)}", name="change_type_values"),
++        CheckConstraint("length(trim(relative_path)) > 0", name="relative_path_non_empty"),
++        CheckConstraint(
++            "before_hash IS NULL OR length(before_hash) = 64", name="before_hash_length"
++        ),
++        CheckConstraint("after_hash IS NULL OR length(after_hash) = 64", name="after_hash_length"),
++        Index("ix_file_changes_tool_execution_id", "tool_execution_id"),
++        Index("ix_file_changes_action_id", "action_id"),
++    )
++
++    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
++    task_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("change_tasks.id", ondelete="RESTRICT"), nullable=False, index=True
++    )
++    tool_execution_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("tool_executions.id", ondelete="RESTRICT"), nullable=False
++    )
++    action_id: Mapped[str] = mapped_column(
++        String(36), ForeignKey("agent_actions.id", ondelete="RESTRICT"), nullable=False
++    )
++    backup_entry_id: Mapped[str | None] = mapped_column(
++        String(36), ForeignKey("backup_entries.id", ondelete="RESTRICT"), nullable=True
++    )
++    change_type: Mapped[str] = mapped_column(String(16), nullable=False)
++    relative_path: Mapped[str] = mapped_column(String(1024), nullable=False)
++    before_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
++    after_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), default=_utcnow, nullable=False
++    )
++
++
++_COMMITTED_LOCK_INSERT = DDL(  # type: ignore[no-untyped-call]
++    """
++    CREATE TRIGGER IF NOT EXISTS trg_task_transactions_committed_write_lock_insert
++    BEFORE INSERT ON task_transactions
++    WHEN NEW.state = 'COMMITTED'
++         AND NOT EXISTS (
++             SELECT 1 FROM workspace_locks
++             WHERE id = NEW.workspace_lock_id
++               AND project_id = NEW.project_id
++               AND lock_mode = 'WRITE'
++               AND status = 'ACTIVE'
++         )
++    BEGIN
++        SELECT RAISE(ABORT, 'COMMITTED transaction requires active WRITE lock');
++    END
++    """
++).execute_if(dialect="sqlite")
++
++_COMMITTED_LOCK_UPDATE = DDL(  # type: ignore[no-untyped-call]
++    """
++    CREATE TRIGGER IF NOT EXISTS trg_task_transactions_committed_write_lock_update
++    BEFORE UPDATE ON task_transactions
++    WHEN NEW.state = 'COMMITTED'
++         AND NOT EXISTS (
++             SELECT 1 FROM workspace_locks
++             WHERE id = NEW.workspace_lock_id
++               AND project_id = NEW.project_id
++               AND lock_mode = 'WRITE'
++               AND status = 'ACTIVE'
++         )
++    BEGIN
++        SELECT RAISE(ABORT, 'COMMITTED transaction requires active WRITE lock');
++    END
++    """
++).execute_if(dialect="sqlite")
++
++event.listen(TaskTransaction.__table__, "after_create", _COMMITTED_LOCK_INSERT)
++event.listen(TaskTransaction.__table__, "after_create", _COMMITTED_LOCK_UPDATE)
+diff --git a/backend/tests/models/test_execution_models.py b/backend/tests/models/test_execution_models.py
+new file mode 100644
+index 0000000..850b6e8
+--- /dev/null
++++ b/backend/tests/models/test_execution_models.py
+@@ -0,0 +1,155 @@
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++from phase1_test_helpers import create_schema, execute, seed_task_graph
++from sqlalchemy import exc
++
++from se_mentor.db.session import create_session_factory, session_scope
++from se_mentor.models.execution import (
++    BackupEntry,
++    FileChange,
++    FileChangeType,
++    TaskTransaction,
++    ToolExecution,
++    ToolExecutionStatus,
++    TransactionState,
++    WorkspaceLock,
++    WorkspaceLockMode,
++    WorkspaceLockStatus,
++)
++
++
++def test_T014_committed_transaction_requires_manifest_and_active_write_lock(
++    tmp_path: Path,
++) -> None:
++    engine = create_schema(tmp_path / "execution.sqlite3")
++    ids = seed_task_graph(engine, tmp_path)
++    session_factory = create_session_factory(engine)
++
++    with pytest.raises(exc.IntegrityError):
++        execute(
++            engine,
++            """
++            INSERT INTO task_transactions (
++                id, task_id, project_id, state, manifest_artifact_ref, created_at, updated_at
++            )
++            VALUES (
++                'bad-committed', :task_id, :project_id, 'COMMITTED', NULL,
++                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
++            )
++            """,
++            {"task_id": ids["task_id"], "project_id": ids["project_id"]},
++        )
++
++    with session_scope(session_factory) as session:
++        lock = WorkspaceLock(
++            project_id=ids["project_id"],
++            task_id=ids["task_id"],
++            lock_mode=WorkspaceLockMode.WRITE,
++            status=WorkspaceLockStatus.ACTIVE,
++            owner="codex",
++            reason="schema write",
++        )
++        session.add(lock)
++        session.flush()
++        transaction = TaskTransaction(
++            task_id=ids["task_id"],
++            project_id=ids["project_id"],
++            workspace_lock_id=lock.id,
++            state=TransactionState.COMMITTED,
++            manifest_artifact_ref="artifact://manifest.json",
++        )
++        session.add(transaction)
++        session.flush()
++        transaction_id = transaction.id
++
++    with session_scope(session_factory) as session:
++        assert session.get(TaskTransaction, transaction_id) is not None
++
++
++def test_T014_single_active_write_lock_and_file_change_traceability(tmp_path: Path) -> None:
++    engine = create_schema(tmp_path / "file-change.sqlite3")
++    ids = seed_task_graph(engine, tmp_path)
++    session_factory = create_session_factory(engine)
++
++    with session_scope(session_factory) as session:
++        lock = WorkspaceLock(
++            project_id=ids["project_id"],
++            task_id=ids["task_id"],
++            lock_mode=WorkspaceLockMode.WRITE,
++            status=WorkspaceLockStatus.ACTIVE,
++            owner="codex",
++            reason="schema write",
++        )
++        session.add(lock)
++        session.flush()
++        tool = ToolExecution(
++            task_id=ids["task_id"],
++            action_id=ids["action_id"],
++            transaction_id=None,
++            tool_name="apply_patch",
++            command_summary="apply patch",
++            status=ToolExecutionStatus.SUCCEEDED,
++            exit_code=0,
++            started_at=None,
++            finished_at=None,
++            evidence_json='[{"source":"T014","summary":"tool"}]',
++        )
++        session.add(tool)
++        session.flush()
++        backup = BackupEntry(
++            task_id=ids["task_id"],
++            project_id=ids["project_id"],
++            original_hash="a" * 64,
++            backup_artifact_ref="artifact://backup/file.py",
++            file_type="text/x-python",
++            relative_path="backend/src/example.py",
++        )
++        session.add(backup)
++        session.flush()
++        session.add(
++            FileChange(
++                task_id=ids["task_id"],
++                tool_execution_id=tool.id,
++                action_id=ids["action_id"],
++                backup_entry_id=backup.id,
++                change_type=FileChangeType.MODIFY,
++                relative_path="backend/src/example.py",
++                before_hash="a" * 64,
++                after_hash="b" * 64,
++            )
++        )
++        session.flush()
++
++    with pytest.raises(exc.IntegrityError):
++        execute(
++            engine,
++            """
++            INSERT INTO workspace_locks (
++                id, project_id, task_id, lock_mode, status, owner, reason, created_at
++            )
++            VALUES (
++                'second-write-lock', :project_id, :task_id, 'WRITE', 'ACTIVE',
++                'codex', 'duplicate', CURRENT_TIMESTAMP
++            )
++            """,
++            {"project_id": ids["project_id"], "task_id": ids["task_id"]},
++        )
++
++    with pytest.raises(exc.IntegrityError):
++        execute(
++            engine,
++            """
++            INSERT INTO file_changes (
++                id, task_id, tool_execution_id, action_id, change_type, relative_path,
++                created_at
++            )
++            VALUES (
++                'bad-file-change', :task_id, 'missing-tool', :action_id, 'MODIFY',
++                'backend/src/example.py', CURRENT_TIMESTAMP
++            )
++            """,
++            {"task_id": ids["task_id"], "action_id": ids["action_id"]},
++        )
