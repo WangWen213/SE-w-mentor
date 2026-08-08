@@ -53,9 +53,10 @@
 - **Dependency blocked / NOT STARTED**: T025 `[ ] dependency blocked`, T026 `[ ] dependency blocked`, T027 `[ ] dependency blocked`.
 - **T025 blocker**: T025 depends on T010, T053, and T056; T053 and T056 are still `[ ]`, so T025 must remain NOT STARTED. T026 depends on T025, and T027 depends on T026.
 - **T033**: `[ ] NOT STARTED`.
-- **PLAN_DEPENDENCY_CYCLE: T034 <-> T053**:
-  - T034 requires T053 because token-budget execution must call the same Provider interface used by Mock and real providers, and must prove over-budget requests pause before Provider invocation.
-  - T053 requires T034 because the LLM Provider interface and MockLLMProvider must record usage and enforce the pre-provider token-budget boundary, so Provider completion criteria depend on the T034 budgeting interface.
+- **PLAN_DEPENDENCY_CYCLE: resolved by dependency-correction commit**:
+  - T053 is the Provider primitive: Provider interface, deterministic MockLLMProvider, usage recording, cancellation, and timeout contract.
+  - T053 depends only on T011 and T006; it is not an Agent-facing public execution entry point and must not allow Agent code to bypass the future T034 token-budget gate.
+  - T034 keeps dependency `T033,T053` and establishes the mandatory pre-provider budget gate for all Agent/runtime-facing Provider invocation.
 - **Batch regression**: T019-T024 scoped tests PASS; T028-T032 scoped tests PASS; all model tests PASS; meta/backend regression PASS; Ruff PASS; Ruff format check PASS; mypy PASS; Alembic single head PASS (`0100_audit_alert`).
 - **check_all classification**: backend/meta/type-check portions PASS; final frontend Vitest config load fails in Codex sandbox with esbuild `Cannot read directory "../../.."` and `Could not resolve ...frontend/vitest.config.mjs`. This is classified as the known Codex Vitest/esbuild sandbox failure and was not escalated or re-diagnosed.
 
@@ -1660,7 +1661,7 @@ T000-T008 规约/契约/迁移门禁
   1. 重复执行一致
   2. usage 写入 LLMCall
   3. 取消和超时接口可 fake
-- **依赖**：T011,T006,T034
+- **依赖**：T011,T006
 - **可并行性**：否
 - **预期证据**：
   - evidence/test-reports/T053.xml

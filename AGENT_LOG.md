@@ -1958,6 +1958,24 @@ the final frontend Vitest stage failed with the known Codex sandbox/esbuild dire
 (`Cannot read directory "../../.."` and unresolved `frontend/vitest.config.mjs`). No escalation or
 repeat diagnosis was performed.
 
+## 2026-08-08 Dependency Correction T034/T053
+
+### Task
+Plan dependency-cycle correction before T025-T057 acceleration.
+
+### Baseline
+`main = origin/main = 2ec8cdbcd3461ae0c340c63580fc7009b089e8ca`
+
+### Change
+Resolved `PLAN_DEPENDENCY_CYCLE: T034 <-> T053` without changing FR/NFR scope.
+T053 is now explicitly the low-level Provider primitive and depends on `T011,T006`.
+T034 keeps dependency `T033,T053` and remains responsible for the mandatory pre-provider
+token-budget gate for all Agent/runtime-facing Provider invocations.
+
+### Worktree
+`wt-critical` was attempted once and failed with `.git/refs/...lock` permission denial; continued
+on branch `codex/T025-T057-critical-path`.
+
 ## 2026-08-07 T005/T006 Main Integration Metadata
 
 ### Task ID
