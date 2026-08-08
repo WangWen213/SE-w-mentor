@@ -2,6 +2,47 @@
 
 Append one section per Task execution.
 
+## 2026-08-08 T013 Approval And Execution Policy Data Model
+
+### Task ID
+T013
+
+### Date
+2026-08-08
+
+### Agent
+Codex
+
+### Worktree
+`C:\Users\ww\Desktop\SE-w-mentor` on branch `codex/T013-T018-phase1-schema`. Requested
+`wt-schema` worktree creation failed once on Git ref lock sandbox permissions; no escalation was
+used.
+
+### Start Commit
+`9ee8dcc`
+
+### Status
+GREEN on Phase 1 schema branch; final `[x]` waits for batch main integration closure.
+
+### RED
+`test_T013_approval_for_old_proposal_cannot_attach_to_new_policy` failed during collection because
+`se_mentor.models.approval` did not exist. No PRE_EXISTING_GREEN.
+
+### GREEN
+Added `ApprovalRequest`, `ApprovalDecision`, and `ExecutionPolicy` persistence. Approval requests
+bind task, action, governance decision revision, and proposal hash. Policies bind proposal hash and
+revision, carry read/write/protected paths, command/network/resource/invalidation JSON, and reject
+ACTIVE executable policy for BLOCK governance decisions.
+
+### Evidence
+`evidence/tdd/T013-red.log`
+`evidence/tdd/T013-green.log`
+`evidence/test-reports/T013.xml`
+`evidence/diffs/T013.patch`
+
+### Result
+T013 branch GREEN. T019 NOT STARTED.
+
 ## 2026-08-08 T012 Main Integration Closure
 
 ### Task ID
