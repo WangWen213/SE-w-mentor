@@ -2057,6 +2057,31 @@ GREEN: `evidence/tdd/T046-green.log`
 JUnit: `evidence/test-reports/T046.xml`
 Diff: `evidence/diffs/T046.patch`
 
+## 2026-08-10 T047 Approval Request
+
+### Task ID
+T047
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added approval request creation for WARN/action-bound governance decisions. BLOCK decisions create
+no ordinary approval request, requests bind proposal hash and decision revision, and repeated active
+creation is idempotent.
+
+### Evidence
+RED: `evidence/tdd/T047-red.log`
+GREEN: `evidence/tdd/T047-green.log`
+JUnit: `evidence/test-reports/T047.xml`
+Diff: `evidence/diffs/T047.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
