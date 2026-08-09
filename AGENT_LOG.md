@@ -1982,6 +1982,31 @@ GREEN: `evidence/tdd/T041-green.log`
 JUnit: `evidence/test-reports/T041.xml`
 Diff: `evidence/diffs/T041.patch`
 
+## 2026-08-10 T042 Evidence Bundle
+
+### Task ID
+T042
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added a deterministic EvidenceBundle builder that rejects missing evidence refs and refs bound to
+the wrong revision. Bundles preserve freshness, confidence, verified flags, unresolved assumptions,
+and stable content hashes.
+
+### Evidence
+RED: `evidence/tdd/T042-red.log`
+GREEN: `evidence/tdd/T042-green.log`
+JUnit: `evidence/test-reports/T042.xml`
+Diff: `evidence/diffs/T042.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
