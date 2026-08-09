@@ -2132,6 +2132,31 @@ GREEN: `evidence/tdd/T049-green.log`
 JUnit: `evidence/test-reports/T049.xml`
 Diff: `evidence/diffs/T049.patch`
 
+## 2026-08-10 T050 Temporary Grant
+
+### Task ID
+T050
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added temporary grant derivation from active executable policies. Grants cannot expand write or
+command scope beyond the policy, refuse protected paths, and become invalid when the revision no
+longer matches.
+
+### Evidence
+RED: `evidence/tdd/T050-red.log`
+GREEN: `evidence/tdd/T050-green.log`
+JUnit: `evidence/test-reports/T050.xml`
+Diff: `evidence/diffs/T050.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
