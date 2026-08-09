@@ -2182,6 +2182,31 @@ GREEN: `evidence/tdd/T051-green.log`
 JUnit: `evidence/test-reports/T051.xml`
 Diff: `evidence/diffs/T051.patch`
 
+## 2026-08-10 T052 Re-Governance
+
+### Task ID
+T052
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added re-governance invalidation for new scope. The trigger marks current impact reports stale,
+supersedes active governance decisions, approval requests, execution policies, and validation
+plans, disables executable policies before writes, and marks the task as analysis-required.
+
+### Evidence
+RED: `evidence/tdd/T052-red.log`
+GREEN: `evidence/tdd/T052-green.log`
+JUnit: `evidence/test-reports/T052.xml`
+Diff: `evidence/diffs/T052.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
