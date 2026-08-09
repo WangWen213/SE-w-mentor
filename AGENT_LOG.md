@@ -2007,6 +2007,31 @@ GREEN: `evidence/tdd/T042-green.log`
 JUnit: `evidence/test-reports/T042.xml`
 Diff: `evidence/diffs/T042.patch`
 
+## 2026-08-10 T043 Impact Report
+
+### Task ID
+T043
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added traceable ImpactReport generation. Mock LLM output is limited to narrative and risk
+explanation; any LLM fact ref absent from the EvidenceBundle is rejected. New reports mark prior
+current reports for the same task/proposal as stale and preserve unknowns in uncertainties.
+
+### Evidence
+RED: `evidence/tdd/T043-red.log`
+GREEN: `evidence/tdd/T043-green.log`
+JUnit: `evidence/test-reports/T043.xml`
+Diff: `evidence/diffs/T043.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
