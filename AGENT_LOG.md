@@ -2232,6 +2232,31 @@ GREEN: `evidence/tdd/T033-green.log`
 JUnit: `evidence/test-reports/T033.xml`
 Diff: `evidence/diffs/T033.patch`
 
+## 2026-08-10 T034 Token Budget Gate
+
+### Task ID
+T034
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added a Provider-front token budget gate. BudgetedLLMProvider estimates rendered context and prompt
+tokens before delegating to the underlying Provider, reserves output and safety margin, pauses the
+task on over-budget, and never calls the Provider when the gate fails.
+
+### Evidence
+RED: `evidence/tdd/T034-red.log`
+GREEN: `evidence/tdd/T034-green.log`
+JUnit: `evidence/test-reports/T034.xml`
+Diff: `evidence/diffs/T034.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
