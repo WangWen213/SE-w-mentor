@@ -2257,6 +2257,31 @@ GREEN: `evidence/tdd/T034-green.log`
 JUnit: `evidence/test-reports/T034.xml`
 Diff: `evidence/diffs/T034.patch`
 
+## 2026-08-10 T055 Prompt Boundary
+
+### Task ID
+T055
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added repository prompt isolation. Repository text is labeled `UNTRUSTED_DATA`, prompt-injection
+phrases produce risk events, secrets are redacted, and repository text cannot produce policy grants
+or override the structured system/execution policy prompt channels.
+
+### Evidence
+RED: `evidence/tdd/T055-red.log`
+GREEN: `evidence/tdd/T055-green.log`
+JUnit: `evidence/test-reports/T055.xml`
+Diff: `evidence/diffs/T055.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
