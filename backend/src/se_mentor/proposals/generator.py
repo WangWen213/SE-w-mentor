@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from se_mentor.llm.base import LLMRequest, LLMProvider
+from se_mentor.llm.base import LLMProvider, LLMRequest
 from se_mentor.models.task import (
     ChangeProposal,
     ChangeTask,

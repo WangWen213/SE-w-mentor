@@ -5,7 +5,12 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from se_mentor.models.approval import ApprovalRequest, ApprovalRequestStatus, ExecutionPolicy, ExecutionPolicyStatus
+from se_mentor.models.approval import (
+    ApprovalRequest,
+    ApprovalRequestStatus,
+    ExecutionPolicy,
+    ExecutionPolicyStatus,
+)
 from se_mentor.models.governance import GovernanceDecision, GovernanceVerdict
 
 

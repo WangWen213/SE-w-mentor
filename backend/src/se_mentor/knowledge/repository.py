@@ -39,7 +39,9 @@ class KnowledgeRepository:
             version=version,
             scope_json=json.dumps(tuple(scope_paths), sort_keys=True),
             summary=summary,
-            verified_evidence_json=json.dumps(evidence) if status == KnowledgeStatus.VERIFIED else None,
+            verified_evidence_json=json.dumps(evidence)
+            if status == KnowledgeStatus.VERIFIED
+            else None,
         )
         self.session.add(knowledge)
         self.session.flush()

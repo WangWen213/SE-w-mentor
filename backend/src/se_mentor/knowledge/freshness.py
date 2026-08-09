@@ -65,7 +65,9 @@ class FreshnessService:
         return FreshnessResult(FreshnessStatus.DRIFTED, False)
 
     def _emit_stale_events(self, knowledge: EngineeringKnowledge) -> None:
-        evidence = json.dumps({"knowledge_id": knowledge.id, "knowledge_key": knowledge.knowledge_key})
+        evidence = json.dumps(
+            {"knowledge_id": knowledge.id, "knowledge_key": knowledge.knowledge_key}
+        )
         self.session.add(
             AuditEvent(
                 task_id=None,

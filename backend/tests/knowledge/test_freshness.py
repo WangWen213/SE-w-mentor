@@ -37,7 +37,9 @@ def test_T037_changed_symbol_marks_knowledge_stale_and_blocks_auto_allow(
             summary="answer returns one",
             evidence_refs=("evidence://fresh",),
         )
-        session.add(KnowledgeSignature(knowledge_id=knowledge.id, signature_hash=original.signature_hash))
+        session.add(
+            KnowledgeSignature(knowledge_id=knowledge.id, signature_hash=original.signature_hash)
+        )
         session.flush()
         knowledge_id = knowledge.id
 
@@ -53,7 +55,9 @@ def test_T037_changed_symbol_marks_knowledge_stale_and_blocks_auto_allow(
         assert repeated.status is FreshnessStatus.STALE
         assert result.can_auto_allow is False
         assert queue.items == (knowledge_id,)
-        assert session.get(type(knowledge), knowledge_id).status == KnowledgeStatus.STALE
+        stored = session.get(type(knowledge), knowledge_id)
+        assert stored is not None
+        assert stored.status == KnowledgeStatus.STALE
         assert session.query(AuditEvent).count() == 1
         assert session.query(AlertEvent).count() == 1
 

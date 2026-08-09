@@ -88,9 +88,14 @@ class DirectImpactAnalyzer:
 
         impacts.extend(_test_impacts(root, impacted_names, revision))
         confirmed = tuple(
-            sorted(_dedupe(impacts), key=lambda item: (item.kind.value, item.relative_path, item.symbol_name))
+            sorted(
+                _dedupe(impacts),
+                key=lambda item: (item.kind.value, item.relative_path, item.symbol_name),
+            )
         )
-        unknowns = tuple(impact.relative_path for impact in confirmed if impact.confidence == "unknown")
+        unknowns = tuple(
+            impact.relative_path for impact in confirmed if impact.confidence == "unknown"
+        )
         return DirectImpactResult(confirmed, unknowns)
 
 

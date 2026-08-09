@@ -7,7 +7,12 @@ from phase1_test_helpers import PROPOSAL_HASH, REVISION, create_schema, seed_tas
 from se_mentor.db.session import create_session_factory, session_scope
 from se_mentor.governance.decision_service import GovernanceDecisionService
 from se_mentor.governance.rule_repository import RuleDefinition
-from se_mentor.models.governance import GovernanceDecision, GovernanceRuleEffect, GovernanceRuleScope, GovernanceVerdict
+from se_mentor.models.governance import (
+    GovernanceDecision,
+    GovernanceRuleEffect,
+    GovernanceRuleScope,
+    GovernanceVerdict,
+)
 from se_mentor.models.llm import RiskLevel
 
 

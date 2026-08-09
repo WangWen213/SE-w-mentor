@@ -2307,6 +2307,28 @@ GREEN: `evidence/tdd/T057-green.log`
 JUnit: `evidence/test-reports/T057.xml`
 Diff: `evidence/diffs/T057.patch`
 
+## 2026-08-10 Final Regression T025-T057
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Summary
+Ran final scoped, backend, model/meta, Ruff, format, mypy, Alembic head, frontend type-check, and
+`scripts/check_all.py` evidence after T057. All backend/meta/type/lint/Alembic/frontend type-check
+gates passed. The only `check_all.py` non-zero result is the known Vitest/esbuild sandbox failure:
+esbuild cannot read `../../..` and therefore cannot resolve `frontend/vitest.config.mjs`.
+
+### Evidence
+Scoped tests: `evidence/logs/final/scoped-tests.log`
+Backend pytest: `evidence/logs/final/backend-pytest.log`
+Models pytest: `evidence/logs/final/models-pytest.log`
+Ruff: `evidence/logs/final/ruff-check.log`
+Format: `evidence/logs/final/ruff-format.log`
+Mypy: `evidence/logs/final/mypy.log`
+Alembic head: `evidence/logs/final/alembic-head.log`
+Frontend type-check: `evidence/logs/final/frontend-type-check.log`
+Check all: `evidence/logs/final/check-all.log`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

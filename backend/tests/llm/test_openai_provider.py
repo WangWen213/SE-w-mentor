@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 
 from se_mentor.llm.base import (
@@ -43,7 +45,7 @@ class FakeStatusError(Exception):
 def test_T054_provider_maps_auth_rate_limit_timeout_and_records_usage() -> None:
     client = FakeClient(FakeSDKResponse())
     provider = OpenAIResponsesProvider(
-        client=client,
+        client=cast(Any, client),
         config=OpenAIProviderConfig(model="gpt-test", request_timeout_seconds=10),
     )
     response = provider.complete(LLMRequest(prompt_summary="summary", input_text="redacted input"))
@@ -56,18 +58,22 @@ def test_T054_provider_maps_auth_rate_limit_timeout_and_records_usage() -> None:
     ]
 
     with pytest.raises(ProviderAuthError):
-        OpenAIResponsesProvider(client=FakeClient(FakeStatusError(401)), config=OpenAIProviderConfig(model="m")).complete(
-            LLMRequest(prompt_summary="auth", input_text="x")
-        )
+        OpenAIResponsesProvider(
+            client=cast(Any, FakeClient(FakeStatusError(401))),
+            config=OpenAIProviderConfig(model="m"),
+        ).complete(LLMRequest(prompt_summary="auth", input_text="x"))
     with pytest.raises(ProviderRateLimitError):
-        OpenAIResponsesProvider(client=FakeClient(FakeStatusError(429)), config=OpenAIProviderConfig(model="m")).complete(
-            LLMRequest(prompt_summary="rate", input_text="x")
-        )
+        OpenAIResponsesProvider(
+            client=cast(Any, FakeClient(FakeStatusError(429))),
+            config=OpenAIProviderConfig(model="m"),
+        ).complete(LLMRequest(prompt_summary="rate", input_text="x"))
     with pytest.raises(ProviderTimeout):
-        OpenAIResponsesProvider(client=FakeClient(TimeoutError()), config=OpenAIProviderConfig(model="m")).complete(
-            LLMRequest(prompt_summary="timeout", input_text="x")
-        )
+        OpenAIResponsesProvider(
+            client=cast(Any, FakeClient(TimeoutError())),
+            config=OpenAIProviderConfig(model="m"),
+        ).complete(LLMRequest(prompt_summary="timeout", input_text="x"))
     with pytest.raises(ProviderInvalidResponse):
-        OpenAIResponsesProvider(client=FakeClient(object()), config=OpenAIProviderConfig(model="m")).complete(
-            LLMRequest(prompt_summary="invalid", input_text="x")
-        )
+        OpenAIResponsesProvider(
+            client=cast(Any, FakeClient(object())),
+            config=OpenAIProviderConfig(model="m"),
+        ).complete(LLMRequest(prompt_summary="invalid", input_text="x"))

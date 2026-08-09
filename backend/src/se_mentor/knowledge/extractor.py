@@ -14,9 +14,7 @@ from se_mentor.models.knowledge import (
     KnowledgeType,
 )
 
-_SENSITIVE_ASSIGNMENT = re.compile(
-    r"(?i)\b(api[_-]?key|token|secret|password)\s*=\s*[^,\s;]+"
-)
+_SENSITIVE_ASSIGNMENT = re.compile(r"(?i)\b(api[_-]?key|token|secret|password)\s*=\s*[^,\s;]+")
 
 
 class KnowledgeCandidateExtractor:

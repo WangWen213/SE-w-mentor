@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass
 from collections.abc import Iterable
+from dataclasses import asdict, dataclass
 
 
 class EvidenceBundleError(ValueError):
@@ -50,9 +50,7 @@ class EvidenceBundleBuilder:
         items = tuple(self._items[ref] for ref in required)
         cross_revision = tuple(item.evidence_id for item in items if item.revision != revision)
         if cross_revision:
-            raise EvidenceBundleError(
-                f"cross_revision evidence refs: {', '.join(cross_revision)}"
-            )
+            raise EvidenceBundleError(f"cross_revision evidence refs: {', '.join(cross_revision)}")
         assumptions = tuple(sorted(str(item) for item in unresolved_assumptions if str(item)))
         ordered_items = tuple(sorted(items, key=lambda item: item.evidence_id))
         bundle_hash = _bundle_hash(task_id, revision, ordered_items, assumptions)

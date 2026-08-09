@@ -95,7 +95,9 @@ def test_T043_report_rejects_hallucinated_evidence_and_preserves_unknowns(
                 script=(
                     MockResponse(
                         match="impact report",
-                        content='{"narrative":"ok","fact_refs":["code:api"],"risks":["stale config"]}',
+                        content=(
+                            '{"narrative":"ok","fact_refs":["code:api"],"risks":["stale config"]}'
+                        ),
                         input_tokens=4,
                         output_tokens=6,
                     ),
@@ -115,5 +117,7 @@ def test_T043_report_rejects_hallucinated_evidence_and_preserves_unknowns(
     assert old.status == ImpactReportStatus.STALE
     assert report.status == ImpactReportStatus.CURRENT
     assert json.loads(report.evidence_json) == [{"evidence_id": "code:api"}]
+    assert report.direct_impacts_json is not None
+    assert report.uncertainties_json is not None
     assert "missing:evidence" not in report.direct_impacts_json
     assert "stale_knowledge" in report.uncertainties_json

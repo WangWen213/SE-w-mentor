@@ -42,7 +42,9 @@ class IndirectImpactAnalyzer:
         max_depth: int = 3,
         max_nodes: int = 50,
     ) -> IndirectImpactResult:
-        start_ids = tuple(_symbol_id(ref) for impact in direct_impacts for ref in impact.evidence_refs)
+        start_ids = tuple(
+            _symbol_id(ref) for impact in direct_impacts for ref in impact.evidence_refs
+        )
         frontier = {symbol_id for symbol_id in start_ids if symbol_id is not None}
         seen = set(frontier)
         impacts: list[IndirectImpact] = []

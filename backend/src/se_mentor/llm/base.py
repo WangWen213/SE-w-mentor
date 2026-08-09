@@ -54,5 +54,4 @@ class LLMProvider(Protocol):
     provider_name: str
     model: str
 
-    def complete(self, request: LLMRequest) -> LLMResponse:
-        ...
+    def complete(self, request: LLMRequest) -> LLMResponse: ...

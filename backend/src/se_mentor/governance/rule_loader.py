@@ -62,7 +62,9 @@ class RuleSetLoader:
         entries = tuple(
             RuleSnapshotEntry(
                 key=rule.rule_key if isinstance(rule, GovernanceRule) else rule.key,
-                effect=GovernanceRuleEffect(rule.effect if isinstance(rule, GovernanceRule) else rule.effect),
+                effect=GovernanceRuleEffect(
+                    rule.effect if isinstance(rule, GovernanceRule) else rule.effect
+                ),
                 source=str(rule.scope_type if isinstance(rule, GovernanceRule) else rule.scope),
                 version=rule.rule_version if isinstance(rule, GovernanceRule) else rule.version,
                 reason=rule.reason,
@@ -103,7 +105,9 @@ class RuleSetLoader:
         return tuple(sorted(by_key.values(), key=lambda rule: _sort_key(rule)))
 
 
-def _stronger(left: GovernanceRule | RuleDefinition, right: GovernanceRule | RuleDefinition) -> bool:
+def _stronger(
+    left: GovernanceRule | RuleDefinition, right: GovernanceRule | RuleDefinition
+) -> bool:
     left_effect = GovernanceRuleEffect(left.effect)
     right_effect = GovernanceRuleEffect(right.effect)
     left_strength = _EFFECT_STRENGTH[left_effect]

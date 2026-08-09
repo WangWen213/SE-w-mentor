@@ -7,7 +7,12 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from se_mentor.contracts.actions import AgentAction, AgentActionAdapter, DeleteFileAction, ReadFileAction
+from se_mentor.contracts.actions import (
+    AgentAction,
+    AgentActionAdapter,
+    DeleteFileAction,
+    ReadFileAction,
+)
 from se_mentor.contracts.enums import FeedbackKind, FeedbackSeverity
 from se_mentor.contracts.feedback import FeedbackSignal
 
@@ -47,7 +52,7 @@ class AgentActionParser:
 
 def _has_invalid_path(action: AgentAction) -> bool:
     if isinstance(action, ReadFileAction | DeleteFileAction) or hasattr(action, "path"):
-        path = Path(str(getattr(action, "path")))
+        path = Path(str(action.path))
         return path.is_absolute() or ".." in path.parts
     return False
 

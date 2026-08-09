@@ -53,6 +53,8 @@ def test_AC_FR02_01_generates_required_proposal_fields_without_side_effects(
         assert stored is not None
         assert stored.version == 2
         assert stored.goal == "Add audit logs"
+        assert stored.assumptions_json is not None
+        assert stored.risks_json is not None
         assert "User asked" in stored.assumptions_json
         assert "Backend service likely changes" in stored.risks_json
 
@@ -61,7 +63,14 @@ def test_AC_FR02_01_generates_required_proposal_fields_without_side_effects(
             session,
             MockLLMProvider(
                 model="mock",
-                script=(MockResponse(match="bad", content='{"goal":"x","unknown":true}', input_tokens=1, output_tokens=1),),
+                script=(
+                    MockResponse(
+                        match="bad",
+                        content='{"goal":"x","unknown":true}',
+                        input_tokens=1,
+                        output_tokens=1,
+                    ),
+                ),
             ),
         )
         with pytest.raises(ProposalGenerationError):

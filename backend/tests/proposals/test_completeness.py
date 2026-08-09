@@ -5,7 +5,14 @@ from pathlib import Path
 from phase1_test_helpers import create_schema, seed_task_graph
 
 from se_mentor.db.session import create_session_factory, session_scope
-from se_mentor.models.task import ChangeProposal, ChangeTask, ProposalCompleteness, ProposalCreatedByType, ProposalStatus, TaskStatus
+from se_mentor.models.task import (
+    ChangeProposal,
+    ChangeTask,
+    ProposalCompleteness,
+    ProposalCreatedByType,
+    ProposalStatus,
+    TaskStatus,
+)
 from se_mentor.proposals.completeness import CompletenessDecision, ProposalCompletenessService
 
 

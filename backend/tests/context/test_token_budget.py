@@ -41,7 +41,9 @@ def test_AC_FR03_03_over_budget_pauses_before_provider_call(tmp_path: Path) -> N
     )
     provider = MockLLMProvider(
         model="mock",
-        script=(MockResponse(match="audit", content='{"ok":true}', input_tokens=1, output_tokens=1),),
+        script=(
+            MockResponse(match="audit", content='{"ok":true}', input_tokens=1, output_tokens=1),
+        ),
     )
 
     with session_scope(session_factory) as session:

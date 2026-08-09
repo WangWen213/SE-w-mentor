@@ -89,7 +89,9 @@ class KnowledgeSignatureBuilder:
             file_hash=file_hash,
             ast_hash=ast_hash,
             symbol_hash=symbol_hash,
-            signature_hash=_sha(f"{revision}:{decision.relative_path}:{file_hash}:{ast_hash}:{symbol_hash}"),
+            signature_hash=_sha(
+                f"{revision}:{decision.relative_path}:{file_hash}:{ast_hash}:{symbol_hash}"
+            ),
         )
 
 
@@ -100,9 +102,10 @@ def _empty(status: SignatureStatus, revision: str, relative_path: str) -> CodeKn
 
 def _find_symbol(tree: ast.AST, symbol_name: str) -> ast.AST | None:
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
-            if node.name == symbol_name:
-                return node
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) and (
+            node.name == symbol_name
+        ):
+            return node
     return None
 
 

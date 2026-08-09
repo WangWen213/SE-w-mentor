@@ -119,6 +119,6 @@ def _parse_response(content: str) -> dict[str, Any]:
     return data
 
 
-def _serialize_impact(impact: object) -> dict[str, Any]:
+def _serialize_impact(impact: DirectImpact | IndirectImpact) -> dict[str, Any]:
     data = asdict(impact)
     return {key: (value.value if hasattr(value, "value") else value) for key, value in data.items()}

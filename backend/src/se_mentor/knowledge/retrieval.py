@@ -36,7 +36,9 @@ class KnowledgeRetriever:
         hits = [self._score(row, paths, keywords) for row in rows]
         matched = [hit for hit in hits if hit.score > 0]
         return tuple(
-            sorted(matched, key=lambda hit: (-hit.score, hit.knowledge_key, hit.knowledge_id))[:limit]
+            sorted(matched, key=lambda hit: (-hit.score, hit.knowledge_key, hit.knowledge_id))[
+                :limit
+            ]
         )
 
     def _score(

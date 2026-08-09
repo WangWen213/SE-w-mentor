@@ -15,8 +15,7 @@ from se_mentor.llm.base import (
 
 
 class _ResponsesClient(Protocol):
-    def create(self, **kwargs: object) -> object:
-        ...
+    def create(self, **kwargs: object) -> object: ...
 
 
 class _OpenAIClient(Protocol):

@@ -31,7 +31,9 @@ class ActionClassifier:
         if path.is_absolute() or ".." in path.parts:
             return ActionClassification(ActionRisk.DENY_HARD, "OUTSIDE_PATH", ("outside path",))
         if any(token in lowered for token in (".env", "secret", "token", "password", "credential")):
-            return ActionClassification(ActionRisk.DENY_HARD, "CREDENTIAL_SENSITIVE", ("credential",))
+            return ActionClassification(
+                ActionRisk.DENY_HARD, "CREDENTIAL_SENSITIVE", ("credential",)
+            )
         return ActionClassification(ActionRisk.SAFE, "SAFE", ("path",))
 
     def classify_command(self, command: str) -> ActionClassification:
@@ -43,7 +45,9 @@ class ActionClassifier:
                 ("suppresses validation failure",),
             )
         if _is_recursive_delete(lowered):
-            return ActionClassification(ActionRisk.DENY_HARD, "RECURSIVE_DELETE", ("recursive delete",))
+            return ActionClassification(
+                ActionRisk.DENY_HARD, "RECURSIVE_DELETE", ("recursive delete",)
+            )
         if any(token in lowered for token in ("npm install", "pip install", "poetry add")):
             return ActionClassification(ActionRisk.REQUIRE_APPROVAL, "DEPENDENCY", ("dependency",))
         if any(token in lowered for token in ("alembic revision", "migrate", "prisma migrate")):

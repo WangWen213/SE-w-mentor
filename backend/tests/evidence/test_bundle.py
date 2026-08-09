@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from phase1_test_helpers import REVISION
 
 from se_mentor.evidence.bundle import (

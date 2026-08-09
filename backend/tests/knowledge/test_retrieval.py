@@ -81,5 +81,7 @@ def test_T035_direct_path_verified_knowledge_ranks_before_stale_keyword_match(
     assert first[0].can_inform_success is True
     failed = next(hit for hit in first if hit.knowledge_key == "failed-experience")
     assert failed.can_inform_success is False
-    assert first.index(failed) < first.index(next(hit for hit in first if hit.knowledge_key == "stale-keyword"))
+    assert first.index(failed) < first.index(
+        next(hit for hit in first if hit.knowledge_key == "stale-keyword")
+    )
     assert other == ()
