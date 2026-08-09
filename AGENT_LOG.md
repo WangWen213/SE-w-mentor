@@ -2207,6 +2207,31 @@ GREEN: `evidence/tdd/T052-green.log`
 JUnit: `evidence/test-reports/T052.xml`
 Diff: `evidence/diffs/T052.patch`
 
+## 2026-08-10 T033 Context Package
+
+### Task ID
+T033
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added minimal ContextPackage construction with mandatory governance, execution policy, and current
+error retention. Repository content is relabeled as `UNTRUSTED_DATA`, optional items are budgeted
+deterministically, dropped items record reasons, and rendered text redacts sensitive assignments.
+
+### Evidence
+RED: `evidence/tdd/T033-red.log`
+GREEN: `evidence/tdd/T033-green.log`
+JUnit: `evidence/test-reports/T033.xml`
+Diff: `evidence/diffs/T033.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
