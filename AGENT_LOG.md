@@ -1957,6 +1957,31 @@ GREEN: `evidence/tdd/T040-green.log`
 JUnit: `evidence/test-reports/T040.xml`
 Diff: `evidence/diffs/T040.patch`
 
+## 2026-08-10 T041 Indirect Impact
+
+### Task ID
+T041
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added bounded graph expansion over code symbol relations. The analyzer terminates cycles with a
+visited set, honors depth and node limits, and marks impacts supported only by stale/conflicting
+knowledge as uncertain with explicit unknown entries.
+
+### Evidence
+RED: `evidence/tdd/T041-red.log`
+GREEN: `evidence/tdd/T041-green.log`
+JUnit: `evidence/test-reports/T041.xml`
+Diff: `evidence/diffs/T041.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
