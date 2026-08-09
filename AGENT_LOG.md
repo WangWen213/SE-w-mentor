@@ -2082,6 +2082,31 @@ GREEN: `evidence/tdd/T047-green.log`
 JUnit: `evidence/test-reports/T047.xml`
 Diff: `evidence/diffs/T047.patch`
 
+## 2026-08-10 T048 Approval Decision
+
+### Task ID
+T048
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added approval decision recording with append-only decision sequence. Cross-task request reuse,
+expired approvals, and approvals for deny-hard governance decisions are rejected before status
+changes.
+
+### Evidence
+RED: `evidence/tdd/T048-red.log`
+GREEN: `evidence/tdd/T048-green.log`
+JUnit: `evidence/test-reports/T048.xml`
+Diff: `evidence/diffs/T048.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
