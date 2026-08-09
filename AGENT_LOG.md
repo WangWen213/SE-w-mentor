@@ -2157,6 +2157,31 @@ GREEN: `evidence/tdd/T050-green.log`
 JUnit: `evidence/test-reports/T050.xml`
 Diff: `evidence/diffs/T050.patch`
 
+## 2026-08-10 T051 Policy Enforcer
+
+### Task ID
+T051
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added tool-layer policy enforcement that rechecks active policy state, temporary grant binding,
+normalized paths, revision, and orchestrator denial before invoking a handler. Out-of-policy writes
+return structured denial and do not call the handler.
+
+### Evidence
+RED: `evidence/tdd/T051-red.log`
+GREEN: `evidence/tdd/T051-green.log`
+JUnit: `evidence/test-reports/T051.xml`
+Diff: `evidence/diffs/T051.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
