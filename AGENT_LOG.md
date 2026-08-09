@@ -2282,6 +2282,31 @@ GREEN: `evidence/tdd/T055-green.log`
 JUnit: `evidence/test-reports/T055.xml`
 Diff: `evidence/diffs/T055.patch`
 
+## 2026-08-10 T057 Tool Dispatcher
+
+### Task ID
+T057
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added a tool registry and unified dispatcher. Dispatch first verifies registration, then policy
+enforcement, and only then invokes the handler. Unregistered or denied calls produce structured
+blocked results, never call the handler, and persist ToolExecution audit rows.
+
+### Evidence
+RED: `evidence/tdd/T057-red.log`
+GREEN: `evidence/tdd/T057-green.log`
+JUnit: `evidence/test-reports/T057.xml`
+Diff: `evidence/diffs/T057.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
