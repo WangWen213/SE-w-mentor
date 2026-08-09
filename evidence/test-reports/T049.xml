@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="1.793" timestamp="2026-08-10T01:58:36.820275+08:00" hostname="LAPTOP-IJMRFI3N"><testcase classname="tests.policy.test_compiler" name="test_T049_warn_without_approval_produces_no_write_grant" time="1.413" /></testsuite></testsuites>

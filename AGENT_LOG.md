@@ -2107,6 +2107,31 @@ GREEN: `evidence/tdd/T048-green.log`
 JUnit: `evidence/test-reports/T048.xml`
 Diff: `evidence/diffs/T048.patch`
 
+## 2026-08-10 T049 Execution Policy Compiler
+
+### Task ID
+T049
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added ExecutionPolicy compilation from governance decisions and approved requests. WARN decisions
+without approval keep read-only scope, empty write/command grants, and `executable=False`; policies
+bind proposal hash, revision, and rule set version for invalidation.
+
+### Evidence
+RED: `evidence/tdd/T049-red.log`
+GREEN: `evidence/tdd/T049-green.log`
+JUnit: `evidence/test-reports/T049.xml`
+Diff: `evidence/diffs/T049.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
