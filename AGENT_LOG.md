@@ -1932,6 +1932,31 @@ GREEN: `evidence/tdd/T039-green.log`
 JUnit: `evidence/test-reports/T039.xml`
 Diff: `evidence/diffs/T039.patch`
 
+## 2026-08-10 T040 Direct Impact
+
+### Task ID
+T040
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added deterministic direct impact analysis from proposal scope, Git diff paths, project root, and
+code index symbols. The analyzer separates API, DTO, table, test, and unknown file-level impacts,
+and every impact carries traceable evidence refs.
+
+### Evidence
+RED: `evidence/tdd/T040-red.log`
+GREEN: `evidence/tdd/T040-green.log`
+JUnit: `evidence/test-reports/T040.xml`
+Diff: `evidence/diffs/T040.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
