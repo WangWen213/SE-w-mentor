@@ -2032,6 +2032,31 @@ GREEN: `evidence/tdd/T043-green.log`
 JUnit: `evidence/test-reports/T043.xml`
 Diff: `evidence/diffs/T043.patch`
 
+## 2026-08-10 T046 Governance Decision
+
+### Task ID
+T046
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added a deterministic governance decision service. DENY_HARD rule matches override LLM/user allow
+or warn signals, WARN paths require approval, and ALLOW decisions are constrained to finite changed
+path scope.
+
+### Evidence
+RED: `evidence/tdd/T046-red.log`
+GREEN: `evidence/tdd/T046-green.log`
+JUnit: `evidence/test-reports/T046.xml`
+Diff: `evidence/diffs/T046.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
