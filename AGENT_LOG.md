@@ -1906,6 +1906,32 @@ None for T005 branch implementation.
 Merge to main later and run project-level regression before setting project mainline status to
 `[x]`.
 
+## 2026-08-10 T039 Knowledge Promotion
+
+### Task ID
+T039
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Implementation Summary
+Added deterministic LLM-summary candidate extraction and evidence-gated promotion. LLM-only
+knowledge remains `CANDIDATE`, rollback-derived summaries become `FAILED_EXPERIENCE`, test evidence
+can promote to `VERIFIED`, and human review can promote to `REVIEWED`. Candidate summaries redact
+sensitive assignments before persistence.
+
+### Evidence
+RED: `evidence/tdd/T039-red.log`
+GREEN: `evidence/tdd/T039-green.log`
+JUnit: `evidence/test-reports/T039.xml`
+Diff: `evidence/diffs/T039.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
