@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { createMentorApi, type GovernanceReport, type LockStatus, type Project, type Proposal, type Task, type TaskEvent } from "../api/mentorApi";
+import {
+  createMentorApi,
+  type CompletionGate,
+  type DiffTrace,
+  type GovernanceReport,
+  type LockStatus,
+  type Project,
+  type Proposal,
+  type RecoveryItem,
+  type Task,
+  type TaskEvent,
+  type ValidationResult,
+} from "../api/mentorApi";
 import { cards, type NavKey } from "./fixtures";
 import { AppShell } from "./AppShell";
 import { Button } from "../components/Button";
@@ -13,6 +25,8 @@ import { AnalysisPage } from "../pages/AnalysisPage";
 import { ExecutionPage } from "../pages/ExecutionPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { ProposalReviewPage } from "../pages/ProposalReviewPage";
+import { RecoveryPage } from "../pages/RecoveryPage";
+import { TaskResultPage } from "../pages/TaskResultPage";
 import { useTaskEvents } from "../hooks/useTaskEvents";
 
 export function App() {
@@ -36,6 +50,11 @@ export function App() {
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
   const [activeExecutions, setActiveExecutions] = useState<Record<string, TaskEvent[]>>({});
+  const [diffTrace, setDiffTrace] = useState<DiffTrace | null>(null);
+  const [validationResults, setValidationResults] = useState<ValidationResult[]>([]);
+  const [completionGate, setCompletionGate] = useState<CompletionGate[]>([]);
+  const [recoveryItems, setRecoveryItems] = useState<RecoveryItem[]>([]);
+  const [recoveryPendingTaskId, setRecoveryPendingTaskId] = useState<string | null>(null);
   const governanceRequestRef = useRef(0);
   const taskEvents = useTaskEvents(api, activeTask?.id ?? null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -301,6 +320,50 @@ export function App() {
     }
   }, [activeTask, api, cancelPending, refreshActiveTask, taskEvents]);
 
+  const loadResultState = useCallback(async () => {
+    if (!activeTask) {
+      setDiffTrace(null);
+      setValidationResults([]);
+      setCompletionGate([]);
+      setRecoveryItems([]);
+      return;
+    }
+    const latestDiffChangeId = latestEventValue(
+      activeExecutions[activeTask.id] ?? taskEvents.events,
+      "changeId",
+    );
+    const [recovery, trace] = await Promise.all([
+      api.listRecovery(),
+      latestDiffChangeId ? api.getDiffTrace(latestDiffChangeId).catch(() => null) : null,
+    ]);
+    const events = activeExecutions[activeTask.id] ?? taskEvents.events;
+    setDiffTrace(trace);
+    setRecoveryItems(recovery.items);
+    setValidationResults(validationResultsFromEvents(events));
+    setCompletionGate(completionGateFromEvents(events));
+  }, [activeExecutions, activeTask, api, taskEvents.events]);
+
+  useEffect(() => {
+    if (activeView === "evaluation") {
+      void loadResultState();
+    }
+  }, [activeView, loadResultState]);
+
+  const resolveRecovery = useCallback(
+    async (taskId: string, action: "keep" | "rollback") => {
+      setRecoveryPendingTaskId(taskId);
+      try {
+        await api.resolveRecovery(taskId, action);
+        await loadResultState();
+      } catch (error) {
+        setTaskError(userError(error));
+      } finally {
+        setRecoveryPendingTaskId(null);
+      }
+    },
+    [api, loadResultState],
+  );
+
   return (
     <AppShell
       activeView={activeView}
@@ -364,7 +427,23 @@ export function App() {
           onReload={() => void loadGovernance()}
         />
       ) : null}
-      {activeView === "evaluation" ? <EvaluationView /> : null}
+      {activeView === "evaluation" ? (
+        recoveryItems.length > 0 ? (
+          <RecoveryPage
+            items={recoveryItems}
+            pendingTaskId={recoveryPendingTaskId}
+            onKeep={(taskId) => resolveRecovery(taskId, "keep")}
+            onRollback={(taskId) => resolveRecovery(taskId, "rollback")}
+          />
+        ) : (
+          <TaskResultPage
+            completionGate={completionGate}
+            diffTrace={diffTrace}
+            task={activeTask}
+            validationResults={validationResults}
+          />
+        )
+      ) : null}
       {activeView === "settings" ? <SettingsView /> : null}
       <Modal open={modalOpen} title="任务已停止" onClose={() => setModalOpen(false)}>
         提案已停止。后续执行、安全点和回滚流程将在后续任务接入。
@@ -425,41 +504,6 @@ function userError(error: unknown): string {
   return "请求没有完成";
 }
 
-function EvaluationView() {
-  return (
-    <Page title="评估" action="查看完整记录">
-      <section className="result-card">
-        <div className="result-top">
-          <div className="result-icon" aria-hidden="true">
-            ✓
-          </div>
-          <div>
-            <div className="result-title">最近一次任务已通过全部检查</div>
-            <div className="result-time">补充订单字段校验 · 昨天 21:16</div>
-          </div>
-        </div>
-        <div className="result-summary">
-          <span>
-            <b>4</b> 个文件修改
-          </span>
-          <span>
-            <b>18</b> 项检查通过
-          </span>
-          <span>没有超出已确认范围</span>
-        </div>
-        <div className="check-grid">
-          {["需求已满足", "相关测试已通过", "修改没有超出范围", "没有待处理确认"].map((item) => (
-            <div className="check-item" key={item}>
-              <i>✓</i>
-              {item}
-            </div>
-          ))}
-        </div>
-      </section>
-    </Page>
-  );
-}
-
 function SettingsView() {
   return (
     <Page title="设置">
@@ -487,6 +531,31 @@ function SettingsView() {
       </div>
     </Page>
   );
+}
+
+function latestEventValue(events: TaskEvent[], key: string): string | null {
+  for (const event of [...events].reverse()) {
+    const value = event.payload[key as keyof TaskEvent["payload"]];
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function validationResultsFromEvents(events: TaskEvent[]): ValidationResult[] {
+  return events.flatMap((event) => {
+    const value = event.payload.validation;
+    return Array.isArray(value) ? (value as ValidationResult[]) : [];
+  });
+}
+
+function completionGateFromEvents(events: TaskEvent[]): CompletionGate[] {
+  const latest = [...events].reverse().find((event) => Array.isArray(event.payload.completionGate));
+  if (!latest || !Array.isArray(latest.payload.completionGate)) {
+    return [];
+  }
+  return latest.payload.completionGate as CompletionGate[];
 }
 
 function Page({

@@ -6,7 +6,14 @@ from se_mentor.api.state import STATE
 from se_mentor.main import create_app
 
 
-def test_T089_recovery_required_blocks_execute_until_resolved() -> None:
+def test_T089_recovery_required_blocks_execute_until_resolved(monkeypatch) -> None:
+    class ExecutionAuthority:
+        def execute(self, *, task_id: str, command: str) -> dict[str, object]:
+            return {"taskId": task_id, "command": command, "status": "EXECUTING", "eventId": 1}
+
+    monkeypatch.setattr(
+        "se_mentor.api.execution.get_execution_authority", lambda: ExecutionAuthority()
+    )
     client = TestClient(create_app())
     task_id = STATE.new_id("task")
     STATE.tasks[task_id] = {"id": task_id, "status": "CREATED", "recoveryRequired": True}

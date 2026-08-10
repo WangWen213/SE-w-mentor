@@ -3726,6 +3726,50 @@ Ruff format: `evidence/logs/T096-corrective-ruff-format.log`
 Mypy: `evidence/logs/T096-corrective-mypy.log`
 Diff: `evidence/diffs/T096-corrective.patch`
 
+## 2026-08-11 T097 Result Recovery WebUI
+
+### Task ID
+T097
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+`[x]` branch complete.
+
+### Dependency Check
+T089, T092, and T093 evidence are present on the current branch. T096 corrective gate passed at
+`1508faaf2df4d2d5eef6445723dbf658f23bfab0` before T097 started.
+
+### RED
+`test_T097_error_view_states_modified_backed_up_rolled_back_and_next_action` failed because
+`TaskResultPage.tsx` and the T097 result/recovery surfaces were missing.
+
+### Implementation Summary
+Added backend-driven result and recovery UI integration: `DiffViewer` renders backend diff trace
+lines and out-of-scope flags, `ValidationReport` renders backend validation results and
+CompletionGate entries, `TaskResultPage` composes result state, and `RecoveryPage` calls backend
+keep/rollback recovery resolution while hiding any force-overwrite path for conflicts. React only
+issues API commands and renders authoritative backend fields.
+
+### Scope Guard
+No T098 knowledge, credential/settings, audit, or replay UI was added. No T099 browser E2E work was
+started.
+
+### Evidence
+RED: `evidence/tdd/T097-red.log`
+GREEN: `evidence/tdd/T097-green.log`
+JUnit: `evidence/test-reports/T097.xml`
+Backend regression: `evidence/logs/T097-backend-regression.log`
+Backend JUnit: `evidence/test-reports/T097-backend-regression.xml`
+Frontend type-check: `evidence/logs/T097-type-check.log`
+Vitest sandbox: `evidence/logs/T097-vitest.log`
+Build sandbox: `evidence/logs/T097-build.log`
+Diff: `evidence/diffs/T097.patch`
+
 ### Notes
 `frontend/package.json` has no `lint` script, so no frontend lint command is configured to run.
 T094 was not started.

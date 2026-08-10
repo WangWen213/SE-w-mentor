@@ -15,6 +15,8 @@ export type GovernanceDecisionKind = "ALLOW" | "WARN" | "BLOCK";
 export type ApprovalStatus = "APPROVED" | "REJECTED";
 export type ExecutionStatus = "EXECUTING" | "CANCEL_REQUESTED";
 export type TaskEventType = "EXECUTION_STARTED" | "CANCEL_REQUESTED" | "status";
+export type ValidationStatus = "PASS" | "FAIL" | "SKIPPED";
+export type CompletionGateStatus = "PASS" | "FAIL" | "PENDING";
 
 export interface ApiErrorInfo {
   code: string;
@@ -139,14 +141,62 @@ export interface ExecutionResult {
   taskId: string;
 }
 
+export interface DiffLine {
+  content: string;
+  lineNumber: number;
+  outsideScope: boolean;
+  type: "added" | "removed" | "context";
+}
+
+export interface DiffTrace {
+  backedUp: boolean;
+  changeId: string;
+  filePath: string;
+  lines: DiffLine[];
+  modified: boolean;
+  rolledBack: boolean;
+}
+
+export interface ValidationResult {
+  failureCategory: string | null;
+  message: string;
+  name: string;
+  status: ValidationStatus;
+}
+
+export interface CompletionGate {
+  label: string;
+  status: CompletionGateStatus;
+}
+
+export interface RecoveryItem {
+  conflict: boolean;
+  sideEffects: string;
+  status: string;
+  taskId: string;
+}
+
+export interface RecoveryList {
+  items: RecoveryItem[];
+}
+
+export interface RecoveryResolution {
+  action: "keep" | "rollback";
+  status: string;
+  taskId: string;
+}
+
 export interface TaskEvent {
   eventId: number;
   eventType: TaskEventType;
   payload: {
+    changeId?: string;
+    completionGate?: CompletionGate[];
     message?: string;
     projectId?: string;
     state?: string;
     taskId?: string;
+    validation?: ValidationResult[];
   };
   taskId: string;
 }
@@ -180,6 +230,9 @@ export interface MentorApi {
   rejectApproval(approvalId: string): Promise<ApprovalResult>;
   executeTask(taskId: string, command: string): Promise<ExecutionResult>;
   cancelTask(taskId: string): Promise<ExecutionResult>;
+  getDiffTrace(changeId: string): Promise<DiffTrace>;
+  listRecovery(): Promise<RecoveryList>;
+  resolveRecovery(taskId: string, action: "keep" | "rollback"): Promise<RecoveryResolution>;
   getTaskEvents(taskId: string, lastEventId: number | null): Promise<TaskEvent[]>;
   runGovernance(proposalId: string, changedPaths: string[]): Promise<GovernanceReport>;
 }
@@ -249,6 +302,7 @@ export function createMentorApi(fetcher: FetchLike = fetch): MentorApi {
         body: JSON.stringify({ command }),
         method: "POST",
       }),
+    getDiffTrace: (changeId) => request<DiffTrace>(`/api/diffs/${changeId}/trace`),
     getProjectConfig: (projectId) =>
       request<ProjectConfig>(`/api/projects/${projectId}/config`),
     getProposal: (taskId) => request<Proposal>(`/api/tasks/${taskId}/proposals`),
@@ -269,11 +323,17 @@ export function createMentorApi(fetcher: FetchLike = fetch): MentorApi {
     },
     getTaskList: (projectId) => request<TaskList>(`/api/projects/${projectId}/tasks`),
     indexAnalysis: () => request<AnalysisIndexResult>("/api/analysis/index", { method: "POST" }),
+    listRecovery: () => request<RecoveryList>("/api/recovery"),
     rejectApproval: (approvalId) =>
       request<ApprovalResult>(`/api/approvals/${approvalId}/reject`, { method: "POST" }),
     runGovernance: (proposalId, changedPaths) =>
       request<GovernanceReport>(`/api/proposals/${proposalId}/governance`, {
         body: JSON.stringify({ changedPaths }),
+        method: "POST",
+      }),
+    resolveRecovery: (taskId, action) =>
+      request<RecoveryResolution>(`/api/recovery/${taskId}/resolve`, {
+        body: JSON.stringify({ action }),
         method: "POST",
       }),
   };
