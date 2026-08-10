@@ -2518,7 +2518,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T084 — E2E-07 崩溃恢复与 E2E-08 知识保鲜
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-e2e`
 - **覆盖需求**：`E2E-07`, `E2E-08`
@@ -2542,7 +2542,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T084.xml
   - evidence/diffs/T084.patch
   - `AGENT_LOG.md` 中的 T084 记录
-- **Commit**：`未填写`
+- **Commit**：`test: add e2e recovery and freshness`
 
 ## T085 — 全离线确定性与网络封锁测试
 

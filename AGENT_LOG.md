@@ -3273,6 +3273,35 @@ JUnit: `evidence/test-reports/T083.xml`
 Regression: `evidence/logs/T083-regression.log`
 Diff: `evidence/diffs/T083.patch`
 
+## 2026-08-10 T084 E2E Recovery And Freshness
+
+### Task ID
+T084
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T083 is complete on the current branch.
+
+### Implementation Summary
+Added offline E2E coverage for restart recovery detecting unfinished APPLYING transactions,
+blocking new writers until rollback resolution, and marking knowledge stale when code signatures
+drift so later work cannot auto-allow from stale knowledge.
+
+### Evidence
+RED: `evidence/tdd/T084-red.log`
+GREEN: `evidence/tdd/T084-green.log`
+JUnit: `evidence/test-reports/T084.xml`
+Regression: `evidence/logs/T084-regression.log`
+Diff: `evidence/diffs/T084.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
