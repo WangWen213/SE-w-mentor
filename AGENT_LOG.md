@@ -2521,6 +2521,46 @@ JUnit: `evidence/test-reports/T063.xml`
 Regression: `evidence/logs/T063-regression.log`
 Diff: `evidence/diffs/T063.patch`
 
+## 2026-08-10 T058-T063 Runtime Tools Checkpoint
+
+### Task IDs
+T058, T059, T060, T061, T062, T063
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Runtime tool critical path checkpoint complete through T063. T064 was not started.
+
+### Validation Summary
+T058-T063 scoped tests passed. Related transaction, lock, approval, policy, dispatcher, and runtime
+tool regressions passed. Full backend pytest passed with 90 passed, 2 skipped, and existing
+third-party/Alembic warnings. Models regression passed. Ruff check, Ruff format check, mypy, Alembic
+head, Alembic head gate, and frontend type-check passed.
+
+### check_all Classification
+`scripts/check_all.py` passed backend/meta/type-check portions and then failed at frontend Vitest
+config loading with esbuild `Cannot read directory "../../.."` and `Could not resolve
+frontend/vitest.config.mjs`. This matches the known Codex Vitest/esbuild sandbox failure and was not
+re-diagnosed.
+
+### Evidence
+Scoped: `evidence/logs/T063-checkpoint/scoped-T058-T063.log`
+Related regression: `evidence/logs/T063-checkpoint/related-runtime-regression.log`
+Backend full pytest: `evidence/logs/T063-checkpoint/backend-full-pytest.log`
+Models path note: `evidence/logs/T063-checkpoint/models-meta-regression.log`
+Models regression: `evidence/logs/T063-checkpoint/models-regression.log`
+Ruff: `evidence/logs/T063-checkpoint/ruff-check.log`
+Ruff format: `evidence/logs/T063-checkpoint/ruff-format-check.log`
+Mypy: `evidence/logs/T063-checkpoint/mypy.log`
+Alembic: `evidence/logs/T063-checkpoint/alembic-heads.log`
+Alembic gate: `evidence/logs/T063-checkpoint/alembic-head-gate.log`
+Frontend type-check: `evidence/logs/T063-checkpoint/frontend-type-check.log`
+Canonical gate: `evidence/logs/T063-checkpoint/check-all.log`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
