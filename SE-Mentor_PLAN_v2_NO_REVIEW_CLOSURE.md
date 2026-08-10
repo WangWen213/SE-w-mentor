@@ -1953,7 +1953,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T064 — 显式回滚任务修改
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-08`, `E2E-06`
@@ -1977,7 +1977,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T064.xml
   - evidence/diffs/T064.patch
   - `AGENT_LOG.md` 中的 T064 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: rollback task transactions`
 
 ## T065 — 异常中断事务恢复
 

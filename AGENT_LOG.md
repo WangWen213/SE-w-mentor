@@ -2561,6 +2561,37 @@ Alembic gate: `evidence/logs/T063-checkpoint/alembic-head-gate.log`
 Frontend type-check: `evidence/logs/T063-checkpoint/frontend-type-check.log`
 Canonical gate: `evidence/logs/T063-checkpoint/check-all.log`
 
+## 2026-08-10 T064 Transaction Rollback
+
+### Task ID
+T064
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T059 apply patch, T060 create file, T061 delete file, and T032 Git baseline support are present on
+the current branch.
+
+### Implementation Summary
+Added explicit transaction rollback for recorded CREATE, MODIFY, and DELETE changes. Rollback walks
+file changes in reverse, checks current hashes before touching files, marks conflicts without
+overwriting external edits, restores backups for modified/deleted files, deletes task-created files,
+preserves pre-task user changes, and is idempotent after success.
+
+### Evidence
+RED: `evidence/tdd/T064-red.log`
+GREEN: `evidence/tdd/T064-green.log`
+JUnit: `evidence/test-reports/T064.xml`
+Regression: `evidence/logs/T064-regression.log`
+Diff: `evidence/diffs/T064.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
