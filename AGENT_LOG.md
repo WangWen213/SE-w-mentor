@@ -2329,6 +2329,38 @@ Alembic head: `evidence/logs/final/alembic-head.log`
 Frontend type-check: `evidence/logs/final/frontend-type-check.log`
 Check all: `evidence/logs/final/check-all.log`
 
+## 2026-08-10 T058 Transaction Prepare
+
+### Task ID
+T058
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T014 execution transaction/backup/file-change/lock models, T022 workspace locks, T032 Git baseline
+service, and T057 dispatcher are present on the current branch.
+
+### Implementation Summary
+Added `TransactionManager.prepare` to validate an active WRITE lock, task/project/lock binding, and
+base revision before creating a PREPARED transaction. Preparation writes a baseline manifest and a
+task-scoped backup directory outside the target repository, records clean vs dirty workspace state,
+preserves pre-existing user modifications as baseline facts, and is idempotent for an existing
+prepared transaction.
+
+### Evidence
+RED: `evidence/tdd/T058-red.log`
+GREEN: `evidence/tdd/T058-green.log`
+JUnit: `evidence/test-reports/T058.xml`
+Regression: `evidence/logs/T058-regression.log`
+Diff: `evidence/diffs/T058.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
