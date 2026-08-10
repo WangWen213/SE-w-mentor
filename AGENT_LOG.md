@@ -3038,6 +3038,36 @@ JUnit: `evidence/test-reports/T076.xml`
 Regression: `evidence/logs/T076-regression.log`
 Diff: `evidence/diffs/T076.patch`
 
+## 2026-08-10 T077 Repair Re-Governance
+
+### Task ID
+T077
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T052 re-governance evidence, T076 finite repair loop, and T075 validation evasion detection are
+present on the current branch.
+
+### Implementation Summary
+Added repair governance that pauses before writes when a repair expands write scope or command
+scope, uses stale knowledge, or introduces validation evasion. Approved in-scope repairs can
+continue with the existing policy boundary.
+
+### Evidence
+RED: `evidence/tdd/T077-red.log`
+GREEN: `evidence/tdd/T077-green.log`
+JUnit: `evidence/test-reports/T077.xml`
+Regression: `evidence/logs/T077-regression.log`
+Diff: `evidence/diffs/T077.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
