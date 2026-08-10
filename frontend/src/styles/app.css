@@ -343,6 +343,73 @@ select:focus-visible {
   flex-direction: column;
 }
 
+.empty-workbench {
+  height: calc(100vh - 66px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 40px 190px;
+  text-align: center;
+}
+
+.empty-workbench h2 {
+  font-size: 30px;
+  margin: 0 0 10px;
+}
+
+.empty-workbench p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.action-error {
+  margin: 14px 0 18px;
+  padding: 16px 17px;
+  border: 1px solid #e4c9c5;
+  background: #fff8f7;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+}
+
+.action-error strong {
+  font-size: 14px;
+  color: #7e4743;
+}
+
+.action-error span {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #7f6663;
+}
+
+.recovery-banner {
+  margin: 14px 40px 0;
+  padding: 13px 16px;
+  border: 1px solid #e1d5c6;
+  background: #fbf5eb;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #5d554c;
+}
+
+.proposal-floating-actions {
+  position: fixed;
+  right: 36px;
+  bottom: 126px;
+  z-index: 21;
+  display: flex;
+  gap: 8px;
+}
+
 .task-head {
   min-height: 66px;
   flex: 0 0 auto;

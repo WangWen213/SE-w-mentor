@@ -1,3 +1,4 @@
+import type { Project } from "../api/mentorApi";
 import type { NavKey } from "./fixtures";
 import { navItems } from "./fixtures";
 import { Button } from "../components/Button";
@@ -5,10 +6,23 @@ import { Button } from "../components/Button";
 interface AppShellProps {
   activeView: NavKey;
   children: React.ReactNode;
+  onNewTask: () => void;
+  onOpenProject: () => void;
   onViewChange: (view: NavKey) => void;
+  project: Project | null;
 }
 
-export function AppShell({ activeView, children, onViewChange }: AppShellProps) {
+export function AppShell({
+  activeView,
+  children,
+  onNewTask,
+  onOpenProject,
+  onViewChange,
+  project,
+}: AppShellProps) {
+  const projectName = project?.id ?? "未打开项目";
+  const branch = project?.branch ?? "main";
+
   return (
     <div className="app">
       <aside className="sidebar" data-testid="mentor-sidebar">
@@ -23,10 +37,10 @@ export function AppShell({ activeView, children, onViewChange }: AppShellProps) 
           <div className="project-label">当前项目</div>
           <div className="project-name">
             <span className="project-dot" aria-hidden="true" />
-            SE-w-mentor
+            {projectName}
           </div>
-          <div className="project-meta">main · 本地工作区</div>
-          <button className="project-open" type="button">
+          <div className="project-meta">{branch} · 本地工作区</div>
+          <button className="project-open" type="button" onClick={onOpenProject}>
             打开其他项目
           </button>
         </section>
@@ -65,11 +79,13 @@ export function AppShell({ activeView, children, onViewChange }: AppShellProps) 
 
       <main className="main">
         <header className="topbar" data-testid="mentor-topbar">
-          <div className="top-project">SE-w-mentor</div>
-          <div className="branch">main</div>
+          <div className="top-project">{projectName}</div>
+          <div className="branch">{branch}</div>
           <div className="top-spacer" />
           <Button>同步状态</Button>
-          <Button variant="dark">新建任务</Button>
+          <Button variant="dark" onClick={onNewTask}>
+            新建任务
+          </Button>
         </header>
         {children}
       </main>

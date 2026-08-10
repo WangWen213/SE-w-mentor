@@ -3678,6 +3678,55 @@ file path. The Vite build body passes with `configFile: false`.
 `frontend/package.json` has no `lint` script, so no frontend lint command is configured to run.
 T094 was not started.
 
+## 2026-08-10 T094 Projects Tasks Proposal Review WebUI
+
+### Task ID
+T094
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+`[x]` branch complete.
+
+### Dependency Check
+T086 and T093 evidence are present on the current branch.
+
+### Implementation Summary
+Integrated the T093 shell with typed T086 project/task/proposal API flows. Project open, config/lock
+read, task list refresh, task creation, task detail loading, proposal read, confirm, adjust, and
+reject/cancel now use backend endpoints. Added the minimal backend read/adjust endpoints required
+for a real task list and proposal review loop. Workbench keeps the frozen IA and presentation; tabs
+without T097 data render unavailable/empty states and no execution/SSE/governance/validation APIs
+were started.
+
+### Evidence
+RED: `evidence/tdd/T094-red.log`
+GREEN: `evidence/tdd/T094-green.log`
+JUnit: `evidence/test-reports/T094.xml`
+Frontend smoke: `evidence/logs/T094-smoke.log`
+API contract: `evidence/logs/T094-api-contract-final.log`
+Type-check: `evidence/logs/T094-type-check-final.log`
+Build: `evidence/logs/T094-build-final.log`
+Lint command: `evidence/logs/T094-lint.log`
+Ruff: `evidence/logs/T094-ruff-final.log`
+Ruff format: `evidence/logs/T094-ruff-format-final.log`
+Vitest sandbox: `evidence/logs/T094-vitest-sandbox.log`
+npm build sandbox: `evidence/logs/T094-build-sandbox.log`
+Diff: `evidence/diffs/T094.patch`
+
+### Sandbox Classification
+The standard Vitest and npm build entries still fail before test/build execution with the known
+esbuild sandbox config-load signature: `Cannot read directory "../../.."` and the frontend config
+file path. The Vite build body passes with `configFile: false`.
+
+### Notes
+`frontend/package.json` still has no `lint` script, so frontend lint is recorded as not configured.
+T095 was not started.
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

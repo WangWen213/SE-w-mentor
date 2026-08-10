@@ -37,3 +37,12 @@ def lock_status(project_id: str, response: Response) -> dict[str, object]:
         response.status_code = status.HTTP_404_NOT_FOUND
         return error("PROJECT_NOT_FOUND", "project not found")
     return ok({"projectId": project_id, "status": "UNLOCKED"})
+
+
+@router.get("/{project_id}/tasks")
+def list_project_tasks(project_id: str, response: Response) -> dict[str, object]:
+    if project_id not in STATE.projects:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return error("PROJECT_NOT_FOUND", "project not found")
+    tasks = [dict(task) for task in STATE.tasks.values() if task.get("projectId") == project_id]
+    return ok({"projectId": project_id, "items": tasks})

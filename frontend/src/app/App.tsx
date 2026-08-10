@@ -1,41 +1,236 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { cards, type NavKey, type TaskTab, taskFixture } from "./fixtures";
+import { createMentorApi, type LockStatus, type MentorApi, type Project, type Proposal, type Task } from "../api/mentorApi";
+import { cards, type NavKey } from "./fixtures";
 import { AppShell } from "./AppShell";
 import { Button } from "../components/Button";
 import { Drawer } from "../components/Drawer";
 import { EmptyState } from "../components/EmptyState";
 import { Modal } from "../components/Modal";
 import { StatusBadge } from "../components/StatusBadge";
-import { ChangesPanel } from "../components/workbench/ChangesPanel";
-import { ChecksPanel } from "../components/workbench/ChecksPanel";
-import { Composer } from "../components/workbench/Composer";
-import { Conversation } from "../components/workbench/Conversation";
-import { TaskHeader } from "../components/workbench/TaskHeader";
-import { TaskTabs } from "../components/workbench/TaskTabs";
+import { NewTaskPage } from "../pages/NewTaskPage";
+import { ProjectsPage } from "../pages/ProjectsPage";
+import { ProposalReviewPage } from "../pages/ProposalReviewPage";
 
 export function App() {
+  const api = useMemo(() => createMentorApi(), []);
   const [activeView, setActiveView] = useState<NavKey>("workbench");
-  const [activeTab, setActiveTab] = useState<TaskTab>("conversation");
+  const [project, setProject] = useState<Project | null>(null);
+  const [lockStatus, setLockStatus] = useState<LockStatus | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [activeProposal, setActiveProposal] = useState<Proposal | null>(null);
+  const [taskListLoading, setTaskListLoading] = useState(false);
+  const [taskDetailLoading, setTaskDetailLoading] = useState(false);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const [newTaskPending, setNewTaskPending] = useState(false);
+  const [proposalAction, setProposalAction] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const loadTaskList = useCallback(
+    async (projectId: string) => {
+      setTaskListLoading(true);
+      setProjectError(null);
+      try {
+        const [list, locks] = await Promise.all([
+          api.getTaskList(projectId),
+          api.getProjectLocks(projectId),
+        ]);
+        setTasks(list.items);
+        setLockStatus(locks);
+      } catch (error) {
+        setProjectError(userError(error));
+      } finally {
+        setTaskListLoading(false);
+      }
+    },
+    [api],
+  );
+
+  const openProject = useCallback(async () => {
+    setProjectError(null);
+    try {
+      const opened = await api.createProject("C:/Users/ww/Desktop/SE-w-mentor");
+      setProject(opened);
+      await api.getProjectConfig(opened.id);
+      await loadTaskList(opened.id);
+    } catch (error) {
+      setProjectError(userError(error));
+    }
+  }, [api, loadTaskList]);
+
+  useEffect(() => {
+    void openProject();
+  }, [openProject]);
+
+  const openTask = useCallback(
+    async (taskId: string) => {
+      setTaskDetailLoading(true);
+      setTaskError(null);
+      setActiveView("workbench");
+      try {
+        const [task, proposal] = await Promise.all([
+          api.getTask(taskId),
+          api.getProposal(taskId).catch(() => null),
+        ]);
+        setActiveTask(task);
+        setActiveProposal(proposal);
+      } catch (error) {
+        setTaskError(userError(error));
+      } finally {
+        setTaskDetailLoading(false);
+      }
+    },
+    [api],
+  );
+
+  const createTask = useCallback(
+    async (request: string) => {
+      if (!project || newTaskPending) {
+        return;
+      }
+      setNewTaskPending(true);
+      setTaskError(null);
+      try {
+        const task = await api.createTask(project.id, request);
+        const question = request.includes("?") || request.includes("？")
+          ? "请补充你希望优先处理的目标。"
+          : undefined;
+        const proposal = await api.createProposal(task.id, request, question);
+        setActiveTask(await api.getTask(task.id));
+        setActiveProposal(proposal);
+        await loadTaskList(project.id);
+        setActiveView("workbench");
+      } catch (error) {
+        setTaskError(userError(error));
+      } finally {
+        setNewTaskPending(false);
+      }
+    },
+    [api, loadTaskList, newTaskPending, project],
+  );
+
+  const refreshActiveTask = useCallback(async () => {
+    if (!activeTask) {
+      return;
+    }
+    const [task, proposal] = await Promise.all([
+      api.getTask(activeTask.id),
+      api.getProposal(activeTask.id).catch(() => null),
+    ]);
+    setActiveTask(task);
+    setActiveProposal(proposal);
+    if (project) {
+      await loadTaskList(project.id);
+    }
+  }, [activeTask, api, loadTaskList, project]);
+
+  const confirmProposal = useCallback(async () => {
+    if (!activeTask || !activeProposal || proposalAction !== null) {
+      return;
+    }
+    setProposalAction("confirm");
+    try {
+      await api.confirmProposal(activeTask.id, activeProposal.id);
+      await refreshActiveTask();
+    } catch (error) {
+      setTaskError(userError(error));
+    } finally {
+      setProposalAction(null);
+    }
+  }, [activeProposal, activeTask, api, proposalAction, refreshActiveTask]);
+
+  const adjustProposal = useCallback(
+    async (instruction: string) => {
+      if (!activeTask || !activeProposal || proposalAction !== null) {
+        return;
+      }
+      setProposalAction("adjust");
+      try {
+        const proposal = await api.adjustProposal(activeTask.id, activeProposal.id, instruction);
+        setActiveProposal(proposal);
+        await refreshActiveTask();
+      } catch (error) {
+        setTaskError(userError(error));
+      } finally {
+        setProposalAction(null);
+      }
+    },
+    [activeProposal, activeTask, api, proposalAction, refreshActiveTask],
+  );
+
+  const cancelProposal = useCallback(async () => {
+    if (!activeTask || !activeProposal || proposalAction !== null) {
+      return;
+    }
+    setProposalAction("cancel");
+    try {
+      await api.cancelProposal(activeTask.id, activeProposal.id);
+      await refreshActiveTask();
+      setModalOpen(true);
+    } catch (error) {
+      setTaskError(userError(error));
+    } finally {
+      setProposalAction(null);
+    }
+  }, [activeProposal, activeTask, api, proposalAction, refreshActiveTask]);
+
+  const startNewTask = () => {
+    setTaskError(null);
+    setActiveTask(null);
+    setActiveProposal(null);
+    setActiveView("workbench");
+  };
+
   return (
-    <AppShell activeView={activeView} onViewChange={setActiveView}>
+    <AppShell
+      activeView={activeView}
+      project={project}
+      onNewTask={startNewTask}
+      onOpenProject={() => void openProject()}
+      onViewChange={setActiveView}
+    >
       {activeView === "workbench" ? (
-        <WorkbenchView
-          activeTab={activeTab}
-          onModalOpen={() => setModalOpen(true)}
-          onTabChange={setActiveTab}
+        activeTask ? (
+          <ProposalReviewPage
+            error={taskError}
+            loading={taskDetailLoading}
+            pendingAction={proposalAction}
+            proposal={activeProposal}
+            task={activeTask}
+            onAdjust={adjustProposal}
+            onCancel={cancelProposal}
+            onConfirm={confirmProposal}
+            onNeedAnswer={adjustProposal}
+          />
+        ) : (
+          <NewTaskPage
+            disabled={!project}
+            error={taskError}
+            pending={newTaskPending}
+            onSubmit={createTask}
+          />
+        )
+      ) : null}
+      {activeView === "tasks" ? (
+        <ProjectsPage
+          error={projectError}
+          loading={taskListLoading}
+          lockStatus={lockStatus}
+          project={project}
+          tasks={tasks}
+          onOpenTask={(taskId) => void openTask(taskId)}
+          onStartNewTask={startNewTask}
         />
       ) : null}
-      {activeView === "tasks" ? <TasksView /> : null}
       {activeView === "memory" ? <MemoryView onOpenDrawer={() => setDrawerOpen(true)} /> : null}
       {activeView === "governance" ? <GovernanceView /> : null}
       {activeView === "evaluation" ? <EvaluationView /> : null}
       {activeView === "settings" ? <SettingsView /> : null}
       <Modal open={modalOpen} title="任务已停止" onClose={() => setModalOpen(false)}>
-        本次已修改 3 个文件。你可以保留当前改动，也可以回滚本次任务产生的修改。
+        提案已停止。后续执行、安全点和回滚流程将在后续任务接入。
       </Modal>
       <Drawer open={drawerOpen} title="项目经验" onClose={() => setDrawerOpen(false)}>
         <div className="detail-section">
@@ -47,45 +242,6 @@ export function App() {
         当前为本地演示数据
       </div>
     </AppShell>
-  );
-}
-
-function WorkbenchView({
-  activeTab,
-  onModalOpen,
-  onTabChange,
-}: {
-  activeTab: TaskTab;
-  onModalOpen: () => void;
-  onTabChange: (tab: TaskTab) => void;
-}) {
-  return (
-    <section className="view active workbench" aria-label="工作台">
-      <TaskHeader task={taskFixture} onStop={onModalOpen} />
-      <TaskTabs active={activeTab} onChange={onTabChange} />
-      {activeTab === "conversation" ? <Conversation task={taskFixture} /> : null}
-      <ChangesPanel active={activeTab === "changes"} task={taskFixture} />
-      <ChecksPanel active={activeTab === "checks"} task={taskFixture} />
-      <Composer />
-    </section>
-  );
-}
-
-function TasksView() {
-  return (
-    <Page title="任务" action="新建任务">
-      <div className="task-list">
-        {cards.tasks.map(([title, state, statusClass]) => (
-          <button className="task-card" key={title} type="button">
-            <span>
-              <span className="task-card-title">{title}</span>
-              <span className="task-card-meta">SE-w-mentor · 最近更新</span>
-            </span>
-            <span className={`status ${statusClass}`}>{state}</span>
-          </button>
-        ))}
-      </div>
-    </Page>
   );
 }
 
@@ -123,6 +279,13 @@ function MemoryView({ onOpenDrawer }: { onOpenDrawer: () => void }) {
       </div>
     </Page>
   );
+}
+
+function userError(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "请求没有完成";
 }
 
 function GovernanceView() {
