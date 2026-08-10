@@ -3244,6 +3244,35 @@ JUnit: `evidence/test-reports/T082.xml`
 Regression: `evidence/logs/T082-regression.log`
 Diff: `evidence/diffs/T082.patch`
 
+## 2026-08-10 T083 E2E Stagnation And Cancel Rollback
+
+### Task ID
+T083
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T082 is complete on the current branch.
+
+### Implementation Summary
+Added offline E2E coverage for repeated no-progress reads triggering stagnation and provider stop,
+plus cancellation that prevents further LLM calls, terminates a child process, rolls back multi-file
+changes, deletes created files, and preserves pre-existing user edits.
+
+### Evidence
+RED: `evidence/tdd/T083-red.log`
+GREEN: `evidence/tdd/T083-green.log`
+JUnit: `evidence/test-reports/T083.xml`
+Regression: `evidence/logs/T083-regression.log`
+Diff: `evidence/diffs/T083.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
