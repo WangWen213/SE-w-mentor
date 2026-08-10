@@ -2348,7 +2348,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T078 — CompletionGate 与 StopPolicy
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-05-06`, `FR-08-07`, `数据模型任务完成约束`, `OQ-17`
@@ -2372,7 +2372,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T078.xml
   - evidence/diffs/T078.patch
   - `AGENT_LOG.md` 中的 T078 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: gate task completion`
 
 ## T079 — 成功任务的知识更新
 

@@ -3068,6 +3068,36 @@ JUnit: `evidence/test-reports/T077.xml`
 Regression: `evidence/logs/T077-regression.log`
 Diff: `evidence/diffs/T077.patch`
 
+## 2026-08-10 T078 Completion Gate
+
+### Task ID
+T078
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T071 validation execution, T075 evasion detection, T077 repair re-governance, T018 audit models,
+and T023 lock lifecycle evidence are present on the current branch.
+
+### Implementation Summary
+Added an LLM-independent completion gate that refuses completion on failed or inconclusive
+validation, pending approval, blocking risk, open transaction, held lock, missing diff, or missing
+audit evidence while allowing read-only completion through its separate path.
+
+### Evidence
+RED: `evidence/tdd/T078-red.log`
+GREEN: `evidence/tdd/T078-green.log`
+JUnit: `evidence/test-reports/T078.xml`
+Regression: `evidence/logs/T078-regression.log`
+Diff: `evidence/diffs/T078.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
