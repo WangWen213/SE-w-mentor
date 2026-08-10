@@ -3215,6 +3215,35 @@ JUnit: `evidence/test-reports/T081.xml`
 Regression: `evidence/logs/T081-regression.log`
 Diff: `evidence/diffs/T081.patch`
 
+## 2026-08-10 T082 E2E Governance Approval And Deny
+
+### Task ID
+T082
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T081 is complete on the current branch.
+
+### Implementation Summary
+Added offline E2E coverage for WARN decisions requiring approval before any side effect, approved
+scope-limited execution, and DENY_HARD decisions that create no approval request and never invoke
+dangerous handlers.
+
+### Evidence
+RED: `evidence/tdd/T082-red.log`
+GREEN: `evidence/tdd/T082-green.log`
+JUnit: `evidence/test-reports/T082.xml`
+Regression: `evidence/logs/T082-regression.log`
+Diff: `evidence/diffs/T082.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
