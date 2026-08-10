@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from se_mentor.api.analysis import router as analysis_router
 from se_mentor.api.approvals import router as approvals_router
+from se_mentor.api.events import router as events_router
 from se_mentor.api.execution import router as execution_router
 from se_mentor.api.governance import router as governance_router
 from se_mentor.api.projects import router as projects_router
@@ -27,4 +28,5 @@ def create_app() -> FastAPI:
     app.include_router(approvals_router)
     app.include_router(execution_router)
     app.include_router(recovery_router)
+    app.include_router(events_router)
     return app

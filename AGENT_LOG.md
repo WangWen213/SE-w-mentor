@@ -3507,6 +3507,34 @@ JUnit: `evidence/test-reports/T089.xml`
 Regression: `evidence/logs/T089-regression.log`
 Diff: `evidence/diffs/T089.patch`
 
+## 2026-08-10 T090 Task Event Stream
+
+### Task ID
+T090
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T018, T066, and T086 evidence are present on the current branch.
+
+### Implementation Summary
+Added an in-process event bus with monotonic event IDs, replay after Last-Event-ID, redacted
+payloads, and an SSE endpoint for task event streams.
+
+### Evidence
+RED: `evidence/tdd/T090-red.log`
+GREEN: `evidence/tdd/T090-green.log`
+JUnit: `evidence/test-reports/T090.xml`
+Regression: `evidence/logs/T090-regression.log`
+Diff: `evidence/diffs/T090.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
