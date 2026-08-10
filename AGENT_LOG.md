@@ -2654,6 +2654,37 @@ JUnit: `evidence/test-reports/T066.xml`
 Regression: `evidence/logs/T066-regression.log`
 Diff: `evidence/diffs/T066.patch`
 
+## 2026-08-10 T067 Agent Runtime Cancellation
+
+### Task ID
+T067
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T066 single-turn iteration, T062 shell subprocess boundary, and T064 rollback path are present on the
+current branch.
+
+### Implementation Summary
+Added runtime cancellation control with per-task cancellation tokens, pre-provider safe-point checks
+that prevent future LLM calls after cancel, task cancellation state, retain/rollback next options,
+tracked child-process termination, and atomic-write critical sections that defer cancellation until
+the next safe point.
+
+### Evidence
+RED: `evidence/tdd/T067-red.log`
+GREEN: `evidence/tdd/T067-green.log`
+JUnit: `evidence/test-reports/T067.xml`
+Regression: `evidence/logs/T067-regression.log`
+Diff: `evidence/diffs/T067.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
