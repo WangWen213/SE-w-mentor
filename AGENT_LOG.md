@@ -2425,6 +2425,38 @@ JUnit: `evidence/test-reports/T060.xml`
 Regression: `evidence/logs/T060-regression.log`
 Diff: `evidence/diffs/T060.patch`
 
+## 2026-08-10 T061 Controlled Delete File Tool
+
+### Task ID
+T061
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T060 controlled create files, T050 temporary grants, and T051 policy enforcement are present on the
+current branch.
+
+### Implementation Summary
+Added `DeleteFileTool` for controlled file deletion. The tool requires a prepared transaction and a
+matching temporary grant, rejects path escapes, project-root deletion, and recursive directory
+deletion, keeps files unchanged when no matching grant exists, backs up deleted files before unlink,
+handles nonexistent files as structured no-op results, and records `ToolExecution`, `BackupEntry`,
+and `FileChange(DELETE)` on successful deletion.
+
+### Evidence
+RED: `evidence/tdd/T061-red.log`
+GREEN: `evidence/tdd/T061-green.log`
+JUnit: `evidence/test-reports/T061.xml`
+Regression: `evidence/logs/T061-regression.log`
+Diff: `evidence/diffs/T061.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
