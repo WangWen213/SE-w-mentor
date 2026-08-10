@@ -2750,7 +2750,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T092 — Diff、审计、告警与任务回放 API
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-api`
 - **覆盖需求**：`FR-10-03`, `FR-11`, `NFR-OBS-09～11`
@@ -2776,7 +2776,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T092.xml
   - evidence/diffs/T092.patch
   - `AGENT_LOG.md` 中的 T092 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add replay and diff api`
 
 # Phase 10 WebUI
 

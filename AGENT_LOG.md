@@ -3535,6 +3535,34 @@ JUnit: `evidence/test-reports/T090.xml`
 Regression: `evidence/logs/T090-regression.log`
 Diff: `evidence/diffs/T090.patch`
 
+## 2026-08-10 T092 Replay Diff Audit API
+
+### Task ID
+T092
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T018, T032, T071, and T090 evidence are present on the current branch.
+
+### Implementation Summary
+Added diff reverse-trace, task replay, and audit query API routes. Replay returns stable event order
+and diff trace links file changes back to action, decision, policy, tool execution, and approval IDs.
+
+### Evidence
+RED: `evidence/tdd/T092-red.log`
+GREEN: `evidence/tdd/T092-green.log`
+JUnit: `evidence/test-reports/T092.xml`
+Regression: `evidence/logs/T092-regression.log`
+Diff: `evidence/diffs/T092.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

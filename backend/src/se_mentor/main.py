@@ -4,12 +4,15 @@ from fastapi import FastAPI
 
 from se_mentor.api.analysis import router as analysis_router
 from se_mentor.api.approvals import router as approvals_router
+from se_mentor.api.audit import router as audit_router
+from se_mentor.api.diffs import router as diffs_router
 from se_mentor.api.events import router as events_router
 from se_mentor.api.execution import router as execution_router
 from se_mentor.api.governance import router as governance_router
 from se_mentor.api.projects import router as projects_router
 from se_mentor.api.proposals import router as proposals_router
 from se_mentor.api.recovery import router as recovery_router
+from se_mentor.api.replay import router as replay_router
 from se_mentor.api.tasks import router as tasks_router
 
 
@@ -29,4 +32,7 @@ def create_app() -> FastAPI:
     app.include_router(execution_router)
     app.include_router(recovery_router)
     app.include_router(events_router)
+    app.include_router(audit_router)
+    app.include_router(diffs_router)
+    app.include_router(replay_router)
     return app
