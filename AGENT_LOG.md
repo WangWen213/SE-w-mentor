@@ -3451,6 +3451,34 @@ JUnit: `evidence/test-reports/T087.xml`
 Regression: `evidence/logs/T087-regression.log`
 Diff: `evidence/diffs/T087.patch`
 
+## 2026-08-10 T088 Approval Execution API
+
+### Task ID
+T088
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T049, T050, T067, and T087 evidence are present on the current branch.
+
+### Implementation Summary
+Added approval decision routes and execution/policy API routes. Execution checks task state before
+dispatch and returns a conflict without incrementing tool calls for blocked tasks.
+
+### Evidence
+RED: `evidence/tdd/T088-red.log`
+GREEN: `evidence/tdd/T088-green.log`
+JUnit: `evidence/test-reports/T088.xml`
+Regression: `evidence/logs/T088-regression.log`
+Diff: `evidence/diffs/T088.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

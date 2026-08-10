@@ -2635,7 +2635,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T088 — 审批、ExecutionPolicy 与执行 API
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-api`
 - **覆盖需求**：`FR-06-03～05`, `FR-07`
@@ -2660,7 +2660,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T088.xml
   - evidence/diffs/T088.patch
   - `AGENT_LOG.md` 中的 T088 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add approval execution api`
 
 ## T089 — 取消、回滚与恢复 API
 
