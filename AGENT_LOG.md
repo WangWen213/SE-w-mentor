@@ -3597,6 +3597,42 @@ Diff: `evidence/diffs/T104.patch`
 PLAN requires a clean Windows 10/11 x64 real-machine acceptance script. That environment is not
 available in this workspace, so T091 was not started.
 
+## 2026-08-10 API Checkpoint
+
+### Scope
+T100, T086-T090, T092, and T104 local implementation evidence. T091 was not started because T104
+remains `[!]` pending clean Windows 10/11 x64 real-machine acceptance.
+
+### Status
+PASS for backend, models/meta, Ruff, mypy, Alembic, frontend type-check, and completed scoped tests.
+`scripts/check_all.py` reached only the known Vitest/esbuild sandbox failure.
+
+### Checkpoint Amendments
+Checkpoint mypy fixed narrow `object` to `int` conversions in API execution/replay helpers. Ruff
+format fixed committed traceability helper formatting only.
+
+### Evidence
+Scoped: `evidence/logs/api-checkpoint-scoped.log`, `evidence/test-reports/api-checkpoint-scoped.xml`
+Backend pytest: `evidence/logs/api-checkpoint-backend-final.log`, `evidence/test-reports/api-checkpoint-backend-final.xml`
+Models/meta: `evidence/logs/api-checkpoint-models-meta.log`
+Ruff check: `evidence/logs/api-checkpoint-ruff-final.log`
+Ruff format: `evidence/logs/api-checkpoint-ruff-format-final.log`
+Mypy: `evidence/logs/api-checkpoint-mypy-after-fix.log`
+Alembic head: `evidence/logs/api-checkpoint-alembic-heads.log`
+Alembic gate: `evidence/logs/api-checkpoint-alembic-gate.log`
+Frontend type-check: `evidence/logs/api-checkpoint-frontend-type-check.log`
+check_all: `evidence/logs/api-checkpoint-check-all.log`
+Secret scan: `evidence/logs/api-checkpoint-secret-scan.log`
+Diff: `evidence/diffs/api-checkpoint.patch`
+
+### Sandbox Classification
+`scripts/check_all.py` completed backend/meta/type-check gates and failed only at Vitest startup
+with the known esbuild sandbox signature: `Cannot read directory "../../.."` and
+`frontend/vitest.config.mjs`.
+
+### Next Tasks
+T091 not started. T093 not started.
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

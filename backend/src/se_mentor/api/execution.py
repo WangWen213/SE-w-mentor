@@ -13,6 +13,15 @@ class ExecuteRequest(BaseModel):
     command: str
 
 
+def _tool_calls(task: dict[str, object]) -> int:
+    value = task.get("toolCalls", 0)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        return int(value)
+    return 0
+
+
 @router.post("/{task_id}/execute")
 def execute(task_id: str, payload: ExecuteRequest, response: Response) -> dict[str, object]:
     task = STATE.tasks.get(task_id)
@@ -21,13 +30,13 @@ def execute(task_id: str, payload: ExecuteRequest, response: Response) -> dict[s
         return error("TASK_NOT_FOUND", "task not found")
     if task.get("status") == "BLOCKED":
         response.status_code = status.HTTP_409_CONFLICT
-        task["toolCalls"] = int(task.get("toolCalls", 0))
+        task["toolCalls"] = _tool_calls(task)
         return error("TASK_BLOCKED", "blocked tasks cannot execute tools")
     if task.get("recoveryRequired"):
         response.status_code = status.HTTP_409_CONFLICT
-        task["toolCalls"] = int(task.get("toolCalls", 0))
+        task["toolCalls"] = _tool_calls(task)
         return error("RECOVERY_REQUIRED", "resolve recovery before executing tools")
-    task["toolCalls"] = int(task.get("toolCalls", 0)) + 1
+    task["toolCalls"] = _tool_calls(task) + 1
     task["status"] = "EXECUTING"
     return ok({"taskId": task_id, "command": payload.command, "status": "EXECUTING"})
 
