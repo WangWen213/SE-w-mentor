@@ -3302,6 +3302,35 @@ JUnit: `evidence/test-reports/T084.xml`
 Regression: `evidence/logs/T084-regression.log`
 Diff: `evidence/diffs/T084.patch`
 
+## 2026-08-10 T085 Offline Determinism
+
+### Task ID
+T085
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T084 is complete on the current branch.
+
+### Implementation Summary
+Added an offline deterministic E2E runner and test proving Mock mode makes zero network calls,
+uses no real environment keys, fixes clock/UUID/Mock response inputs, and produces identical
+normalized timeline hashes across five repeated runs.
+
+### Evidence
+RED: `evidence/tdd/T085-red.log`
+GREEN: `evidence/tdd/T085-green.log`
+JUnit: `evidence/test-reports/T085.xml`
+Regression: `evidence/logs/T085-regression.log`
+Diff: `evidence/diffs/T085.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
