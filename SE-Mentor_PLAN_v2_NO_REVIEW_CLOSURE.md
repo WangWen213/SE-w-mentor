@@ -2664,7 +2664,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T089 — 取消、回滚与恢复 API
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-api`
 - **覆盖需求**：`FR-07-08～09`, `NFR-USA-06/08`
@@ -2688,7 +2688,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T089.xml
   - evidence/diffs/T089.patch
   - `AGENT_LOG.md` 中的 T089 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add recovery api`
 
 ## T090 — SSE 实时任务事件
 

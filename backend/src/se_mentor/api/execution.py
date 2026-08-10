@@ -23,6 +23,10 @@ def execute(task_id: str, payload: ExecuteRequest, response: Response) -> dict[s
         response.status_code = status.HTTP_409_CONFLICT
         task["toolCalls"] = int(task.get("toolCalls", 0))
         return error("TASK_BLOCKED", "blocked tasks cannot execute tools")
+    if task.get("recoveryRequired"):
+        response.status_code = status.HTTP_409_CONFLICT
+        task["toolCalls"] = int(task.get("toolCalls", 0))
+        return error("RECOVERY_REQUIRED", "resolve recovery before executing tools")
     task["toolCalls"] = int(task.get("toolCalls", 0)) + 1
     task["status"] = "EXECUTING"
     return ok({"taskId": task_id, "command": payload.command, "status": "EXECUTING"})

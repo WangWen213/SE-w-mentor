@@ -3479,6 +3479,34 @@ JUnit: `evidence/test-reports/T088.xml`
 Regression: `evidence/logs/T088-regression.log`
 Diff: `evidence/diffs/T088.patch`
 
+## 2026-08-10 T089 Recovery API
+
+### Task ID
+T089
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T065, T067, and T088 evidence are present on the current branch.
+
+### Implementation Summary
+Added recovery listing and resolution API routes and execution blocking while recovery is required.
+Resolution clears the recovery gate before tools can execute again.
+
+### Evidence
+RED: `evidence/tdd/T089-red.log`
+GREEN: `evidence/tdd/T089-green.log`
+JUnit: `evidence/test-reports/T089.xml`
+Regression: `evidence/logs/T089-regression.log`
+Diff: `evidence/diffs/T089.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
