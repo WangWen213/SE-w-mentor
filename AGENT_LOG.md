@@ -2815,6 +2815,37 @@ JUnit: `evidence/test-reports/T070.xml`
 Regression: `evidence/logs/T070-regression.log`
 Diff: `evidence/diffs/T070.patch`
 
+## 2026-08-10 T071 Validation Executor
+
+### Task ID
+T071
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T062 shell command policy, T070 validation planning, and T057 dispatcher are present on the current
+branch.
+
+### Implementation Summary
+Added validation execution through the existing Dispatcher and PolicyEnforcer path. Required checks
+record objective ValidationRun rows with exit codes, required failure flags, failure categories, and
+stdout/stderr log artifacts. Non-zero validation exits are recorded as validation failure, not system
+exceptions.
+
+### Evidence
+RED: `evidence/tdd/T071-red.log`
+GREEN: `evidence/tdd/T071-green.log`
+JUnit: `evidence/test-reports/T071.xml`
+Regression: `evidence/logs/T071-regression.log`
+Diff: `evidence/diffs/T071.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

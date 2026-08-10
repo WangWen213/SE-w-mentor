@@ -2151,7 +2151,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T071 — 执行验证并记录客观结果
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08-02`, `NFR-OBS-07`
@@ -2176,7 +2176,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T071.xml
   - evidence/diffs/T071.patch
   - `AGENT_LOG.md` 中的 T071 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: execute validation checks`
 
 ## T072 — 分类验证失败
 
