@@ -2996,7 +2996,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T100 — 结构化日志、Correlation ID 与可操作错误模型
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`NFR-USA-02`, `NFR-OBS-01～07`, `审查 P0-10`
@@ -3021,7 +3021,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T100.xml
   - evidence/diffs/T100.patch
   - `AGENT_LOG.md` 中的 T100 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add structured logging errors`
 
 ## T101 — 核心指标、告警服务与任务回放构建器
 

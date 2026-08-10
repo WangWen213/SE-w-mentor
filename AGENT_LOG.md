@@ -3364,6 +3364,35 @@ with the known esbuild sandbox signature: `Cannot read directory "../../.."` and
 ### Next Tasks
 T086 not started. T100 not started.
 
+## 2026-08-10 T100 Structured Logging And Errors
+
+### Task ID
+T100
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T006 secret boundary, T018 audit/alert models, and T073 feedback compaction evidence are present.
+
+### Implementation Summary
+Added structured log events with task/correlation IDs, unified categories, redaction and bounded
+payloads, plus an actionable error mapper that reports side-effect state and stable next steps
+without leaking secrets.
+
+### Evidence
+RED: `evidence/tdd/T100-red.log`
+GREEN: `evidence/tdd/T100-green.log`
+JUnit: `evidence/test-reports/T100.xml`
+Regression: `evidence/logs/T100-regression.log`
+Diff: `evidence/diffs/T100.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
