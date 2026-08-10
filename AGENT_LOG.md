@@ -3128,6 +3128,36 @@ JUnit: `evidence/test-reports/T079.xml`
 Regression: `evidence/logs/T079-regression.log`
 Diff: `evidence/diffs/T079.patch`
 
+## 2026-08-10 T080 Failed Task Knowledge Update
+
+### Task ID
+T080
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T038 conflict evidence, T064 rollback, T076 finite repair loop, and T078 completion gate are
+present on the current branch.
+
+### Implementation Summary
+Added failed-task knowledge extraction that records failed, cancelled, stagnant, or rolled-back
+work as `FAILED_EXPERIENCE` failure knowledge. It preserves task/evidence/path context, redacts
+sensitive logs, and never marks rolled-back work as an active implementation fact.
+
+### Evidence
+RED: `evidence/tdd/T080-red.log`
+GREEN: `evidence/tdd/T080-green.log`
+JUnit: `evidence/test-reports/T080.xml`
+Regression: `evidence/logs/T080-regression.log`
+Diff: `evidence/diffs/T080.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
