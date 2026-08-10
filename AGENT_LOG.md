@@ -3098,6 +3098,36 @@ JUnit: `evidence/test-reports/T078.xml`
 Regression: `evidence/logs/T078-regression.log`
 Diff: `evidence/diffs/T078.patch`
 
+## 2026-08-10 T079 Successful Task Knowledge Update
+
+### Task ID
+T079
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T039 promotion evidence, T078 completion gate, and T036 signature evidence are present on the
+current branch.
+
+### Implementation Summary
+Added successful-task knowledge extraction from committed diffs with passed validation evidence.
+Generated records include task linkage, changed file path, final summary, verification evidence,
+and current code signature.
+
+### Evidence
+RED: `evidence/tdd/T079-red.log`
+GREEN: `evidence/tdd/T079-green.log`
+JUnit: `evidence/test-reports/T079.xml`
+Regression: `evidence/logs/T079-regression.log`
+Diff: `evidence/diffs/T079.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

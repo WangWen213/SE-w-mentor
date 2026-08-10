@@ -2376,7 +2376,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T079 — 成功任务的知识更新
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-09-01～03`, `US-06 AC-01`
@@ -2400,7 +2400,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T079.xml
   - evidence/diffs/T079.patch
   - `AGENT_LOG.md` 中的 T079 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: update knowledge from successful tasks`
 
 ## T080 — 失败、取消与回滚任务的经验更新
 
