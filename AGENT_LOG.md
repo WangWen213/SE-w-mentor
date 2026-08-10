@@ -2846,6 +2846,36 @@ JUnit: `evidence/test-reports/T071.xml`
 Regression: `evidence/logs/T071-regression.log`
 Diff: `evidence/diffs/T071.patch`
 
+## 2026-08-10 T072 Validation Failure Classifier
+
+### Task ID
+T072
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T071 validation execution is complete on the current branch.
+
+### Implementation Summary
+Added structured validation failure classification with categories for unit, integration, contract,
+migration, environment, and inconclusive outcomes. The classifier prefers parsed structured output,
+falls back to controlled environment-error markers, keeps confidence scores, and preserves concise
+evidence strings for traceability.
+
+### Evidence
+RED: `evidence/tdd/T072-red.log`
+GREEN: `evidence/tdd/T072-green.log`
+JUnit: `evidence/test-reports/T072.xml`
+Regression: `evidence/logs/T072-regression.log`
+Diff: `evidence/diffs/T072.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
