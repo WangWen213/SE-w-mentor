@@ -2264,7 +2264,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T075 — 验证规避检测
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08-06`, `US-05 AC-04`, `NFR-SEC-05`
@@ -2288,7 +2288,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T075.xml
   - evidence/diffs/T075.patch
   - `AGENT_LOG.md` 中的 T075 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: detect validation evasion`
 
 ## T076 — 有限自动修正循环
 

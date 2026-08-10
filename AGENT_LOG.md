@@ -2978,6 +2978,36 @@ JUnit: `evidence/test-reports/T074.xml`
 Regression: `evidence/logs/T074-regression.log`
 Diff: `evidence/diffs/T074.patch`
 
+## 2026-08-10 T075 Validation Evasion
+
+### Task ID
+T075
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T045 action classification, T070 validation planning, T071 validation execution, and T032 Git
+baseline support are present on the current branch.
+
+### Implementation Summary
+Added validation evasion detection for removed assertions, introduced skips, `|| true` suppression,
+test count decreases, and removed validation checks. Hard evasion reasons produce DENY_HARD risk;
+normal added tests with unchanged checks remain SAFE.
+
+### Evidence
+RED: `evidence/tdd/T075-red.log`
+GREEN: `evidence/tdd/T075-green.log`
+JUnit: `evidence/test-reports/T075.xml`
+Regression: `evidence/logs/T075-regression.log`
+Diff: `evidence/diffs/T075.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
