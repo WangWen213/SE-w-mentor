@@ -3008,6 +3008,36 @@ JUnit: `evidence/test-reports/T075.xml`
 Regression: `evidence/logs/T075-regression.log`
 Diff: `evidence/diffs/T075.patch`
 
+## 2026-08-10 T076 Finite Repair Loop
+
+### Task ID
+T076
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T067 cancellation control, T069 stagnation detection, T073 feedback compaction, and T059 atomic
+patch application are complete on the current branch.
+
+### Implementation Summary
+Added a bounded repair loop that records independent repair attempts, counts distinct diffs, marks
+successful repairs complete, and stops on repeated patches, repeated failure signatures, or max
+repair budget exhaustion.
+
+### Evidence
+RED: `evidence/tdd/T076-red.log`
+GREEN: `evidence/tdd/T076-green.log`
+JUnit: `evidence/test-reports/T076.xml`
+Regression: `evidence/logs/T076-regression.log`
+Diff: `evidence/diffs/T076.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

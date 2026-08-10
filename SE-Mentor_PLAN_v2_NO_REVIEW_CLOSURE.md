@@ -671,7 +671,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T019 — 项目路径授权与注册服务
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-01-01`, `NFR-SEC-01`, `AC-FR01-01`
@@ -2292,7 +2292,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T076 — 有限自动修正循环
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08-05`, `US-05 AC-02～03`, `E2E-02`
@@ -2316,7 +2316,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T076.xml
   - evidence/diffs/T076.patch
   - `AGENT_LOG.md` 中的 T076 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: bound repair loop attempts`
 
 ## T077 — 修正动作再治理与范围扩展暂停
 
