@@ -1813,7 +1813,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T059 — 原子 APPLY_PATCH 工具
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-04`, `AC-FR07`
@@ -1837,7 +1837,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T059.xml
   - evidence/diffs/T059.patch
   - `AGENT_LOG.md` 中的 T059 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: apply structured patches atomically`
 
 ## T060 — 受控 CREATE_FILE 工具
 

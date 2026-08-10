@@ -2361,6 +2361,38 @@ JUnit: `evidence/test-reports/T058.xml`
 Regression: `evidence/logs/T058-regression.log`
 Diff: `evidence/diffs/T058.patch`
 
+## 2026-08-10 T059 Atomic Apply Patch Tool
+
+### Task ID
+T059
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T058 prepared transactions and T051/T050 policy/grant enforcement are present on the current
+branch.
+
+### Implementation Summary
+Added `AtomicApplyPatchTool` for structured text replacements against existing files. The tool
+requires a prepared transaction and matching temporary grant, verifies expected hashes, rejects patch
+mismatches and path escapes, backs up the original file before replacement, writes through a temp
+file, rechecks for external modification before `os.replace`, preserves the original on simulated
+pre-replace crash, and records `ToolExecution`, `BackupEntry`, and `FileChange` on success.
+
+### Evidence
+RED: `evidence/tdd/T059-red.log`
+GREEN: `evidence/tdd/T059-green.log`
+JUnit: `evidence/test-reports/T059.xml`
+Regression: `evidence/logs/T059-regression.log`
+Diff: `evidence/diffs/T059.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
