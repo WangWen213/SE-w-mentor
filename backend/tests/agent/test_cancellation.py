@@ -51,6 +51,7 @@ def test_T067_cancel_stops_future_llm_calls_and_reaches_safe_state(tmp_path: Pat
             goal="run",
         )
         task = session.get(ChangeTask, ids["task_id"])
+        assert task is not None
 
     assert result.cancelled is True
     assert result.safe_state == "CANCELLED_BEFORE_LLM"

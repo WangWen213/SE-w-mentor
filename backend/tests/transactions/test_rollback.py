@@ -107,14 +107,15 @@ def test_AC_FR07_10_rollback_preserves_existing_changes(tmp_path: Path) -> None:
         with pytest.raises(RollbackConflict, match="current hash"):
             service.rollback(task_id=ids["task_id"], transaction_id=prepared.transaction_id)
         assert modified.read_text(encoding="utf-8") == "external edit\n"
-        assert (
-            session.get(TaskTransaction, prepared.transaction_id).state == TransactionState.CONFLICT
-        )
+        conflicted_transaction = session.get(TaskTransaction, prepared.transaction_id)
+        assert conflicted_transaction is not None
+        assert conflicted_transaction.state == TransactionState.CONFLICT
 
         modified.write_text("value = 2\n", encoding="utf-8")
         result = service.rollback(task_id=ids["task_id"], transaction_id=prepared.transaction_id)
         repeated = service.rollback(task_id=ids["task_id"], transaction_id=prepared.transaction_id)
         transaction = session.get(TaskTransaction, prepared.transaction_id)
+        assert transaction is not None
 
     assert result.rolled_back is True
     assert repeated.rolled_back is False

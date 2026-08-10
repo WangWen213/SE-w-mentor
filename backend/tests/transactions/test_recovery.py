@@ -67,6 +67,7 @@ def test_T065_restart_detects_unfinished_transaction_and_blocks_new_writer(
             transaction_id=prepared.transaction_id,
         )
         transaction = session.get(TaskTransaction, prepared.transaction_id)
+        assert transaction is not None
         alerts = session.query(AlertEvent).all()
         audits = session.query(AuditEvent).all()
 
