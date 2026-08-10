@@ -6,11 +6,22 @@ import { ImpactReport } from "../components/ImpactReport";
 interface AnalysisPageProps {
   error: string | null;
   loading: boolean;
+  onAllowOnce: () => Promise<void>;
+  onDeny: () => Promise<void>;
   onReload: () => void;
+  pendingAction: string | null;
   report: GovernanceReport | null;
 }
 
-export function AnalysisPage({ error, loading, onReload, report }: AnalysisPageProps) {
+export function AnalysisPage({
+  error,
+  loading,
+  onAllowOnce,
+  onDeny,
+  onReload,
+  pendingAction,
+  report,
+}: AnalysisPageProps) {
   if (loading) {
     return (
       <section className="view active">
@@ -63,7 +74,12 @@ export function AnalysisPage({ error, loading, onReload, report }: AnalysisPageP
           <h1 className="page-title">治理</h1>
         </div>
         <div className="section-label">待你处理</div>
-        <GovernanceDecision report={report} />
+        <GovernanceDecision
+          pendingAction={pendingAction}
+          report={report}
+          onAllowOnce={onAllowOnce}
+          onDeny={onDeny}
+        />
         <ImpactReport report={report} />
         <PolicyList report={report} />
         <GrantPlaceholder />

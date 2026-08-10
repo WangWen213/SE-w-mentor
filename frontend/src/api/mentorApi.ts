@@ -2,14 +2,19 @@ export type TaskStatus =
   | "CREATED"
   | "NEEDS_INFORMATION"
   | "PROPOSAL_CONFIRMED"
+  | "EXECUTING"
   | "RUNNING"
   | "COMPLETED"
   | "FAILED"
   | "CANCELLED"
+  | "CANCEL_REQUESTED"
   | "ROLLED_BACK";
 
 export type ProposalStatus = "DRAFT" | "CONFIRMED" | "REJECTED" | "SUPERSEDED";
 export type GovernanceDecisionKind = "ALLOW" | "WARN" | "BLOCK";
+export type ApprovalStatus = "APPROVED" | "REJECTED";
+export type ExecutionStatus = "EXECUTING" | "CANCEL_REQUESTED";
+export type TaskEventType = "EXECUTION_STARTED" | "CANCEL_REQUESTED" | "status";
 
 export interface ApiErrorInfo {
   code: string;
@@ -106,6 +111,46 @@ export interface AnalysisIndexResult {
   status: "INDEXED";
 }
 
+export interface TemporaryGrant {
+  approvalId: string;
+  id: string;
+  scope: string[];
+  status: "ACTIVE";
+}
+
+export interface ExecutionPolicy {
+  approvalId: string;
+  commands: string[];
+  writeAllowed: boolean;
+}
+
+export interface ApprovalResult {
+  approvedScope?: string[];
+  executionPolicy?: ExecutionPolicy;
+  id: string;
+  status: ApprovalStatus;
+  temporaryGrant?: TemporaryGrant;
+}
+
+export interface ExecutionResult {
+  command?: string;
+  eventId: number;
+  status: ExecutionStatus;
+  taskId: string;
+}
+
+export interface TaskEvent {
+  eventId: number;
+  eventType: TaskEventType;
+  payload: {
+    message?: string;
+    projectId?: string;
+    state?: string;
+    taskId?: string;
+  };
+  taskId: string;
+}
+
 export class MentorApiError extends Error {
   readonly code: string;
   readonly status: number;
@@ -131,6 +176,11 @@ export interface MentorApi {
   getTaskList(projectId: string): Promise<TaskList>;
   getProjectLocks(projectId: string): Promise<LockStatus>;
   indexAnalysis(): Promise<AnalysisIndexResult>;
+  approveRequest(approvalId: string, approvedScope: string[]): Promise<ApprovalResult>;
+  rejectApproval(approvalId: string): Promise<ApprovalResult>;
+  executeTask(taskId: string, command: string): Promise<ExecutionResult>;
+  cancelTask(taskId: string): Promise<ExecutionResult>;
+  getTaskEvents(taskId: string, lastEventId: number | null): Promise<TaskEvent[]>;
   runGovernance(proposalId: string, changedPaths: string[]): Promise<GovernanceReport>;
 }
 
@@ -164,6 +214,13 @@ export function createMentorApi(fetcher: FetchLike = fetch): MentorApi {
         body: JSON.stringify({ instruction }),
         method: "POST",
       }),
+    approveRequest: (approvalId, approvedScope) =>
+      request<ApprovalResult>(`/api/approvals/${approvalId}/approve`, {
+        body: JSON.stringify({ approvedScope }),
+        method: "POST",
+      }),
+    cancelTask: (taskId) =>
+      request<ExecutionResult>(`/api/tasks/${taskId}/cancel`, { method: "POST" }),
     cancelProposal: (taskId, proposalId) =>
       request<Proposal>(`/api/tasks/${taskId}/proposals/${proposalId}/reject`, {
         method: "POST",
@@ -187,20 +244,56 @@ export function createMentorApi(fetcher: FetchLike = fetch): MentorApi {
         body: JSON.stringify({ projectId, request: requestText }),
         method: "POST",
       }),
+    executeTask: (taskId, command) =>
+      request<ExecutionResult>(`/api/tasks/${taskId}/execute`, {
+        body: JSON.stringify({ command }),
+        method: "POST",
+      }),
     getProjectConfig: (projectId) =>
       request<ProjectConfig>(`/api/projects/${projectId}/config`),
     getProposal: (taskId) => request<Proposal>(`/api/tasks/${taskId}/proposals`),
     getProjectLocks: (projectId) =>
       request<LockStatus>(`/api/projects/${projectId}/locks`),
     getTask: (taskId) => request<Task>(`/api/tasks/${taskId}`),
+    getTaskEvents: async (taskId, lastEventId) => {
+      const response = await fetcher(`/api/tasks/${taskId}/events`, {
+        headers: lastEventId === null ? {} : { "Last-Event-ID": String(lastEventId) },
+      });
+      if (!response.ok) {
+        throw new MentorApiError(response.status, {
+          code: "EVENT_STREAM_ERROR",
+          message: "执行状态暂时中断",
+        });
+      }
+      return parseTaskEvents(taskId, await response.text());
+    },
     getTaskList: (projectId) => request<TaskList>(`/api/projects/${projectId}/tasks`),
     indexAnalysis: () => request<AnalysisIndexResult>("/api/analysis/index", { method: "POST" }),
+    rejectApproval: (approvalId) =>
+      request<ApprovalResult>(`/api/approvals/${approvalId}/reject`, { method: "POST" }),
     runGovernance: (proposalId, changedPaths) =>
       request<GovernanceReport>(`/api/proposals/${proposalId}/governance`, {
         body: JSON.stringify({ changedPaths }),
         method: "POST",
       }),
   };
+}
+
+export function parseTaskEvents(taskId: string, text: string): TaskEvent[] {
+  return text
+    .split("\n\n")
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => {
+      const lines = block.split("\n");
+      const idLine = lines.find((line) => line.startsWith("id: "));
+      const eventLine = lines.find((line) => line.startsWith("event: "));
+      const dataLine = lines.find((line) => line.startsWith("data: "));
+      const eventId = Number(idLine?.slice(4) ?? 0);
+      const eventType = (eventLine?.slice(7) ?? "status") as TaskEventType;
+      const payload = JSON.parse(dataLine?.slice(6) ?? "{}") as TaskEvent["payload"];
+      return { eventId, eventType, payload, taskId };
+    });
 }
 
 export function governanceDecisionLabel(decision: GovernanceDecisionKind): string {
@@ -215,8 +308,10 @@ export function governanceDecisionLabel(decision: GovernanceDecisionKind): strin
 export function taskStateLabel(status: TaskStatus): string {
   const labels: Record<TaskStatus, string> = {
     CANCELLED: "已取消",
+    CANCEL_REQUESTED: "正在停止",
     COMPLETED: "已完成",
     CREATED: "待确认",
+    EXECUTING: "进行中",
     FAILED: "失败",
     NEEDS_INFORMATION: "需补充",
     PROPOSAL_CONFIRMED: "已确认",
@@ -224,4 +319,13 @@ export function taskStateLabel(status: TaskStatus): string {
     RUNNING: "进行中",
   };
   return labels[status];
+}
+
+export function taskEventLabel(eventType: TaskEventType): string {
+  const labels: Record<TaskEventType, string> = {
+    CANCEL_REQUESTED: "正在停止",
+    EXECUTION_STARTED: "正在修改",
+    status: "状态已更新",
+  };
+  return labels[eventType];
 }

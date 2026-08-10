@@ -784,8 +784,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T023 — 锁心跳、过期、释放与强制恢复
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[x] branch complete
+- **阻塞说明**：无。普通 Vitest/Vite config 入口仍受既有 esbuild sandbox 限制；T096 scoped harness、API contract、type-check、无配置 Vite build 本体通过。
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-01-04`, `AC-FR01-04～05`, `NFR-USA-08`
 - **目标**：维护锁生命周期，并在异常过期时阻止新写任务直到完成恢复判断。
@@ -808,7 +808,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T023.xml
   - evidence/diffs/T023.patch
   - `AGENT_LOG.md` 中的 T023 记录
-- **Commit**：`未填写`
+- **Commit**：`feat(frontend): integrate T096 approval execution events`
 
 ## T024 — 创建任务与严格状态机
 

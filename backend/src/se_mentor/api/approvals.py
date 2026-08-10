@@ -14,7 +14,24 @@ class ApprovalDecisionPayload(BaseModel):
 
 @router.post("/{approval_id}/approve")
 def approve(approval_id: str, payload: ApprovalDecisionPayload) -> dict[str, object]:
-    return ok({"id": approval_id, "status": "APPROVED", "approvedScope": payload.approved_scope})
+    return ok(
+        {
+            "id": approval_id,
+            "status": "APPROVED",
+            "approvedScope": payload.approved_scope,
+            "temporaryGrant": {
+                "id": f"grant-{approval_id}",
+                "approvalId": approval_id,
+                "scope": payload.approved_scope,
+                "status": "ACTIVE",
+            },
+            "executionPolicy": {
+                "approvalId": approval_id,
+                "writeAllowed": True,
+                "commands": ["RUN_COMMAND"],
+            },
+        }
+    )
 
 
 @router.post("/{approval_id}/reject")

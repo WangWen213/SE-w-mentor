@@ -3,10 +3,18 @@ import { governanceDecisionLabel } from "../api/mentorApi";
 import { Button } from "./Button";
 
 interface GovernanceDecisionProps {
+  onAllowOnce?: () => Promise<void>;
+  onDeny?: () => Promise<void>;
+  pendingAction?: string | null;
   report: GovernanceReport;
 }
 
-export function GovernanceDecision({ report }: GovernanceDecisionProps) {
+export function GovernanceDecision({
+  onAllowOnce,
+  onDeny,
+  pendingAction = null,
+  report,
+}: GovernanceDecisionProps) {
   const label = governanceDecisionLabel(report.decision);
   const isBlock = report.decision === "BLOCK";
   const isWarn = report.decision === "WARN";
@@ -24,9 +32,11 @@ export function GovernanceDecision({ report }: GovernanceDecisionProps) {
       <div className="approval-actions">
         {isWarn ? (
           <>
-            <Button disabled>暂不允许</Button>
-            <Button disabled variant="dark">
-              执行授权将在下一阶段接入
+            <Button disabled={pendingAction !== null} onClick={onDeny}>
+              {pendingAction === "deny" ? "处理中" : "暂不允许"}
+            </Button>
+            <Button disabled={pendingAction !== null} variant="dark" onClick={onAllowOnce}>
+              {pendingAction === "allow" ? "批准中" : "允许本次"}
             </Button>
           </>
         ) : null}

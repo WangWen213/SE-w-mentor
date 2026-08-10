@@ -3780,6 +3780,61 @@ file path. The Vite build body passes with `configFile: false`.
 `frontend/package.json` still has no `lint` script, so frontend lint is recorded as not configured.
 T096 was not started.
 
+## 2026-08-10 T096 Approval Execution Events WebUI
+
+### Task ID
+T096
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+`[x]` branch complete.
+
+### Dependency Check
+T088, T090, and T093 evidence are present on the current branch.
+
+### Implementation Summary
+Integrated WARN governance actions with real Approval API, execution start with real task execution
+API, cancel with real cancel API, and task progress with T090 event replay using `Last-Event-ID`.
+Execution UI keeps task-keyed event state so background task state is not tied to the currently
+viewed page. Stop/cancel shows pending state and safe-point authority remains backend-owned. No
+diff, validation, CompletionGate, rollback, recovery, knowledge, credential, audit, or replay APIs
+were added.
+
+### Backend Contract Exposure
+Extended T088/T090 surfaces minimally for T096: approval approve now exposes a TemporaryGrant and
+ExecutionPolicy, execution/cancel publish task events, cancel endpoint returns backend task state,
+and SSE data is emitted as JSON for typed frontend parsing. Existing blocked-task execution behavior
+and EventBus replay semantics remain covered.
+
+### Evidence
+RED: `evidence/tdd/T096-red.log`
+GREEN: `evidence/tdd/T096-green.log`
+JUnit: `evidence/test-reports/T096.xml`
+Frontend smoke: `evidence/logs/T096-smoke.log`
+API contract: `evidence/logs/T096-api-contract.log`
+Type-check: `evidence/logs/T096-type-check.log`
+Build: `evidence/logs/T096-build.log`
+Lint command: `evidence/logs/T096-lint.log`
+Ruff: `evidence/logs/T096-ruff.log`
+Ruff format: `evidence/logs/T096-ruff-format.log`
+Vitest sandbox: `evidence/logs/T096-vitest-sandbox.log`
+npm build sandbox: `evidence/logs/T096-build-sandbox.log`
+Diff: `evidence/diffs/T096.patch`
+
+### Sandbox Classification
+The standard Vitest and npm build entries still fail before test/build execution with the known
+esbuild sandbox config-load signature: `Cannot read directory "../../.."` and the frontend config
+file path. The Vite build body passes with `configFile: false`.
+
+### Notes
+`frontend/package.json` still has no `lint` script, so frontend lint is recorded as not configured.
+T097 was not started.
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

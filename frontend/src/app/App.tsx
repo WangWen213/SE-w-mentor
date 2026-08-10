@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { createMentorApi, type GovernanceReport, type LockStatus, type Project, type Proposal, type Task } from "../api/mentorApi";
+import { createMentorApi, type GovernanceReport, type LockStatus, type Project, type Proposal, type Task, type TaskEvent } from "../api/mentorApi";
 import { cards, type NavKey } from "./fixtures";
 import { AppShell } from "./AppShell";
 import { Button } from "../components/Button";
@@ -10,8 +10,10 @@ import { Modal } from "../components/Modal";
 import { StatusBadge } from "../components/StatusBadge";
 import { NewTaskPage } from "../pages/NewTaskPage";
 import { AnalysisPage } from "../pages/AnalysisPage";
+import { ExecutionPage } from "../pages/ExecutionPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { ProposalReviewPage } from "../pages/ProposalReviewPage";
+import { useTaskEvents } from "../hooks/useTaskEvents";
 
 export function App() {
   const api = useMemo(() => createMentorApi(), []);
@@ -30,7 +32,12 @@ export function App() {
   const [governanceReport, setGovernanceReport] = useState<GovernanceReport | null>(null);
   const [governanceLoading, setGovernanceLoading] = useState(false);
   const [governanceError, setGovernanceError] = useState<string | null>(null);
+  const [approvalAction, setApprovalAction] = useState<string | null>(null);
+  const [executionError, setExecutionError] = useState<string | null>(null);
+  const [cancelPending, setCancelPending] = useState(false);
+  const [activeExecutions, setActiveExecutions] = useState<Record<string, TaskEvent[]>>({});
   const governanceRequestRef = useRef(0);
+  const taskEvents = useTaskEvents(api, activeTask?.id ?? null);
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -223,6 +230,77 @@ export function App() {
     }
   }, [activeView, loadGovernance]);
 
+  useEffect(() => {
+    if (!activeTask) {
+      return;
+    }
+    setActiveExecutions((current) => ({
+      ...current,
+      [activeTask.id]: taskEvents.events,
+    }));
+  }, [activeTask, taskEvents.events]);
+
+  const executeTask = useCallback(async () => {
+    if (!activeTask) {
+      return;
+    }
+    await api.executeTask(activeTask.id, "RUN_COMMAND");
+    await refreshActiveTask();
+    await taskEvents.reconnect();
+    setActiveView("workbench");
+  }, [activeTask, api, refreshActiveTask, taskEvents]);
+
+  const approveGovernance = useCallback(async () => {
+    if (!activeTask || !activeProposal || !governanceReport || approvalAction !== null) {
+      return;
+    }
+    setApprovalAction("allow");
+    setExecutionError(null);
+    try {
+      const approval = await api.approveRequest(activeProposal.id, governanceReport.impactScope.files);
+      if (!approval.temporaryGrant || !approval.executionPolicy) {
+        throw new Error("授权没有完成");
+      }
+      await executeTask();
+    } catch (error) {
+      setExecutionError(userError(error));
+    } finally {
+      setApprovalAction(null);
+    }
+  }, [activeProposal, activeTask, api, approvalAction, executeTask, governanceReport]);
+
+  const denyGovernance = useCallback(async () => {
+    if (!activeProposal || approvalAction !== null) {
+      return;
+    }
+    setApprovalAction("deny");
+    try {
+      await api.rejectApproval(activeProposal.id);
+      setGovernanceError("本次授权没有通过");
+    } catch (error) {
+      setGovernanceError(userError(error));
+    } finally {
+      setApprovalAction(null);
+    }
+  }, [activeProposal, api, approvalAction]);
+
+  const cancelExecution = useCallback(async () => {
+    if (!activeTask || cancelPending) {
+      return;
+    }
+    setCancelPending(true);
+    setExecutionError(null);
+    try {
+      await api.cancelTask(activeTask.id);
+      await refreshActiveTask();
+      await taskEvents.reconnect();
+    } catch (error) {
+      setExecutionError(userError(error));
+    } finally {
+      setCancelPending(false);
+    }
+  }, [activeTask, api, cancelPending, refreshActiveTask, taskEvents]);
+
   return (
     <AppShell
       activeView={activeView}
@@ -232,7 +310,17 @@ export function App() {
       onViewChange={setActiveView}
     >
       {activeView === "workbench" ? (
-        activeTask ? (
+        activeTask?.status === "EXECUTING" || activeTask?.status === "CANCEL_REQUESTED" ? (
+          <ExecutionPage
+            cancelPending={cancelPending}
+            error={executionError}
+            events={activeExecutions[activeTask.id] ?? []}
+            reconnecting={taskEvents.reconnecting}
+            task={activeTask}
+            onCancel={cancelExecution}
+            onReconnect={taskEvents.reconnect}
+          />
+        ) : activeTask ? (
           <ProposalReviewPage
             error={taskError}
             loading={taskDetailLoading}
@@ -269,7 +357,10 @@ export function App() {
         <AnalysisPage
           error={governanceError}
           loading={governanceLoading}
+          pendingAction={approvalAction}
           report={governanceReport}
+          onAllowOnce={approveGovernance}
+          onDeny={denyGovernance}
           onReload={() => void loadGovernance()}
         />
       ) : null}

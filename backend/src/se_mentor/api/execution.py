@@ -4,6 +4,7 @@ from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.events import BUS
 from se_mentor.api.state import STATE
 
 router = APIRouter(prefix="/api/tasks", tags=["execution"])
@@ -38,7 +39,44 @@ def execute(task_id: str, payload: ExecuteRequest, response: Response) -> dict[s
         return error("RECOVERY_REQUIRED", "resolve recovery before executing tools")
     task["toolCalls"] = _tool_calls(task) + 1
     task["status"] = "EXECUTING"
-    return ok({"taskId": task_id, "command": payload.command, "status": "EXECUTING"})
+    event = BUS.publish(
+        task_id=task_id,
+        event_type="EXECUTION_STARTED",
+        payload={
+            "projectId": task.get("projectId"),
+            "taskId": task_id,
+            "state": "EXECUTING",
+            "message": "execution started",
+        },
+    )
+    return ok(
+        {
+            "taskId": task_id,
+            "command": payload.command,
+            "status": "EXECUTING",
+            "eventId": event.event_id,
+        }
+    )
+
+
+@router.post("/{task_id}/cancel")
+def cancel(task_id: str, response: Response) -> dict[str, object]:
+    task = STATE.tasks.get(task_id)
+    if task is None:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return error("TASK_NOT_FOUND", "task not found")
+    task["status"] = "CANCEL_REQUESTED"
+    event = BUS.publish(
+        task_id=task_id,
+        event_type="CANCEL_REQUESTED",
+        payload={
+            "projectId": task.get("projectId"),
+            "taskId": task_id,
+            "state": "CANCEL_REQUESTED",
+            "message": "cancel requested",
+        },
+    )
+    return ok({"taskId": task_id, "status": "CANCEL_REQUESTED", "eventId": event.event_id})
 
 
 @router.get("/{task_id}/policy")
