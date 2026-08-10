@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from se_mentor.api.analysis import router as analysis_router
+from se_mentor.api.governance import router as governance_router
 from se_mentor.api.projects import router as projects_router
 from se_mentor.api.proposals import router as proposals_router
 from se_mentor.api.tasks import router as tasks_router
@@ -17,4 +19,6 @@ def create_app() -> FastAPI:
     app.include_router(projects_router)
     app.include_router(tasks_router)
     app.include_router(proposals_router)
+    app.include_router(analysis_router)
+    app.include_router(governance_router)
     return app

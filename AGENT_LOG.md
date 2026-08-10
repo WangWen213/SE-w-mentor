@@ -3422,6 +3422,35 @@ JUnit: `evidence/test-reports/T086.xml`
 Regression: `evidence/logs/T086-regression.log`
 Diff: `evidence/diffs/T086.patch`
 
+## 2026-08-10 T087 Analysis Governance API
+
+### Task ID
+T087
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T043, T046, and T086 evidence are present on the current branch.
+
+### Implementation Summary
+Added analysis and proposal governance API routes. Governance refuses unconfirmed proposals with a
+409 envelope, returns evidence references for confirmed proposals, and avoids returning prompt or
+secret content.
+
+### Evidence
+RED: `evidence/tdd/T087-red.log`
+GREEN: `evidence/tdd/T087-green.log`
+JUnit: `evidence/test-reports/T087.xml`
+Regression: `evidence/logs/T087-regression.log`
+Diff: `evidence/diffs/T087.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
