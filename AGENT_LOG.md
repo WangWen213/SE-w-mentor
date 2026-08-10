@@ -2876,6 +2876,37 @@ JUnit: `evidence/test-reports/T072.xml`
 Regression: `evidence/logs/T072-regression.log`
 Diff: `evidence/diffs/T072.patch`
 
+## 2026-08-10 T073 Feedback Controller
+
+### Task ID
+T073
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T072 failure classification, T006 redaction, and T015 feedback models are present on the current
+branch.
+
+### Implementation Summary
+Added compact feedback generation from validation/tool/governance/progress sources. Feedback keeps
+actionable failure names, categories, retryability, assertion lines, and redacted secret markers,
+stores full-log artifact references in model evidence, and returns a contract FeedbackSignal suitable
+for the next context package.
+
+### Evidence
+RED: `evidence/tdd/T073-red.log`
+GREEN: `evidence/tdd/T073-green.log`
+JUnit: `evidence/test-reports/T073.xml`
+Regression: `evidence/logs/T073-regression.log`
+Diff: `evidence/diffs/T073.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
