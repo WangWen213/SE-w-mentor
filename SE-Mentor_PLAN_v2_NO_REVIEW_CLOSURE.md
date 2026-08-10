@@ -3113,8 +3113,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T104 — Windows Credential Manager 凭据生命周期
 
-- **状态**：[!] 实现未开始；实机验收外部阻塞
-- **阻塞说明**：需要 Windows 10/11 x64 干净测试环境
+- **状态**：[!] branch implementation complete；实机验收外部阻塞
+- **阻塞说明**：本地内存 keyring 单测通过；仍需要 Windows 10/11 x64 干净测试环境完成最终实机验收
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`NFR-CRED-04～10`, `OQ-12`
 - **目标**：实现 set/status/update/clear 和 Keyring 失败时仅会话临时 Key，不落明文。
@@ -3138,7 +3138,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T104.xml
   - evidence/diffs/T104.patch
   - `AGENT_LOG.md` 中的 T104 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add credential lifecycle store`
 
 ## T105 — PyInstaller onedir Windows 分发
 

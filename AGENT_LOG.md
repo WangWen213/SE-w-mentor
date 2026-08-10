@@ -3563,6 +3563,40 @@ JUnit: `evidence/test-reports/T092.xml`
 Regression: `evidence/logs/T092-regression.log`
 Diff: `evidence/diffs/T092.patch`
 
+## 2026-08-10 T104 Windows Credential Manager Credential Lifecycle
+
+### Task ID
+T104
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+`[!]` branch implementation complete; final clean Windows 10/11 x64 acceptance remains externally blocked per PLAN.
+
+### Dependency Check
+T006, T009, and T054 evidence are present on the current branch.
+
+### Implementation Summary
+Added a credential store with set, status, update, and clear behavior. Persistent storage only keeps
+profile/credential references, secrets are never echoed by status/result reprs, providers retrieve
+keys through the secure credential interface, clear invalidates the provider immediately, and keyring
+failure falls back only to a session-scoped key.
+
+### Evidence
+RED: `evidence/tdd/T104-red.log`
+GREEN: `evidence/tdd/T104-green.log`
+JUnit: `evidence/test-reports/T104.xml`
+Regression: `evidence/logs/T104-regression.log`
+Diff: `evidence/diffs/T104.patch`
+
+### Blocker
+PLAN requires a clean Windows 10/11 x64 real-machine acceptance script. That environment is not
+available in this workspace, so T091 was not started.
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
