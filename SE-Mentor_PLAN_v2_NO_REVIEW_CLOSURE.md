@@ -2123,7 +2123,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T070 — 根据影响生成 ValidationPlan
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08-01`, `审查 ValidationPlanner 缺口`
@@ -2147,7 +2147,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T070.xml
   - evidence/diffs/T070.patch
   - `AGENT_LOG.md` 中的 T070 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: plan validation from impact`
 
 ## T071 — 执行验证并记录客观结果
 

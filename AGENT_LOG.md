@@ -2784,6 +2784,37 @@ JUnit: `evidence/test-reports/T069.xml`
 Regression: `evidence/logs/T069-regression.log`
 Diff: `evidence/diffs/T069.patch`
 
+## 2026-08-10 T070 Validation Planner
+
+### Task ID
+T070
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T020 toolchain detection, T043 impact reports, T052 re-governance invalidation, and T015
+validation/progress models are present on the current branch.
+
+### Implementation Summary
+Added impact-driven validation planning that binds plans to task, proposal, policy, and revision.
+API changes add contract checks, schema or migration changes add empty/existing database migration
+checks, test/validation changes add integrity checks, unavailable validators are recorded as
+inconclusive preconditions, and plan versions advance deterministically.
+
+### Evidence
+RED: `evidence/tdd/T070-red.log`
+GREEN: `evidence/tdd/T070-green.log`
+JUnit: `evidence/test-reports/T070.xml`
+Regression: `evidence/logs/T070-regression.log`
+Diff: `evidence/diffs/T070.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
