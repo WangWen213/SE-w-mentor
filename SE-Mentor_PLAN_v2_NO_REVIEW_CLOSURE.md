@@ -1897,7 +1897,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T062 — Shell 沙箱与命令策略
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-07`, `NFR-SEC-05`, `OQ-04/11/14`
@@ -1921,7 +1921,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T062.xml
   - evidence/diffs/T062.patch
   - `AGENT_LOG.md` 中的 T062 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: run shell commands in sandbox`
 
 ## T063 — 注册只读 Git 工具动作
 

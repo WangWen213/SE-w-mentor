@@ -2457,6 +2457,39 @@ JUnit: `evidence/test-reports/T061.xml`
 Regression: `evidence/logs/T061-regression.log`
 Diff: `evidence/diffs/T061.patch`
 
+## 2026-08-10 T062 Shell Sandbox
+
+### Task ID
+T062
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T061 controlled delete, T006 child environment filtering, T045 action classification, T051 policy
+enforcement, and T057 dispatcher are present on the current branch.
+
+### Implementation Summary
+Added `ShellTool` for command execution with `program + argv` and `shell=False`. The tool validates a
+prepared transaction, matching temporary grant, in-repository cwd, and granted command; rejects shell
+programs and shell-control argument forms; uses minimal child environment filtering so secrets are
+not propagated; returns structured timeout results; truncates oversized output; and persists
+`ToolExecution` audit rows. T050 grant command matching was corrected to avoid path-normalizing
+Windows executable command strings.
+
+### Evidence
+RED: `evidence/tdd/T062-red.log`
+GREEN: `evidence/tdd/T062-green.log`
+JUnit: `evidence/test-reports/T062.xml`
+Regression: `evidence/logs/T062-regression.log`
+Diff: `evidence/diffs/T062.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

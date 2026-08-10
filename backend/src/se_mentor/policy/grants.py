@@ -44,7 +44,7 @@ class TemporaryGrantService:
         if policy.status != ExecutionPolicyStatus.ACTIVE or not policy.executable:
             raise ValueError("inactive_policy")
         allowed_writes = set(_json_tuple(policy.write_paths_json))
-        allowed_commands = set(_json_tuple(policy.commands_json))
+        allowed_commands = set(_json_list(policy.commands_json))
         requested_writes = set(_normalize(write_paths))
         requested_commands = set(commands)
         if not requested_writes.issubset(allowed_writes) or not requested_commands.issubset(
@@ -68,6 +68,13 @@ def _json_tuple(value: str) -> tuple[str, ...]:
     if not isinstance(data, list):
         return ()
     return tuple(str(item).replace("\\", "/") for item in data)
+
+
+def _json_list(value: str) -> tuple[str, ...]:
+    data = json.loads(value)
+    if not isinstance(data, list):
+        return ()
+    return tuple(str(item) for item in data)
 
 
 def _normalize(paths: tuple[str, ...]) -> tuple[str, ...]:
