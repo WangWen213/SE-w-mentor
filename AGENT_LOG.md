@@ -3674,6 +3674,58 @@ The standard Vitest and npm build entries still fail before test/build execution
 esbuild sandbox config-load signature: `Cannot read directory "../../.."` and the frontend config
 file path. The Vite build body passes with `configFile: false`.
 
+## 2026-08-10 T096 Corrective Authority Pass
+
+### Task ID
+T096 corrective
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Original T096 Commit
+`dd6ae0c9f67a332db43f331d3bcd5fdab1294287`
+
+### Scope Audit
+`T096_SCOPE_LEAK`
+
+### Corrective Reason
+API-layer authority leakage: approval response constructed grant/policy data locally, execute used
+API-local task lifecycle state, and cancel wrote `CANCEL_REQUESTED` directly instead of delegating to
+runtime cancellation authority.
+
+### Status After
+`[x]` corrective branch pass.
+
+### Implementation Summary
+Approval and execution endpoints now delegate to backend authority adapters. The approval adapter
+uses `ApprovalDecisionService`, authoritative active/compiled `ExecutionPolicy`, and
+`TemporaryGrantService`. The execution adapter validates active policy, creates grants through
+`TemporaryGrantService`, acquires a WRITE lock through `WorkspaceLockService`, and delegates
+cancellation to `AgentRuntime.request_cancel`. API-local state remains a compatibility
+representation only and is not the grant, policy, lock, transaction, or cancel authority.
+
+### Safety Gate
+TemporaryGrantService called: YES. Authoritative ExecutionPolicy used: YES. WRITE lock backend
+authority called: YES. AgentRuntime.request_cancel called: YES. API-created grant: NO. API-local
+final cancellation: NO. Immediate WRITE release on cancel: NO. Hard block approval/execute bypass:
+NO.
+
+### Evidence
+RED: `evidence/tdd/T096-corrective-red.log`
+GREEN: `evidence/tdd/T096-corrective-green.log`
+JUnit: `evidence/test-reports/T096-corrective.xml`
+Regression: `evidence/logs/T096-corrective-regression.log`
+Frontend smoke: `evidence/logs/T096-corrective-smoke.log`
+Type-check: `evidence/logs/T096-corrective-type-check.log`
+Build sandbox: `evidence/logs/T096-corrective-build.log`
+Ruff: `evidence/logs/T096-corrective-ruff.log`
+Ruff format: `evidence/logs/T096-corrective-ruff-format.log`
+Mypy: `evidence/logs/T096-corrective-mypy.log`
+Diff: `evidence/diffs/T096-corrective.patch`
+
 ### Notes
 `frontend/package.json` has no `lint` script, so no frontend lint command is configured to run.
 T094 was not started.

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="4" time="0.612" timestamp="2026-08-10T23:49:23.019489+08:00" hostname="LAPTOP-IJMRFI3N"><testcase classname="tests.api.test_t096_corrective_authority" name="test_T096_corrective_approval_uses_authoritative_grant_and_policy" time="0.022"><failure message="AssertionError: assert [] == [('approve', 'approval-1')]&#10;  &#10;  Right contains one more item: ('approve', 'approval-1')&#10;  Use -v to get more diff">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x0000015B4F7DDBA0&gt;
+
+    def test_T096_corrective_approval_uses_authoritative_grant_and_policy(monkeypatch) -&gt; None:
+        calls: list[tuple[str, str]] = []
+    
+        class FakeAuthority:
+            def approve(self, *, approval_id: str, approved_scope: tuple[str, ...]) -&gt; dict[str, object]:
+                calls.append(("approve", approval_id))
+                return {
+                    "id": approval_id,
+                    "status": "APPROVED",
+                    "approvedScope": list(approved_scope),
+                    "temporaryGrant": {
+                        "id": "grant-from-service",
+                        "approvalId": approval_id,
+                        "scope": list(approved_scope),
+                        "status": "ACTIVE",
+                        "taskId": "task-1",
+                        "policyId": "policy-1",
+                        "revision": "rev-1",
+                    },
+                    "executionPolicy": {
+                        "id": "policy-1",
+                        "approvalId": approval_id,
+                        "writeAllowed": True,
+                        "commands": ["RUN_COMMAND"],
+                        "writePaths": list(approved_scope),
+                        "status": "ACTIVE",
+                    },
+                }
+    
+        monkeypatch.setattr(
+            "se_mentor.api.approvals.get_approval_authority", lambda: FakeAuthority(), raising=False
+        )
+    
+        response = TestClient(create_app()).post(
+            "/api/approvals/approval-1/approve",
+            json={"approvedScope": ["auth/middleware.py"]},
+        )
+    
+        assert response.status_code == 200
+&gt;       assert calls == [("approve", "approval-1")]
+E       AssertionError: assert [] == [('approve', 'approval-1')]
+E         
+E         Right contains one more item: ('approve', 'approval-1')
+E         Use -v to get more diff
+
+backend\tests\api\test_t096_corrective_authority.py:48: AssertionError</failure></testcase><testcase classname="tests.api.test_t096_corrective_authority" name="test_T096_corrective_execute_uses_lock_and_runtime_authority" time="0.019"><failure message="AssertionError: assert [] == [('execute', 'task-1')]&#10;  &#10;  Right contains one more item: ('execute', 'task-1')&#10;  Use -v to get more diff">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x0000015B4F7DE520&gt;
+
+    def test_T096_corrective_execute_uses_lock_and_runtime_authority(monkeypatch) -&gt; None:
+        calls: list[tuple[str, str]] = []
+    
+        class FakeAuthority:
+            def execute(self, *, task_id: str, command: str) -&gt; dict[str, object]:
+                calls.append(("execute", task_id))
+                return {
+                    "taskId": task_id,
+                    "command": command,
+                    "status": "EXECUTING",
+                    "eventId": 1,
+                    "lockId": "lock-from-service",
+                }
+    
+        monkeypatch.setattr(
+            "se_mentor.api.execution.get_execution_authority", lambda: FakeAuthority(), raising=False
+        )
+        STATE.tasks["task-1"] = {"id": "task-1", "projectId": "project-1", "status": "CREATED"}
+    
+        response = TestClient(create_app()).post("/api/tasks/task-1/execute", json={"command": "RUN_COMMAND"})
+    
+        assert response.status_code == 200
+&gt;       assert calls == [("execute", "task-1")]
+E       AssertionError: assert [] == [('execute', 'task-1')]
+E         
+E         Right contains one more item: ('execute', 'task-1')
+E         Use -v to get more diff
+
+backend\tests\api\test_t096_corrective_authority.py:76: AssertionError</failure></testcase><testcase classname="tests.api.test_t096_corrective_authority" name="test_T096_corrective_cancel_uses_runtime_cancel_without_terminal_state" time="0.018"><failure message="AssertionError: assert [] == [('cancel', 'task-2')]&#10;  &#10;  Right contains one more item: ('cancel', 'task-2')&#10;  Use -v to get more diff">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x0000015B4F95C3B0&gt;
+
+    def test_T096_corrective_cancel_uses_runtime_cancel_without_terminal_state(monkeypatch) -&gt; None:
+        calls: list[tuple[str, str]] = []
+    
+        class FakeAuthority:
+            def cancel(self, *, task_id: str) -&gt; dict[str, object]:
+                calls.append(("cancel", task_id))
+                return {"taskId": task_id, "status": "CANCEL_REQUESTED", "eventId": 2}
+    
+        monkeypatch.setattr(
+            "se_mentor.api.execution.get_execution_authority", lambda: FakeAuthority(), raising=False
+        )
+        STATE.tasks["task-2"] = {"id": "task-2", "projectId": "project-1", "status": "EXECUTING"}
+    
+        response = TestClient(create_app()).post("/api/tasks/task-2/cancel")
+    
+        assert response.status_code == 200
+&gt;       assert calls == [("cancel", "task-2")]
+E       AssertionError: assert [] == [('cancel', 'task-2')]
+E         
+E         Right contains one more item: ('cancel', 'task-2')
+E         Use -v to get more diff
+
+backend\tests\api\test_t096_corrective_authority.py:96: AssertionError</failure></testcase><testcase classname="tests.api.test_t096_corrective_authority" name="test_T096_corrective_hard_block_cannot_be_approved_or_executed" time="0.026"><failure message="assert 200 == 409&#10; +  where 200 = &lt;Response [200 OK]&gt;.status_code">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x0000015B4F98A580&gt;
+
+    def test_T096_corrective_hard_block_cannot_be_approved_or_executed(monkeypatch) -&gt; None:
+        class FakeAuthority:
+            def approve(self, *, approval_id: str, approved_scope: tuple[str, ...]) -&gt; dict[str, object]:
+                raise ValueError("deny hard decision cannot be approved")
+    
+        monkeypatch.setattr(
+            "se_mentor.api.approvals.get_approval_authority", lambda: FakeAuthority(), raising=False
+        )
+        STATE.tasks["blocked-task"] = {"id": "blocked-task", "projectId": "project-1", "status": "BLOCKED"}
+        client = TestClient(create_app())
+    
+        approved = client.post("/api/approvals/blocked-approval/approve", json={"approvedScope": ["x.py"]})
+        executed = client.post("/api/tasks/blocked-task/execute", json={"command": "RUN_COMMAND"})
+    
+&gt;       assert approved.status_code == 409
+E       assert 200 == 409
+E        +  where 200 = &lt;Response [200 OK]&gt;.status_code
+
+backend\tests\api\test_t096_corrective_authority.py:114: AssertionError</failure></testcase></testsuite></testsuites>
