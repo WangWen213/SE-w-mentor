@@ -17,6 +17,7 @@ from se_mentor.models.execution import (
     ToolExecutionStatus,
     TransactionState,
 )
+from se_mentor.models.llm import AgentAction
 
 
 class RollbackError(RuntimeError):
@@ -170,9 +171,14 @@ class TransactionRollbackService:
             )
             .order_by(ToolExecution.created_at, ToolExecution.id)
         )
-        if execution is None:
-            raise RollbackError("tool execution required")
-        return execution.action_id
+        if execution is not None:
+            return execution.action_id
+        action = self.session.scalar(
+            select(AgentAction).where(AgentAction.task_id == task_id).order_by(AgentAction.id)
+        )
+        if action is None:
+            raise RollbackError("agent action required")
+        return action.id
 
 
 def _sha(data: bytes) -> str:

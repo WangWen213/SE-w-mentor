@@ -2592,6 +2592,37 @@ JUnit: `evidence/test-reports/T064.xml`
 Regression: `evidence/logs/T064-regression.log`
 Diff: `evidence/diffs/T064.patch`
 
+## 2026-08-10 T065 Transaction Recovery
+
+### Task ID
+T065
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T023 lock recovery behavior, T064 rollback, and T018 audit/alert models are present on the current
+branch.
+
+### Implementation Summary
+Added restart recovery scanning for PREPARED/APPLYING transactions, recovery summaries with
+auto-rollback versus manual decisions, external preexisting-change detection, recovery audit and
+alert emission, writer blocking while recovery is unresolved, rollback-based resolution, lock
+release, and recovery alert resolution.
+
+### Evidence
+RED: `evidence/tdd/T065-red.log`
+GREEN: `evidence/tdd/T065-green.log`
+JUnit: `evidence/test-reports/T065.xml`
+Regression: `evidence/logs/T065-regression.log`
+Diff: `evidence/diffs/T065.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

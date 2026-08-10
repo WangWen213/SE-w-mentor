@@ -180,6 +180,14 @@ class WorkspaceLockService:
         session.flush()
 
     def _requires_recovery(self, session: Session, project_id: str) -> bool:
+        unfinished_without_recovery = session.scalars(
+            select(TaskTransaction).where(
+                TaskTransaction.project_id == project_id,
+                TaskTransaction.state.in_([TransactionState.PREPARED, TransactionState.APPLYING]),
+            )
+        ).first()
+        if unfinished_without_recovery is not None:
+            return True
         expired_locks = session.scalars(
             select(WorkspaceLock).where(
                 WorkspaceLock.project_id == project_id,

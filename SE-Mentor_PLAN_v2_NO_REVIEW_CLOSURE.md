@@ -1981,7 +1981,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T065 — 异常中断事务恢复
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-09`, `E2E-07`, `NFR-USA-08`
@@ -2005,7 +2005,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T065.xml
   - evidence/diffs/T065.patch
   - `AGENT_LOG.md` 中的 T065 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: recover unfinished transactions`
 
 ## T066 — 自研 Agent 单轮编排器
 
