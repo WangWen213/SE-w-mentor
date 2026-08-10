@@ -2623,6 +2623,37 @@ JUnit: `evidence/test-reports/T065.xml`
 Regression: `evidence/logs/T065-regression.log`
 Diff: `evidence/diffs/T065.patch`
 
+## 2026-08-10 T066 Single-Turn Agent Iteration
+
+### Task ID
+T066
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T034, T046, T053, T056, and T057 were verified by implementation files, TDD/JUnit/diff evidence,
+and AGENT_LOG records on the current branch.
+
+### Implementation Summary
+Added a self-hosted single-turn agent runner that creates a task iteration, builds a context package,
+passes through the token-budgeted provider boundary, records LLM usage, parses structured actions,
+evaluates governance, pauses before tools for non-ALLOW decisions, dispatches approved actions
+through the unified dispatcher, and records traceable AgentAction state.
+
+### Evidence
+RED: `evidence/tdd/T066-red.log`
+GREEN: `evidence/tdd/T066-green.log`
+JUnit: `evidence/test-reports/T066.xml`
+Regression: `evidence/logs/T066-regression.log`
+Diff: `evidence/diffs/T066.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

@@ -2009,7 +2009,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T066 — 自研 Agent 单轮编排器
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-05-03`, `自研 Harness`
@@ -2033,7 +2033,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T066.xml
   - evidence/diffs/T066.patch
   - `AGENT_LOG.md` 中的 T066 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: orchestrate single agent iteration`
 
 ## T067 — Agent 运行状态、取消与安全点
 
