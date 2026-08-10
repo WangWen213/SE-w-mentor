@@ -2393,6 +2393,38 @@ JUnit: `evidence/test-reports/T059.xml`
 Regression: `evidence/logs/T059-regression.log`
 Diff: `evidence/diffs/T059.patch`
 
+## 2026-08-10 T060 Controlled Create File Tool
+
+### Task ID
+T060
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T059 apply-patch transaction/tool traceability and T051/T050 policy/grant enforcement are present on
+the current branch.
+
+### Implementation Summary
+Added `CreateFileTool` for controlled creation of new files. The tool requires a prepared
+transaction and matching temporary grant, rejects path escapes and unapproved paths, requires an
+approved in-repository parent directory, never overwrites existing files, creates with exclusive
+open semantics, records a `ToolExecution` plus `FileChange(CREATE)`, and returns rollback metadata
+for deleting the task-created file.
+
+### Evidence
+RED: `evidence/tdd/T060-red.log`
+GREEN: `evidence/tdd/T060-green.log`
+JUnit: `evidence/test-reports/T060.xml`
+Regression: `evidence/logs/T060-regression.log`
+Diff: `evidence/diffs/T060.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
