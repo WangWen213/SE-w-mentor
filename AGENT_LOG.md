@@ -2725,6 +2725,35 @@ Alembic gate: `evidence/logs/T067-checkpoint/alembic-head-gate.log`
 Frontend type-check: `evidence/logs/T067-checkpoint/frontend-type-check.log`
 Canonical gate: `evidence/logs/T067-checkpoint/check-all.log`
 
+## 2026-08-10 T068 Progress Monitor
+
+### Task ID
+T068
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T015 progress/feedback models and T066 single-turn iteration are complete on the current branch.
+
+### Implementation Summary
+Added deterministic material-progress detection that normalizes action wording, rejects rephrasing
+as progress, scores new evidence, reduced failing tests, changed paths, and approval gains, and
+records each decision as a ProgressEvent with structured evidence.
+
+### Evidence
+RED: `evidence/tdd/T068-red.log`
+GREEN: `evidence/tdd/T068-green.log`
+JUnit: `evidence/test-reports/T068.xml`
+Regression: `evidence/logs/T068-regression.log`
+Diff: `evidence/diffs/T068.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
