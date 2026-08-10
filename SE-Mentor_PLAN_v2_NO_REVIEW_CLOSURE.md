@@ -2434,7 +2434,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T081 — E2E-01 正常闭环与 E2E-02 自动修正
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-e2e`
 - **覆盖需求**：`E2E-01`, `E2E-02`, `FR-12-02～03`
@@ -2458,7 +2458,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T081.xml
   - evidence/diffs/T081.patch
   - `AGENT_LOG.md` 中的 T081 记录
-- **Commit**：`未填写`
+- **Commit**：`test: add e2e normal and repair loops`
 
 ## T082 — E2E-03 高风险审批与 E2E-04 危险动作阻止
 

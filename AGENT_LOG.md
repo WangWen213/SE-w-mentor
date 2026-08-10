@@ -3186,6 +3186,35 @@ with the known esbuild sandbox signature: `Cannot read directory "../../.."` and
 ### Next Task
 T081 not started.
 
+## 2026-08-10 T081 E2E Normal And Repair Loops
+
+### Task ID
+T081
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T019-T080 evidence files are present on the current branch before T081 started.
+
+### Implementation Summary
+Added offline E2E coverage for a normal safe change loop and a failed-then-repaired loop using a
+temporary Git repo, workspace lock, transaction prepare, atomic patch application, validation
+dispatcher/policy enforcement, repair counting, completion gate, and success knowledge extraction.
+
+### Evidence
+RED: `evidence/tdd/T081-red.log`
+GREEN: `evidence/tdd/T081-green.log`
+JUnit: `evidence/test-reports/T081.xml`
+Regression: `evidence/logs/T081-regression.log`
+Diff: `evidence/diffs/T081.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
