@@ -2907,6 +2907,47 @@ JUnit: `evidence/test-reports/T073.xml`
 Regression: `evidence/logs/T073-regression.log`
 Diff: `evidence/diffs/T073.patch`
 
+## 2026-08-10 T068-T073 Validation Feedback Checkpoint
+
+### Task IDs
+T068, T069, T070, T071, T072, T073
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Validation/feedback checkpoint complete through T073. T074 was not started.
+
+### Validation Summary
+T068-T073 scoped tests passed. Progress, validation, feedback, dispatcher, policy, agent runtime,
+and redaction regression passed. Full backend pytest passed with 100 passed, 2 skipped, and existing
+third-party/Alembic warnings. Models regression passed. Ruff check, Ruff format check, mypy, Alembic
+head, Alembic head gate, and frontend type-check passed. Checkpoint mypy fix replaced an executor
+lambda with a typed handler factory.
+
+### check_all Classification
+`scripts/check_all.py` passed backend/meta/type-check portions and then failed at frontend Vitest
+config loading with esbuild `Cannot read directory "../../.."` and `Could not resolve
+frontend/vitest.config.mjs`. This matches the known Codex Vitest/esbuild sandbox failure and was not
+re-diagnosed.
+
+### Evidence
+Scoped: `evidence/logs/T073-checkpoint/scoped-T068-T073.log`
+Regression: `evidence/logs/T073-checkpoint/progress-validation-feedback-regression.log`
+Backend full pytest: `evidence/logs/T073-checkpoint/backend-full-pytest.log`
+Models regression: `evidence/logs/T073-checkpoint/models-regression.log`
+Ruff: `evidence/logs/T073-checkpoint/ruff-check.log`
+Ruff format: `evidence/logs/T073-checkpoint/ruff-format-check.log`
+Mypy: `evidence/logs/T073-checkpoint/mypy.log`
+Mypy fix scoped: `evidence/logs/T073-checkpoint/mypy-fix-scoped.log`
+Alembic: `evidence/logs/T073-checkpoint/alembic-heads.log`
+Alembic gate: `evidence/logs/T073-checkpoint/alembic-head-gate.log`
+Frontend type-check: `evidence/logs/T073-checkpoint/frontend-type-check.log`
+Canonical gate: `evidence/logs/T073-checkpoint/check-all.log`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

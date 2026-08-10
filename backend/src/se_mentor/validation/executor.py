@@ -64,6 +64,9 @@ class ValidationExecutor:
         last_status = ToolStatus.OK
         for index, check_name in enumerate(checks, start=1):
             command = command_for_check(str(check_name))
+            handler = self._handler(
+                plan.id, index, command.check_name, command.program, command.args, command.required
+            )
             dispatch = ToolDispatcher(self.session, self.registry).dispatch(
                 task_id=task_id,
                 action_id=action_id,
@@ -74,13 +77,7 @@ class ValidationExecutor:
                     grant=grant,
                     revision=revision,
                 ),
-                handler=lambda command=command, index=index: self._run_check(
-                    plan.id,
-                    index,
-                    command.check_name,
-                    (command.program, *command.args),
-                    required=command.required,
-                ),
+                handler=handler,
             )
             last_status = dispatch.status
             passed = passed and dispatch.status == ToolStatus.OK and bool(dispatch.value)
@@ -103,6 +100,23 @@ class ValidationExecutor:
             handler=lambda: None,
         )
         return allowed.allowed
+
+    def _handler(
+        self,
+        plan_id: str,
+        run_order: int,
+        check_name: str,
+        program: str,
+        args: tuple[str, ...],
+        required: bool,
+    ) -> Callable[[], bool]:
+        return lambda: self._run_check(
+            plan_id,
+            run_order,
+            check_name,
+            (program, *args),
+            required=required,
+        )
 
     def _run_check(
         self,
