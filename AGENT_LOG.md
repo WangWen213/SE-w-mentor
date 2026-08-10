@@ -3633,6 +3633,51 @@ with the known esbuild sandbox signature: `Cannot read directory "../../.."` and
 ### Next Tasks
 T091 not started. T093 not started.
 
+## 2026-08-10 T093 React Baseline And Design Tokens
+
+### Task ID
+T093
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+`[x]` branch complete.
+
+### Dependency Check
+T086 evidence is present on the current branch.
+
+### Implementation Summary
+Saved the frozen UI reference unchanged, added Mentor warm-gray design tokens, implemented the
+two-column React/TypeScript app shell, six top-level views, Workbench task header/tabs/conversation,
+proposal, composer, changes, checks, common button/status/modal/drawer/empty presentation
+components, and separated fixture data from UI components. No T094+ API integration was started.
+
+### Evidence
+RED: `evidence/tdd/T093-red-harness.log`
+Vitest sandbox RED attempt: `evidence/tdd/T093-red.log`
+GREEN: `evidence/tdd/T093-green-harness.log`
+JUnit: `evidence/test-reports/T093.xml`
+Scoped smoke: `evidence/logs/T093-smoke.log`
+Type-check: `evidence/logs/T093-type-check-final.log`
+Build: `evidence/logs/T093-build-final.log`
+npm build sandbox: `evidence/logs/T093-build.log`
+Vitest sandbox: `evidence/logs/T093-vitest-sandbox.log`
+Lint command: `evidence/logs/T093-lint.log`
+Diff: `evidence/diffs/T093.patch`
+
+### Sandbox Classification
+The standard Vitest and npm build entries still fail before test/build execution with the known
+esbuild sandbox config-load signature: `Cannot read directory "../../.."` and the frontend config
+file path. The Vite build body passes with `configFile: false`.
+
+### Notes
+`frontend/package.json` has no `lint` script, so no frontend lint command is configured to run.
+T094 was not started.
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

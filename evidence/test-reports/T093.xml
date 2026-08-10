@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="T093 frontend baseline" tests="1" failures="0" errors="0" skipped="0">
+  <testcase classname="frontend.t093" name="test_T093_app_shell_and_accessible_status_badge_exist"/>
+</testsuite>

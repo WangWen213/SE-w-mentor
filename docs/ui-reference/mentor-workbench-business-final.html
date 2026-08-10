@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mentor</title>
+<style>
+:root{
+  --bg:#eeece7;--side:#e7e4de;--surface:#faf9f6;--card:#fffefa;--soft:#f2f0eb;
+  --ink:#20221f;--text:#444740;--muted:#878a83;--line:#dcd8d0;--line2:#ccc8c0;
+  --blue:#607db8;--blueSoft:#e9eef8;--green:#668a70;--greenSoft:#e8f0ea;
+  --amber:#9a6d39;--amberSoft:#f3e7d8;--red:#a65d59;--redSoft:#f2e2df;
+  --sidebar:252px;--radius:18px;--shadow:0 16px 40px rgba(42,43,39,.06)
+}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit}button{cursor:pointer}svg{display:block}.hidden{display:none!important}
+.app{height:100vh;display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr)}
+.sidebar{background:var(--side);border-right:1px solid var(--line);padding:22px 16px 16px;display:flex;flex-direction:column;min-height:0}
+.brand{height:46px;display:flex;align-items:center;gap:12px;padding:0 10px;margin-bottom:22px}.brand-mark{width:36px;height:36px;border-radius:12px;background:#222520;color:#fff;display:grid;place-items:center;font:800 16px ui-monospace,Menlo,monospace}.brand-name{font-size:20px;font-weight:760;letter-spacing:-.03em}
+.project-card{margin:0 4px 22px;padding:15px 14px;border:1px solid rgba(128,126,119,.18);background:rgba(255,255,255,.34);border-radius:14px}.project-label{font-size:12px;color:#96988f;margin-bottom:7px}.project-name{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}.project-dot{width:8px;height:8px;border-radius:50%;background:var(--green)}.project-meta{margin-top:7px;color:#8b8d86;font-size:12px}.project-open{margin-top:12px;width:100%;height:36px;border:1px solid var(--line);border-radius:9px;background:#f8f7f3;color:#555850;font-size:13px;font-weight:650}
+.nav{display:flex;flex-direction:column;gap:6px}.nav-item{height:50px;border:0;border-radius:13px;background:transparent;color:#62655f;padding:0 14px;display:flex;align-items:center;gap:12px;text-align:left;font-size:15px;font-weight:650}.nav-item:hover{background:rgba(255,255,255,.46);color:var(--ink)}.nav-item.active{background:#f9f8f4;color:var(--ink);box-shadow:0 3px 12px rgba(45,47,43,.045)}.nav-item svg{width:19px;height:19px;stroke-width:1.8}.nav-item .badge{margin-left:auto;min-width:23px;height:23px;padding:0 7px;border-radius:999px;background:#ddd9d1;color:#777a72;display:grid;place-items:center;font-size:11px}
+.side-spacer{flex:1}.side-bottom{border-top:1px solid rgba(130,130,125,.18);padding-top:13px}.profile{margin-top:6px;height:50px;border-radius:12px;display:flex;align-items:center;gap:10px;padding:0 10px}.profile:hover{background:rgba(255,255,255,.42)}.avatar{width:34px;height:34px;border-radius:11px;background:#cebca8;display:grid;place-items:center;font-size:11px;font-weight:800;color:#51463b}.profile strong{font-size:13px}.profile small{display:block;margin-top:2px;color:#8a8c86;font-size:11px}
+.main{height:100vh;min-width:0;background:var(--surface);display:flex;flex-direction:column}.topbar{height:66px;flex:0 0 66px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 36px;gap:10px;background:rgba(250,249,246,.96)}.top-project{font-size:14px;font-weight:730}.branch{height:30px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:#fffdfa;color:#6d7069;display:flex;align-items:center;font-size:12px}.top-spacer{flex:1}
+.btn{height:42px;border-radius:11px;padding:0 16px;border:1px solid var(--line);background:#fffdfa;color:#555851;font-size:14px;font-weight:650}.btn:hover{background:#fff}.btn.dark{background:#222520;border-color:#222520;color:#fff}.btn.dark:hover{background:#2c302a}.btn.small{height:36px;padding:0 13px;font-size:13px}.btn.danger{border-color:#e2c8c4;background:#fff9f8;color:#95524d}.btn.link{height:auto;border:0;background:transparent;padding:0;color:#6376a0}.btn.link:hover{text-decoration:underline}
+.view{display:none;flex:1;min-height:0;overflow:auto}.view.active{display:block}.page{width:min(1120px,calc(100% - 96px));margin:0 auto;padding:46px 0 78px}.page-head{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:30px}.page-title{font-size:29px;line-height:1.15;font-weight:740;letter-spacing:-.04em}.page-actions{display:flex;gap:10px;align-items:center}
+/* Workbench */
+#view-workbench{overflow:hidden}.workbench{height:100%;display:flex;flex-direction:column}.task-head{min-height:66px;flex:0 0 auto;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:11px 40px;gap:14px}.task-name-wrap{min-width:0}.task-state{font-size:12px;color:var(--amber);font-weight:720;margin-bottom:4px}.task-name{font-size:17px;font-weight:720;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.task-head-actions{margin-left:auto;display:flex;gap:8px}.recovery-banner{margin:14px 40px 0;padding:13px 16px;border:1px solid #e1d5c6;background:#fbf5eb;border-radius:13px;display:flex;align-items:center;gap:12px;font-size:14px;color:#5d554c}.recovery-banner strong{font-weight:720}.recovery-banner .btn{margin-left:auto}.action-error{margin:14px 40px 0;padding:16px 17px;border:1px solid #e4c9c5;background:#fff8f7;border-radius:13px;display:flex;align-items:center;gap:16px}.action-error strong{font-size:14px;color:#7e4743}.action-error span{display:block;margin-top:4px;font-size:13px;line-height:1.55;color:#7f6663}.action-error .btn{margin-left:auto;flex:0 0 auto}.btn:disabled,.ghost:disabled,.send:disabled,.project-open:disabled{cursor:not-allowed;opacity:.46}.task-card:focus-visible,.memory-card:focus-visible,.history-row:focus-visible,.file-row:focus-visible{outline:3px solid rgba(96,125,184,.24);outline-offset:2px}.tabs{height:56px;flex:0 0 56px;border-bottom:1px solid var(--line);display:flex;align-items:flex-end;padding:0 40px;gap:30px}.tab{height:56px;border:0;background:transparent;padding:0;color:#8a8d86;font-size:15px;font-weight:650;position:relative}.tab.active{color:var(--ink)}.tab.active:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#242722}.panel{display:none;flex:1;min-height:0}.panel.active{display:flex;flex-direction:column;min-height:0}.conversation{height:auto;flex:1;min-height:0;overflow:auto;padding:34px 40px 190px}.thread{max-width:860px;margin:0 auto}.message{display:flex;gap:14px;align-items:flex-start;margin-bottom:34px}.message.user{flex-direction:row-reverse}.msg-avatar{width:38px;height:38px;border-radius:12px;flex:0 0 38px;display:grid;place-items:center;font-size:11px;font-weight:800;background:#e4e1da;color:#64675f}.message.agent .msg-avatar{background:#222520;color:#fff}.message.user .msg-avatar{background:#dfe6f5;color:#50638d}.msg-wrap{max-width:min(720px,82%)}.message.user .msg-wrap{display:flex;flex-direction:column;align-items:flex-end}.msg-role{font-size:13px;font-weight:700;margin:2px 0 10px}.msg-time{color:#aaa9a3;font-weight:500;margin-left:7px}.msg-body{font-size:17px;line-height:1.72;color:#3b3e39}.msg-body p{margin:0}.message.agent .msg-body{background:#fffefa;border:1px solid var(--line);border-radius:8px 19px 19px 19px;padding:17px 19px;box-shadow:0 3px 12px rgba(45,47,43,.035)}.message.user .msg-body{background:var(--blueSoft);border:1px solid #d9e1f1;border-radius:19px 8px 19px 19px;padding:16px 19px;color:#33405b}
+.proposal{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:#f8f7f3;overflow:hidden}.proposal-head{padding:15px 17px;border-bottom:1px solid var(--line);font-size:14px;font-weight:730}.proposal-main{padding:14px 17px 4px}.proposal-goal{font-size:16px;font-weight:710;margin-bottom:10px}.proposal-list{padding:0 17px 4px}.proposal-row{min-height:42px;display:flex;align-items:center;gap:11px;border-bottom:1px solid rgba(218,214,206,.65);font-size:14px;color:#4a4d47}.proposal-row:last-child{border-bottom:0}.proposal-dot{width:7px;height:7px;border-radius:50%;background:#777b72;flex:0 0 7px}.proposal-meta{display:flex;gap:16px;flex-wrap:wrap;padding:13px 17px;color:#7b7e77;font-size:13px;border-top:1px solid rgba(218,214,206,.75)}.proposal-meta b{color:#555950;font-weight:680}.proposal-foot{display:flex;align-items:center;gap:8px;padding:13px 14px;background:#f4f2ed}.proposal-foot .hint{font-size:12px;color:#91938d;margin-right:auto}
+.progress-list{margin-top:14px;border-top:1px solid var(--line)}.progress-row{padding:13px 0;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(218,214,206,.7);font-size:14px}.progress-dot{width:8px;height:8px;border-radius:50%;background:var(--green)}.progress-dot.active{background:var(--blue)}.progress-dot.warn{background:var(--amber)}
+.need-card{margin-top:15px;padding:15px 16px;background:#faf4e9;border:1px solid #e8d7bd;border-radius:14px}.need-title{font-size:14px;font-weight:720;color:#70542f;margin-bottom:5px}.need-question{font-size:15px;color:#4f4b45}
+.simple-panel{width:100%;max-width:900px;margin:0 auto;padding:38px 42px 170px;flex:1;min-height:0;overflow:auto}.simple-list{background:var(--card);border:1px solid var(--line);border-radius:17px;overflow:hidden}.simple-row{min-height:72px;padding:17px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)}.simple-row:last-child{border-bottom:0}.file-dot{width:9px;height:9px;border-radius:50%;background:var(--green)}.simple-row strong{font-size:15px}.simple-row .row-spacer{flex:1}.file-state{font-size:13px;color:#6f736b}.diff-stat{font:650 13px ui-monospace,SFMono-Regular,Menlo,monospace;color:#747870}.diff-stat .plus{color:#5d8667}.diff-stat .minus{color:#a36661}.file-row{cursor:pointer}.file-row:hover{background:#fdfcf9}.diff-box{display:none;padding:14px 18px 17px 42px;background:#f7f6f2;border-bottom:1px solid var(--line);font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;color:#555850}.diff-box.open{display:block}.diff-add{color:#50785a}.diff-del{color:#9b5c57}.check-status{margin-left:auto;height:30px;padding:0 10px;border-radius:9px;display:inline-flex;align-items:center;font-size:12px;font-weight:720}.check-status.waiting{background:#efede8;color:#7e817a}.check-status.running{background:var(--blueSoft);color:#536f9f}.check-status.passed{background:var(--greenSoft);color:#547760}.check-status.failed{background:var(--redSoft);color:#94534e}.check-status.action{background:var(--amberSoft);color:#8b622f}
+.empty-workbench{height:calc(100vh - 66px);display:flex;align-items:center;justify-content:center;padding:80px 40px 190px;text-align:center}.empty-workbench h2{font-size:30px;margin:0 0 10px;letter-spacing:-.035em}.empty-workbench p{margin:0;color:var(--muted);font-size:16px}
+.composer-wrap{position:fixed;left:var(--sidebar);right:0;bottom:0;z-index:20;padding:14px 34px 20px;background:linear-gradient(to top,#faf9f6 72%,rgba(250,249,246,.88));display:none}.composer-wrap.show{display:block}.composer{max-width:860px;margin:0 auto;background:#fffefa;border:1px solid var(--line2);border-radius:20px;box-shadow:0 8px 28px rgba(45,47,43,.08);padding:8px}.composer textarea{display:block;width:100%;min-height:68px;max-height:150px;resize:none;border:0;outline:0;background:transparent;padding:13px 15px 9px;font-size:17px;line-height:1.55;color:var(--ink)}.composer-bottom{display:flex;align-items:center;padding:4px 5px 2px 8px}.ghost{border:0;background:transparent;color:#858780;font-size:13px;padding:7px 8px}.send{margin-left:auto;width:42px;height:42px;border:0;border-radius:13px;background:#222520;color:#fff;font-size:18px}
+/* Common pages */
+.segment{display:inline-flex;background:var(--soft);border:1px solid var(--line);padding:4px;border-radius:13px;margin-bottom:26px;flex-wrap:wrap}.seg-btn{height:38px;padding:0 17px;border:0;border-radius:10px;background:transparent;color:#7b7e77;font-size:14px;font-weight:640}.seg-btn.active{background:#fffefa;color:var(--ink);box-shadow:0 2px 7px rgba(45,47,43,.05)}.searchbar{height:48px;width:320px;border:1px solid var(--line);border-radius:13px;background:#fffefa;padding:0 15px;outline:none;font-size:15px}.searchbar:focus{border-color:#b8b4ab;box-shadow:0 0 0 3px rgba(80,80,70,.04)}
+.state-card{min-height:220px;border:1px dashed var(--line2);border-radius:18px;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;color:#858880;background:rgba(255,255,255,.22)}.state-card strong{display:block;color:#555950;font-size:17px;margin-bottom:6px}.state-card .btn{margin-top:16px}
+/* Tasks */
+.task-list{display:flex;flex-direction:column;gap:13px}.task-card{min-height:94px;border:1px solid var(--line);background:var(--card);border-radius:17px;padding:20px 23px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;transition:.15s}.task-card:hover{transform:translateY(-1px);box-shadow:var(--shadow);border-color:#cfcbc2}.task-card-title{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.task-card-meta{margin-top:8px;font-size:13px;color:#8a8d85}.status{height:32px;padding:0 11px;border-radius:10px;display:inline-flex;align-items:center;font-size:12px;font-weight:700}.status.review{background:var(--amberSoft);color:#8d612d}.status.run{background:var(--blueSoft);color:#506b9e}.status.checking{background:#ece9f5;color:#6c6094}.status.done{background:var(--greenSoft);color:#54785d}.status.paused,.status.cancel{background:#efede8;color:#74776f}.status.failed{background:var(--redSoft);color:#94534f}.status.rollback{background:#eee8e3;color:#765e52}
+/* Memory */
+.memory-tools{display:flex;gap:8px;margin:-4px 0 25px}.filter{height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:#fffdfa;color:#777b73;font-size:13px;font-weight:650}.filter.active{background:#222520;color:#fff;border-color:#222520}.memory-list{display:flex;flex-direction:column;gap:14px}.memory-card{border:1px solid var(--line);background:var(--card);border-radius:17px;padding:22px 23px;display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:17px;align-items:start;cursor:pointer}.memory-card:hover{box-shadow:var(--shadow);border-color:#cfcbc2}.memory-icon{width:38px;height:38px;border-radius:12px;background:var(--greenSoft);color:#55765e;display:grid;place-items:center;font-weight:800}.memory-icon.warn{background:var(--amberSoft);color:#8e642f}.memory-icon.fail{background:var(--redSoft);color:#98564f}.memory-title{font-size:17px;font-weight:710}.memory-text{font-size:14px;line-height:1.65;color:#686c64;margin-top:8px}.memory-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;color:#8a8d85;font-size:12px}.memory-meta .sep{opacity:.45}.memory-tag{height:28px;padding:0 9px;border-radius:9px;background:#f0eee9;color:#73766f;display:inline-flex;align-items:center;font-size:12px}.memory-tag.ok{background:var(--greenSoft);color:#54785e}.memory-tag.review{background:var(--amberSoft);color:#8c622f}.memory-tag.fail{background:var(--redSoft);color:#94544f}.memory-date{font-size:12px;color:#9b9d97;white-space:nowrap}
+/* Governance */
+.approval-card{border:1px solid #dfd4c4;background:#fbf5ec;border-radius:18px;padding:24px;display:flex;align-items:center;gap:24px;margin-bottom:18px}.approval-kicker{font-size:12px;color:#956a35;font-weight:760;margin-bottom:8px}.approval-title{font-size:19px;font-weight:720}.approval-sub{font-size:14px;color:#70675d;margin-top:7px}.approval-impact{font-size:13px;color:#80786f;margin-top:9px}.approval-actions{margin-left:auto;display:flex;gap:8px;align-items:center}.evidence-box{display:none;margin:-8px 0 18px;padding:17px 20px;border:1px solid var(--line);border-radius:14px;background:#fffdfa;font-size:14px;color:#64675f;line-height:1.75}.evidence-box.open{display:block}.evidence-unknown{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);color:#777b73}.evidence-unknown strong{display:block;margin-bottom:4px;color:#5f635c}.section-label{margin:4px 0 10px;font-size:12px;font-weight:760;color:#8b8e86;letter-spacing:.04em}.policy-list{border:1px solid var(--line);background:var(--card);border-radius:17px;overflow:hidden}.policy-row{min-height:88px;padding:20px 22px;display:grid;grid-template-columns:160px minmax(0,1fr);gap:22px;align-items:center;border-bottom:1px solid var(--line)}.policy-row:last-child{border-bottom:0}.policy-level{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:720}.level-dot{width:10px;height:10px;border-radius:50%}.level-dot.allow{background:var(--green)}.level-dot.ask{background:var(--amber)}.level-dot.block{background:var(--red)}.policy-items{display:flex;gap:9px;flex-wrap:wrap}.policy-chip{height:32px;padding:0 11px;border:1px solid var(--line);border-radius:9px;background:#f9f8f4;display:inline-flex;align-items:center;color:#696d65;font-size:13px}.grant-card,.block-card{margin-top:18px;border:1px solid var(--line);background:var(--card);border-radius:16px;padding:19px 21px;display:flex;align-items:center;gap:18px}.grant-title,.block-title{font-size:15px;font-weight:720}.grant-meta,.block-meta{font-size:13px;color:#858880;margin-top:6px}.grant-card .btn{margin-left:auto}.block-card{border-color:#ead4d1;background:#fff9f8}.block-icon{width:38px;height:38px;border-radius:12px;background:var(--redSoft);color:#98564f;display:grid;place-items:center;font-weight:800}.block-card .btn{margin-left:auto}
+/* Evaluation */
+.result-card{border:1px solid var(--line);background:var(--card);border-radius:18px;padding:26px}.result-top{display:flex;align-items:center;gap:15px}.result-icon{width:45px;height:45px;border-radius:14px;background:var(--greenSoft);color:#567960;display:grid;place-items:center;font-size:20px;font-weight:800}.result-icon.blocked{background:var(--amberSoft);color:#8b612f}.result-title{font-size:22px;font-weight:740}.result-time{font-size:13px;color:#8c8f88;margin-top:5px}.result-summary{display:flex;gap:18px;flex-wrap:wrap;margin:20px 0 0;padding-top:18px;border-top:1px solid var(--line);font-size:14px;color:#666a62}.result-summary b{color:#333731}.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.check-item{min-height:48px;border:1px solid var(--line);border-radius:12px;background:#f8f7f3;display:flex;align-items:center;gap:9px;padding:0 14px;font-size:14px}.check-item i{font-style:normal;color:var(--green);font-weight:800}.history{margin-top:24px;border:1px solid var(--line);background:var(--card);border-radius:17px;overflow:hidden}.history-head{padding:17px 20px;border-bottom:1px solid var(--line);font-size:14px;font-weight:720}.history-row{min-height:68px;padding:0 20px;display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:18px;align-items:center;border-bottom:1px solid var(--line);cursor:pointer}.history-row:last-child{border-bottom:0}.history-row:hover{background:#fdfcf9}.history-row time{font-size:12px;color:#999b95}.history-title{font-size:15px;font-weight:650}.history-status{font-size:12px;font-weight:720}.history-status.ok{color:#577b61}.history-status.fail{color:#995953}.history-status.rollback{color:#80665a}.history-status.cancel{color:#7c7f78}
+/* Settings */
+.settings-grid{display:flex;flex-direction:column;gap:16px}.setting-card{border:1px solid var(--line);background:var(--card);border-radius:17px;overflow:hidden}.setting-head{min-height:64px;padding:0 21px;display:flex;align-items:center;border-bottom:1px solid var(--line)}.setting-title{font-size:17px;font-weight:720}.setting-status{margin-left:auto;color:#5f8068;background:var(--greenSoft);height:30px;padding:0 10px;border-radius:9px;display:flex;align-items:center;font-size:12px;font-weight:720}.setting-row{min-height:78px;padding:17px 21px;display:grid;grid-template-columns:180px minmax(0,1fr) auto;gap:18px;align-items:center;border-bottom:1px solid var(--line)}.setting-row:last-child{border-bottom:0}.setting-label{font-size:14px;font-weight:680}.setting-value{font-size:14px;color:#656961}.setting-sub{display:block;color:#93958f;font-size:12px;margin-top:4px}.local-path{font:13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#666a63;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.select{height:40px;border:1px solid var(--line);border-radius:10px;background:#fffdfa;padding:0 12px;color:#555950;outline:none}
+/* Modal / Drawer */
+.modal{position:fixed;inset:0;z-index:60;background:rgba(34,35,32,.28);display:none;align-items:center;justify-content:center;padding:24px}.modal.open{display:flex}.modal-box{width:min(540px,calc(100vw - 40px));background:#fffefa;border:1px solid var(--line);border-radius:20px;box-shadow:0 24px 70px rgba(34,35,32,.18);padding:24px}.modal-title{font-size:21px;font-weight:740;margin-bottom:10px}.modal-sub{font-size:14px;color:#747870;line-height:1.65;margin-bottom:18px}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}.modal-info{border:1px solid var(--line);border-radius:13px;background:#f8f7f3;padding:14px 15px;margin-top:12px;font-size:14px;line-height:1.7;color:#5f635b}.modal-info strong{color:#32362f}.modal-danger{border-color:#ead2ce;background:#fff8f7}.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,92vw);z-index:70;background:#fffefa;border-left:1px solid var(--line);box-shadow:-20px 0 60px rgba(34,35,32,.12);transform:translateX(102%);transition:.2s ease;padding:26px;overflow:auto}.drawer.open{transform:translateX(0)}.drawer-backdrop{position:fixed;inset:0;z-index:65;background:rgba(34,35,32,.22);display:none}.drawer-backdrop.open{display:block}.drawer-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:24px}.drawer-title{font-size:22px;font-weight:740;line-height:1.3}.drawer-close{margin-left:auto;width:38px;height:38px;border:1px solid var(--line);border-radius:11px;background:#fff}.detail-section{padding:18px 0;border-top:1px solid var(--line)}.detail-label{font-size:12px;color:#969891;margin-bottom:8px}.detail-text{font-size:15px;line-height:1.7;color:#4f534c}.detail-files{display:flex;flex-direction:column;gap:7px}.detail-file{font:13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#61655e}
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:90;background:#242722;color:#fff;padding:11px 15px;border-radius:11px;font-size:13px;opacity:0;pointer-events:none;transition:.18s}.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:900px){:root{--sidebar:210px}.page{width:calc(100% - 48px)}.topbar{padding:0 24px}.task-head,.tabs{padding-left:26px;padding-right:26px}.conversation{padding-left:26px;padding-right:26px}.recovery-banner{margin-left:26px;margin-right:26px}.composer-wrap{padding-left:24px;padding-right:24px}.check-grid{grid-template-columns:1fr}.policy-row{grid-template-columns:1fr}.setting-row{grid-template-columns:1fr}.setting-row .btn{justify-self:start}.approval-card{align-items:flex-start;flex-direction:column}.approval-actions{margin-left:0}.searchbar{width:250px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">M</div><div class="brand-name">Mentor</div></div>
+    <div class="project-card" id="projectCard">
+      <div class="project-label">当前项目</div>
+      <div class="project-name"><span class="project-dot"></span><span id="sideProjectName">SE-w-mentor</span></div>
+      <div class="project-meta" id="sideProjectMeta">本地 Git 项目 · main</div>
+      <button class="project-open" id="switchProject">切换项目</button>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="workbench"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg><b>工作台</b></button>
+      <button class="nav-item" data-view="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12v16H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><b>任务</b><span class="badge" id="taskBadge">3</span></button>
+      <button class="nav-item" data-view="memory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 5h14v14H5z"/><path d="M8 9h8M8 13h5"/></svg><b>记忆</b></button>
+      <button class="nav-item" data-view="governance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3l7 3v5c0 4.5-2.6 7.9-7 10-4.4-2.1-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg><b>治理</b><span class="badge" id="governanceBadge">1</span></button>
+      <button class="nav-item" data-view="evaluation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 19V9M12 19V5M19 19v-7"/></svg><b>评估</b></button>
+    </nav>
+    <div class="side-spacer"></div>
+    <div class="side-bottom">
+      <button class="nav-item" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.5 1A7 7 0 0 0 14.7 6L14 3h-4l-.7 3a7 7 0 0 0-1.7 1L5.1 6 3 9.4 5.1 11a7 7 0 0 0 0 2L3 14.6 5.1 18l2.5-1a7 7 0 0 0 1.7 1L10 21h4l.7-3a7 7 0 0 0 1.7-1l2.5 1 2.1-3.4-2.1-1.6c.1-.3.1-.7.1-1z"/></svg><b>设置</b></button>
+      <div class="profile"><div class="avatar">WW</div><div><strong>王雯</strong><small>本地工作区</small></div></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar"><div class="top-project" id="topProjectName">SE-w-mentor</div><div class="branch" id="topBranch">main</div><div class="top-spacer"></div><button class="btn dark small" id="newTop">＋ 新任务</button></header>
+
+    <section class="view active" id="view-workbench">
+      <div class="workbench" id="workbenchActive">
+        <div class="task-head">
+          <div class="task-name-wrap"><div class="task-state" id="activeState" aria-live="polite">等待你确认</div><div class="task-name" id="activeTitle">为用户模块增加 email 字段</div></div>
+          <!-- Proposal 阶段：停止任务即 Reject Proposal / Cancel Task，不新增第三个 Proposal 按钮。 -->
+          <div class="task-head-actions"><button class="btn small" id="stopTask" data-proposal-action="reject">停止任务</button></div>
+        </div>
+        <div class="recovery-banner hidden" id="recoveryBanner" role="status"><strong id="recoveryTitle">上次任务未正常结束</strong><span id="recoverySummary">发现 3 个未完成修改</span><button class="btn small" id="recoveryOpen">查看恢复选项</button></div>
+        <div class="action-error hidden" id="actionError" role="alert"><div><strong id="actionErrorTitle">无法继续执行</strong><span id="actionErrorText">当前任务需要处理后才能继续。</span></div><button class="btn small" id="actionErrorAction">查看检查</button></div>
+        <div class="tabs" role="tablist" aria-label="任务内容"><button class="tab active" id="tab-chat" role="tab" aria-selected="true" aria-controls="chat" tabindex="0" data-tab="chat">对话</button><button class="tab" id="tab-changes" role="tab" aria-selected="false" aria-controls="changes" tabindex="-1" data-tab="changes">改动</button><button class="tab" id="tab-checks" role="tab" aria-selected="false" aria-controls="checks" tabindex="-1" data-tab="checks">检查</button></div>
+        <div class="panel active" id="chat" role="tabpanel" aria-labelledby="tab-chat" aria-hidden="false"><div class="conversation" id="conversation"><div class="thread" id="thread"></div></div></div>
+        <div class="panel" id="changes" role="tabpanel" aria-labelledby="tab-changes" aria-hidden="true"><div class="simple-panel"><div class="simple-list" id="changesList"></div><div class="state-card hidden" id="changesEmpty"><div><strong>还没有代码改动</strong><span>确认修改方案后，改动会出现在这里。</span></div></div></div></div>
+        <div class="panel" id="checks" role="tabpanel" aria-labelledby="tab-checks" aria-hidden="true"><div class="simple-panel"><div class="simple-list" id="checksList"></div></div></div>
+      </div>
+      <div class="empty-workbench hidden" id="workbenchEmpty"><div><h2>今天想改什么？</h2><p>直接在下方输入需求即可开始。</p></div></div>
+      <div class="empty-workbench hidden" id="noProjectState"><div><h2>打开一个本地 Git 项目</h2><p>选择电脑上的项目后即可开始使用 Mentor。</p><button class="btn dark" style="margin-top:20px" id="openProjectEmpty">打开项目</button></div></div>
+      <div class="composer-wrap show" id="composerWrap"><div class="composer"><textarea id="composer" aria-label="任务输入" placeholder="告诉 Mentor 你想做什么…"></textarea><div class="composer-bottom"><button class="send" id="send" aria-label="发送消息">↑</button></div></div></div>
+    </section>
+
+    <section class="view" id="view-tasks"><div class="page">
+      <div class="page-head"><div class="page-title">任务</div><div class="page-actions"><input class="searchbar" id="taskSearch" aria-label="搜索任务" placeholder="搜索任务"/><button class="btn dark" id="newTaskBtn">＋ 新任务</button></div></div>
+      <div class="segment"><button class="seg-btn active" data-filter="all">全部</button><button class="seg-btn" data-filter="review">待你处理</button><button class="seg-btn" data-filter="run">进行中</button><button class="seg-btn" data-filter="done">已完成</button><button class="seg-btn" data-filter="closed">已结束</button></div>
+      <div class="task-list" id="taskList">
+        <div class="task-card" data-task="email" data-status="review" data-title="为用户模块增加 email 字段"><div><div class="task-card-title">为用户模块增加 email 字段</div><div class="task-card-meta">刚刚 · 等待确认修改方案</div></div><span class="status review">待确认</span></div>
+        <div class="task-card" data-task="auth" data-status="review" data-title="更新认证中间件"><div><div class="task-card-title">更新认证中间件</div><div class="task-card-meta">12 分钟前 · 等待你批准本次修改</div></div><span class="status review">等待授权</span></div>
+        <div class="task-card" data-task="login" data-status="review" data-title="优化登录流程"><div><div class="task-card-title">优化登录流程</div><div class="task-card-meta">今天 15:10 · 等待补充需求</div></div><span class="status review">需补充</span></div>
+        <div class="task-card" data-task="pagination" data-status="done" data-title="给订单接口补充分页"><div><div class="task-card-title">给订单接口补充分页</div><div class="task-card-meta">今天 14:41 · 检查已通过</div></div><span class="status done">已完成</span></div>
+        <div class="task-card" data-task="user-test" data-status="done" data-title="修复用户创建测试"><div><div class="task-card-title">修复用户创建测试</div><div class="task-card-meta">今天 13:55 · 检查已通过</div></div><span class="status done">已完成</span></div>
+        <div class="task-card" data-task="order-check" data-status="done" data-title="补充订单字段校验"><div><div class="task-card-title">补充订单字段校验</div><div class="task-card-meta">昨天 21:16 · 18 项检查通过</div></div><span class="status done">已完成</span></div>
+        <div class="task-card" data-task="failed" data-status="closed" data-title="升级支付回调校验"><div><div class="task-card-title">升级支付回调校验</div><div class="task-card-meta">昨天 19:12 · 检查未通过</div></div><span class="status failed">失败</span></div>
+        <div class="task-card" data-task="cancelled" data-status="closed" data-title="整理通知模块"><div><div class="task-card-title">整理通知模块</div><div class="task-card-meta">08-08 17:30 · 用户停止任务</div></div><span class="status cancel">已取消</span></div>
+        <div class="task-card" data-task="rollback" data-status="closed" data-title="调整订单状态字段"><div><div class="task-card-title">调整订单状态字段</div><div class="task-card-meta">08-08 13:02 · 本次修改已撤销</div></div><span class="status rollback">已回滚</span></div>
+      </div>
+      <div class="state-card hidden" id="taskEmpty"><div><strong>没有找到任务</strong><span>换一个关键词试试。</span></div></div>
+    </div></section>
+
+    <section class="view" id="view-memory"><div class="page">
+      <div class="page-head"><div class="page-title">项目记忆</div><div class="page-actions"><input class="searchbar" id="memorySearch" aria-label="搜索项目经验" placeholder="搜索项目经验"/></div></div>
+      <div class="memory-tools"><button class="filter memory-filter active" data-memory="all">全部</button><button class="filter memory-filter" data-memory="verified">已验证</button><button class="filter memory-filter" data-memory="review">需复核</button><button class="filter memory-filter" data-memory="failed">失败经验</button></div>
+      <div class="memory-list" id="memoryList">
+        <div class="memory-card" data-memory-status="verified" data-memory-title="数据库结构修改必须带迁移脚本" data-source="任务 #42" data-files="migrations/ · models/" data-trust="仍然可信"><div class="memory-icon">✓</div><div><div class="memory-title">数据库结构修改必须带迁移脚本</div><div class="memory-text">这个项目的数据库改动需要同时提交迁移脚本。</div><div class="memory-meta"><span class="memory-tag ok">已验证</span><span>来源：任务 #42</span><span class="sep">·</span><span>最后验证：2 天前</span></div></div><div class="memory-date">今天使用</div></div>
+        <div class="memory-card" data-memory-status="verified" data-memory-title="User.email 使用 EmailStr 校验" data-source="任务 #57" data-files="models/user.py · schemas/user.py" data-trust="仍然可信"><div class="memory-icon">✓</div><div><div class="memory-title">User.email 使用 EmailStr 校验</div><div class="memory-text">来自已经通过测试的用户模块修改。</div><div class="memory-meta"><span class="memory-tag ok">已验证</span><span>来源：任务 #57</span><span class="sep">·</span><span>最后验证：昨天</span></div></div><div class="memory-date">昨天更新</div></div>
+        <div class="memory-card" data-memory-status="review" data-memory-title="旧版订单接口仍返回 legacy_status" data-source="任务 #38" data-files="api/orders.py · schemas/order.py" data-trust="相关代码已变化"><div class="memory-icon warn">!</div><div><div class="memory-title">旧版订单接口仍返回 legacy_status</div><div class="memory-text">相关代码已变化，使用前需要重新确认。</div><div class="memory-meta"><span class="memory-tag review">需复核</span><span>来源：任务 #38</span><span class="sep">·</span><span>相关代码已变化</span></div></div><div class="memory-date">08-07</div></div>
+        <div class="memory-card" data-memory-status="failed" data-memory-title="直接改认证返回结构会导致契约测试失败" data-source="任务 #31" data-files="auth/middleware.py · tests/contract/" data-trust="失败经验"><div class="memory-icon fail">×</div><div><div class="memory-title">直接改认证返回结构会导致契约测试失败</div><div class="memory-text">后续修改需要同时更新接口契约。</div><div class="memory-meta"><span class="memory-tag fail">失败经验</span><span>来源：任务 #31</span><span class="sep">·</span><span>最后验证：08-06</span></div></div><div class="memory-date">08-06</div></div>
+      </div>
+      <div class="state-card hidden" id="memoryEmpty"><div><strong>还没有相关项目经验</strong><span>完成任务后，可靠经验会逐步沉淀在这里。</span></div></div>
+    </div></section>
+
+    <section class="view" id="view-governance"><div class="page">
+      <div class="page-head"><div class="page-title">治理</div></div>
+      <div class="section-label" id="approvalSectionLabel">待你处理</div>
+      <div class="approval-card" id="approvalCard"><div><div class="approval-kicker">需要你的确认</div><div class="approval-title">更新认证中间件</div><div class="approval-sub">这次修改会影响所有需要登录的接口。</div><div class="approval-impact">影响范围：12 个接口 · 4 个测试　<button class="btn link" id="showEvidence">查看依据</button></div></div><div class="approval-actions"><button class="btn" id="denyApproval">暂不允许</button><button class="btn dark" id="grantApproval">允许本次</button></div></div>
+      <div class="evidence-box" id="evidenceBox"><strong>主要依据</strong><br>auth/middleware.py 被 12 个受保护接口引用；相关改动会触发 4 个认证测试。<div class="evidence-unknown"><strong>还不能确认</strong>认证中间件是否被插件模块直接调用。</div></div>
+      <div class="policy-list">
+        <div class="policy-row"><div class="policy-level"><span class="level-dot allow"></span>自动允许</div><div class="policy-items"><span class="policy-chip">普通代码修改</span><span class="policy-chip">读取项目文件</span><span class="policy-chip">运行已配置测试</span></div></div>
+        <div class="policy-row"><div class="policy-level"><span class="level-dot ask"></span>需要确认</div><div class="policy-items"><span class="policy-chip">公共接口变化</span><span class="policy-chip">数据库迁移</span><span class="policy-chip">删除测试</span><span class="policy-chip">安装依赖</span></div></div>
+        <div class="policy-row"><div class="policy-level"><span class="level-dot block"></span>始终阻止</div><div class="policy-items"><span class="policy-chip">访问项目外文件</span><span class="policy-chip">读取密钥</span><span class="policy-chip">绕过测试</span><span class="policy-chip">危险删除</span></div></div>
+      </div>
+      <div class="grant-card"><div><div class="grant-title">本次授权</div><div class="grant-meta" id="grantMeta">暂无本次授权</div></div><button class="btn small" id="clearGrant">撤销授权</button></div>
+      <div class="section-label" style="margin-top:22px">最近阻止记录</div>
+      <div class="block-card"><div class="block-icon">×</div><div><div class="block-title">已阻止危险操作</div><div class="block-meta">尝试访问项目目录以外的文件 · Mentor 已停止该操作</div></div><button class="btn small" id="blockDetail">查看记录</button></div>
+    </div></section>
+
+    <section class="view" id="view-evaluation"><div class="page">
+      <div class="page-head"><div class="page-title">评估</div><button class="btn" id="fullRecord">查看完整记录</button></div>
+      <div class="result-card" id="resultCard"><div class="result-top"><div class="result-icon">✓</div><div><div class="result-title">最近一次任务已通过全部检查</div><div class="result-time">补充订单字段校验 · 昨天 21:16</div></div></div>
+        <div class="result-summary"><span><b>4</b> 个文件修改</span><span><b>18</b> 项检查通过</span><span>没有超出已确认范围</span></div>
+        <div class="check-grid"><div class="check-item"><i>✓</i>需求已满足</div><div class="check-item"><i>✓</i>相关测试已通过</div><div class="check-item"><i>✓</i>修改没有超出范围</div><div class="check-item"><i>✓</i>没有待处理确认</div></div>
+      </div>
+      <div class="history"><div class="history-head">最近结果</div>
+        <div class="history-row" data-task="order-check"><time>昨天 21:16</time><div class="history-title">补充订单字段校验</div><div class="history-status ok">已通过</div></div>
+        <div class="history-row" data-task="failed"><time>昨天 19:12</time><div class="history-title">升级支付回调校验</div><div class="history-status fail">未通过</div></div>
+        <div class="history-row" data-task="rollback"><time>08-08 13:02</time><div class="history-title">调整订单状态字段</div><div class="history-status rollback">已回滚</div></div>
+        <div class="history-row" data-task="cancelled"><time>08-08 10:22</time><div class="history-title">整理通知模块</div><div class="history-status cancel">已取消</div></div>
+      </div>
+    </div></section>
+
+    <section class="view" id="view-settings"><div class="page">
+      <div class="page-head"><div class="page-title">设置</div></div>
+      <div class="settings-grid">
+        <div class="setting-card"><div class="setting-head"><div class="setting-title">模型与凭据</div><div class="setting-status" id="credentialStatus">已配置</div></div>
+          <div class="setting-row"><div class="setting-label">OpenAI</div><div class="setting-value" id="credentialValue">凭据已配置<span class="setting-sub" id="credentialSource">Windows 凭据管理器</span></div><div class="page-actions"><button class="btn small" id="updateCredential">更新</button><button class="btn small danger" id="deleteCredential">删除</button></div></div>
+          <div class="setting-row"><div class="setting-label">模型策略</div><div class="setting-value"><select class="select" aria-label="模型策略"><option>自动选择（推荐）</option></select><span class="setting-sub">由当前配置决定使用的模型</span></div><span></span></div>
+        </div>
+        <div class="setting-card"><div class="setting-head"><div class="setting-title">本地项目</div></div><div class="setting-row"><div class="setting-label">当前目录</div><div class="local-path" id="settingsProjectPath">C:\Users\ww\Desktop\SE-w-mentor</div><button class="btn small" id="openProjectSettings">打开其他项目</button></div></div>
+      </div>
+    </div></section>
+  </main>
+</div>
+
+<div class="modal" id="stopModal" data-static="true" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="stopModalTitle"><div class="modal-box"><div class="modal-title" id="stopModalTitle">任务已停止</div><div class="modal-sub" id="stopSub">本次已修改 3 个文件。</div><div class="modal-info" id="stopInfo">你可以保留当前改动，也可以回滚本次任务产生的修改。</div><div class="modal-actions"><button class="btn" id="keepChanges">保留当前改动</button><button class="btn danger" id="rollbackChanges">回滚本次修改</button></div></div></div>
+<div class="modal" id="recoveryModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="recoveryModalTitle"><div class="modal-box"><div class="modal-title" id="recoveryModalTitle">恢复上次任务</div><div class="modal-sub" id="recoveryModalSub">发现 3 个未完成修改。</div><div class="modal-info" id="recoveryCurrent"><strong>当前状态</strong><br>2 个文件可以安全恢复；1 个文件检测到外部修改，不能自动覆盖。</div><div class="modal-info modal-danger">检测到外部修改时，Mentor 不会提供强制覆盖。</div><div class="modal-actions"><button class="btn" data-close="recoveryModal">稍后处理</button><button class="btn" id="recheckRecovery">重新检查</button><button class="btn dark" id="safeRollback">安全回滚可恢复部分</button></div></div></div>
+<div class="modal" id="projectModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="projectModalTitle"><div class="modal-box"><div class="modal-title" id="projectModalTitle">打开本地项目</div><div class="modal-sub">选择电脑上的 Git 项目。</div><div class="modal-info">C:\Users\ww\Desktop\SE-w-mentor</div><div class="modal-actions"><button class="btn" data-close="projectModal">取消</button><button class="btn dark" id="chooseProject">选择项目</button></div></div></div>
+<div class="modal" id="credentialModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="credentialModalTitle"><div class="modal-box"><div class="modal-title" id="credentialModalTitle">更新 OpenAI 凭据</div><div class="modal-sub">输入新的凭据。Mentor 不会显示或读取已保存的旧凭据。</div><input class="searchbar" style="width:100%" type="password" id="credentialInput" aria-label="新的 OpenAI API Key" autocomplete="new-password" placeholder="输入新的 API Key"/><div class="modal-actions"><button class="btn" data-close="credentialModal">取消</button><button class="btn dark" id="saveCredential">保存</button></div></div></div>
+<div class="modal" id="recordModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="recordModalTitle"><div class="modal-box"><div class="modal-title" id="recordModalTitle">完整记录</div><div class="modal-sub">补充订单字段校验</div><div class="modal-info"><strong>修改</strong>　4 个文件<br><strong>检查</strong>　18 项通过<br><strong>修正</strong>　1 次<br><strong>确认</strong>　无待处理项<br><strong>结果</strong>　可以完成</div><div class="modal-actions"><button class="btn dark" data-close="recordModal">关闭</button></div></div></div>
+<div class="modal" id="blockModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="blockModalTitle"><div class="modal-box"><div class="modal-title" id="blockModalTitle">已阻止危险操作</div><div class="modal-sub">尝试访问项目目录以外的文件。</div><div class="modal-info modal-danger">Mentor 已停止该操作。此类限制不能通过“允许本次”绕过。</div><div class="modal-actions"><button class="btn dark" data-close="blockModal">知道了</button></div></div></div>
+<div class="drawer-backdrop" id="drawerBackdrop"></div><aside class="drawer" id="memoryDrawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="drawerTitle" tabindex="-1"><div class="drawer-head"><div><div class="drawer-title" id="drawerTitle">项目经验</div></div><button class="drawer-close" id="drawerClose" aria-label="关闭项目记忆详情">×</button></div><div class="detail-section"><div class="detail-label">内容</div><div class="detail-text" id="drawerText"></div></div><div class="detail-section"><div class="detail-label">来源</div><div class="detail-text" id="drawerSource"></div></div><div class="detail-section"><div class="detail-label">关联文件</div><div class="detail-files" id="drawerFiles"></div></div><div class="detail-section"><div class="detail-label">当前可信度</div><div class="detail-text" id="drawerTrust"></div></div></aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!--
+CANONICAL INTEGRATION CONTRACT (T093–T099)
+1. This HTML is the source of truth for UI/UX, information architecture, client-visible states, wording, and interaction presentation only.
+2. The production React client MUST NOT copy this prototype JavaScript as the authoritative task / lock / governance / recovery state machine. Backend Harness services and REST/SSE state are authoritative for business lifecycle, safety policy, locks, transactions, approvals, validation, and recovery.
+3. All example task data, file paths, counts, evidence, diffs, timings, and setTimeout flows below are fixtures for static demonstration only. Production components MUST render values returned by T086–T092 APIs and SSE; do not promote demo constants or diffSummary() branching into production business logic.
+4. Production task, memory, governance, evaluation, approval, recovery, lock, and SSE state MUST be scoped by projectId. Switching the viewed project MUST NOT reassign, merge, or leak state from another project; background work remains owned by its original project.
+5. Governance approval / TemporaryGrant authorizes only the approved scope; it does NOT grant concurrent WRITE ownership. Production execution MUST still wait for the backend project WRITE lock before any side effect.
+6. If user input expands scope while a task is waiting for WRITE ownership, production React MUST NOT append that scope under the old proposal/grant. Render the backend result of proposal invalidation, re-impact, re-governance, and renewed confirmation/approval as required.
+7. Prototype executionToken and writerOwned fields below only demonstrate client-visible timing. Production WRITE ownership and safe-point release MUST come from backend Harness lock/transaction state.
+8. Cancel request MUST stop future AgentActions/callbacks without releasing backend WRITE ownership. WRITE ownership is released only after Keep/Rollback/Recovery reaches a safe transaction endpoint.
+9. TemporaryGrant is task-scoped and MUST be invalidated for every terminal task state (completed, failed, cancelled, rolled back); terminal UI must never present an active grant.
+10. Credential input is transient secret material: production UI MUST NOT persist it in ordinary client state, logs, DOM after modal close, or re-rendered values.
+11. Scope expansion / replan may invalidate future AgentActions, but production MUST NOT release backend WRITE ownership until the Harness reaches a safe point and records the current transaction/change state.
+12. Once a task owns WRITE, revoking an approval MUST NOT be implemented as a client-side grant clear plus lock release. The user must stop the task and complete the backend cancel/keep/rollback safe-point flow.
+13. Credential UI MUST reject empty input and MUST mark credentials configured only after the backend credential write succeeds.
+-->
+<script>
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const composerWrap=$('#composerWrap'),composer=$('#composer'),thread=$('#thread'),conversation=$('#conversation');
+let currentTask='email'; // 仅表示当前正在查看的任务，不代表后台正在执行的任务（V7.5 freeze candidate）
+const project={id:'project-se-w-mentor',loaded:true,name:'SE-w-mentor',branch:'main',path:'C:\\Users\\ww\\Desktop\\SE-w-mentor'};
+let credentialConfigured=true;
+const recoveryState={active:false,total:3,safe:2,conflicts:1};
+let lastFocused=null;
+
+const tasks={
+  email:{title:'为用户模块增加 email 字段',state:'等待你确认',stateTone:'amber',mode:'proposal',changed:false,messages:[
+    ['user','给用户模块增加 email 字段，并补充测试。','15:02'],
+    ['agent','可以。我先把这次修改范围整理给你确认。','15:02']
+  ],proposal:{goal:'增加用户 email 字段',items:['同步接口校验','补充相关测试'],files:'4 个文件',risk:'无高风险操作'},changes:[],plannedChanges:[['models/user.py','已修改',4,1],['schemas/user.py','已修改',6,0],['services/user_service.py','已修改',3,1],['tests/test_user.py','已修改',12,0]],checks:[['需求是否满足','等待','waiting'],['相关测试','等待','waiting'],['修改是否超出范围','等待','waiting'],['是否还有待处理确认','需处理','action']]},
+  auth:{title:'更新认证中间件',state:'等待你授权',stateTone:'amber',mode:'approval',approvalRequired:true,grant:null,changed:false,messages:[['user','更新认证中间件，兼容新的登录状态。','14:50'],['agent','这次修改会影响所有需要登录的接口，需要你先确认本次授权。','14:51']],changes:[],plannedChanges:[['auth/middleware.py','已修改',7,2],['tests/test_auth.py','已修改',8,1]],checks:[['需求是否满足','等待','waiting'],['相关测试','等待','waiting'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','需处理','action']]},
+  login:{title:'优化登录流程',state:'需要你补充',stateTone:'amber',mode:'needs',changed:false,messages:[['user','帮我优化一下登录。','15:10'],['agent','我还需要确认一个问题。','15:10']],question:'你希望优先优化登录速度、安全性，还是登录交互？',changes:[],checks:[['需求是否满足','等待补充','action'],['相关测试','等待','waiting'],['修改是否超出范围','等待','waiting'],['是否还有待处理确认','需处理','action']]},
+  pagination:{title:'给订单接口补充分页',state:'已完成',stateTone:'green',mode:'done',changed:true,messages:[['user','给订单列表接口补充分页，保持现有返回结构。','14:32'],['agent','分页修改已经完成，相关检查均已通过。','14:41']],changes:[['api/orders.py','已修改',8,2],['services/order_service.py','已修改',6,1],['tests/test_orders.py','已修改',14,0]],checks:[['需求是否满足','已通过','passed'],['相关测试','已通过','passed'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已通过','passed']]},
+  'user-test':{title:'修复用户创建测试',state:'已完成',stateTone:'green',mode:'done',changed:true,messages:[['user','修复用户创建相关测试。','13:48'],['agent','第一次检查没有通过，我已经修正问题；重新检查后已经通过。','13:55']],changes:[['schemas/user.py','已修改',2,1],['tests/test_user.py','已修改',7,2]],checks:[['需求是否满足','已通过','passed'],['相关测试','已通过','passed'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已通过','passed']]},
+  'order-check':{title:'补充订单字段校验',state:'已完成',stateTone:'green',mode:'done',changed:true,messages:[['user','给订单创建接口补充字段校验。','昨天 21:02'],['agent','已经完成，所有必要检查都通过了。','昨天 21:16']],changes:[['schemas/order.py','已修改',5,1],['tests/test_orders.py','已修改',11,0],['api/orders.py','已修改',2,0],['docs/api.md','已修改',3,1]],checks:[['需求是否满足','已通过','passed'],['相关测试','已通过','passed'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已通过','passed']]},
+  failed:{title:'升级支付回调校验',state:'失败',stateTone:'red',mode:'failed',changed:true,error:{title:'检查无法完成',text:'本次修改仍然保留，任务不会标记为完成。你可以查看未通过的检查。',action:'查看检查'},messages:[['user','升级支付回调签名校验。','昨天 18:50'],['agent','检查仍未通过，这次任务已经停止，没有继续扩大修改范围。','昨天 19:12']],changes:[['payment/callback.py','已修改',9,4],['tests/test_payment.py','已修改',6,2]],checks:[['需求是否满足','未通过','failed'],['相关测试','未通过','failed'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已通过','passed']]},
+  cancelled:{title:'整理通知模块',state:'已取消',stateTone:'muted',mode:'cancelled',changed:false,messages:[['user','整理通知模块。','08-08 17:22'],['agent','任务已停止，尚未修改文件。','08-08 17:30']],changes:[],checks:[['需求是否满足','未完成','failed'],['相关测试','未运行','waiting'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已通过','passed']]},
+  rollback:{title:'调整订单状态字段',state:'已回滚',stateTone:'muted',mode:'rollback',changed:false,messages:[['user','调整订单状态字段命名。','08-08 12:40'],['agent','已按你的选择回滚本次修改。','08-08 13:02']],changes:[],checks:[['需求是否满足','未完成','failed'],['相关测试','已停止','waiting'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已通过','passed']]}
+};
+
+function stateColor(tone){return tone==='blue'?'var(--blue)':tone==='green'?'var(--green)':tone==='red'?'var(--red)':tone==='muted'?'var(--muted)':'var(--amber)'}
+const TERMINAL_MODES=new Set(['done','failed','cancelled','rollback']);
+function isTerminal(t){return !!t&&TERMINAL_MODES.has(t.mode)}
+function newExecutionToken(){return (globalThis.crypto&&typeof crypto.randomUUID==='function')?crypto.randomUUID():`run-${Date.now()}-${Math.random().toString(36).slice(2)}`}
+function beginTaskRun(t,{writer=false}={}){t.cancelPending=false;t.executionGeneration=(t.executionGeneration||0)+1;t.executionToken=newExecutionToken();if(writer)t.writerOwned=true;return t.executionToken}
+function taskRunActive(t,token){return !!t&&t.executionToken===token&&!isTerminal(t)&&!t.cancelPending}
+function releaseWaitingTasks(releasedTaskId){
+  if(!releasedTaskId)return;
+  Object.entries(tasks).forEach(([id,t])=>{
+    if(!t||t.writeBlockedBy!==releasedTaskId)return;
+    t.writeBlockedBy=null;t.error=null;
+    if(t.mode==='write-wait'&&t.grant?.active&&!t.approvalRequired){
+      if(!t.messages.some(m=>m[1]?.includes('项目现在可用')))t.messages.push(['agent','前一个修改任务已经结束，项目现在可用。我会继续执行已授权的修改。',now()]);
+      updateTaskCard(id);refreshViewedTask(id);
+      setTimeout(()=>startApprovedExecution(id),0);
+      return;
+    }
+    if(t.mode==='proposal'){t.state='等待你确认';t.stateTone='amber'}
+    if(!t.messages.some(m=>m[1]?.includes('前一个修改任务已经结束')))t.messages.push(['agent','前一个修改任务已经结束，现在可以继续确认这个方案。',now()]);
+    updateTaskCard(id);refreshViewedTask(id);
+  });
+}
+function invalidateTaskRun(t){
+  if(!t)return;
+  // 仅使旧异步回调失效；WRITE ownership 必须等事务进入安全终点后单独释放。
+  t.executionToken=null;t.executionGeneration=(t.executionGeneration||0)+1;
+}
+function releaseWriter(taskId){
+  const t=tasks[taskId];if(!t)return;
+  const owned=!!t.writerOwned;t.writerOwned=false;
+  if(owned)releaseWaitingTasks(taskId);
+}
+function writeBlocked(){return recoveryState.active}
+function viewedTask(){return currentTask?tasks[currentTask]:null}
+function needsUserAttention(t){return !!t&&((t.mode==='proposal'&&!t.writeBlockedBy)||t.mode==='needs'||t.mode==='approval'||(t.mode==='paused'&&t.approvalRequired))}
+function renderBadges(){
+  const taskCount=Object.values(tasks).filter(needsUserAttention).length+(recoveryState.active?1:0);
+  const governanceCount=Object.values(tasks).filter(t=>t&&(t.mode==='approval'||(t.mode==='paused'&&t.approvalRequired))).length;
+  const taskBadge=$('#taskBadge'),governanceBadge=$('#governanceBadge');
+  if(taskBadge){taskBadge.textContent=String(taskCount);taskBadge.classList.toggle('hidden',taskCount===0)}
+  if(governanceBadge){governanceBadge.textContent=String(governanceCount);governanceBadge.classList.toggle('hidden',governanceCount===0)}
+}
+function taskCardPresentation(t){
+  let bucket='run',cls='run',label=t.state,detail=t.state;
+  if(t.mode==='proposal'&&t.writeBlockedBy){bucket='run';cls='paused';label='等待中';detail='等待项目写入任务结束'}
+  else if(t.mode==='proposal'){bucket='review';cls='review';label='待确认';detail='等待确认修改方案'}
+  else if(t.mode==='needs'){bucket='review';cls='review';label='需补充';detail='等待补充需求'}
+  else if(t.mode==='approval'){bucket='review';cls='review';label='等待授权';detail='等待你批准本次修改'}
+  else if(t.mode==='paused'&&t.approvalRequired){bucket='review';cls='paused';label='已暂停';detail='本次授权暂未通过'}
+  else if(t.mode==='draft'||t.mode==='revising'||t.mode==='replanning'){bucket='run';cls='run';label='整理中';detail=t.state}
+  else if(t.mode==='write-wait'){bucket='run';cls='paused';label='等待中';detail=t.grant?.active?'已授权 · 等待项目可用':'等待项目写入任务结束'}
+  else if(t.mode==='done'){bucket='done';cls='done';label='已完成';detail='检查已通过'}
+  else if(t.mode==='failed'){bucket='closed';cls='failed';label='失败';detail='检查未通过'}
+  else if(t.mode==='cancelled'){bucket='closed';cls='cancel';label='已取消';detail=t.changed?'任务已停止，当前修改已保留':'任务已停止'}
+  else if(t.mode==='rollback'){bucket='closed';cls='rollback';label='已回滚';detail='本次修改已撤销'}
+  else if(t.state==='检查中'){bucket='run';cls='checking';label='检查中';detail='正在检查'}
+  else{bucket='run';cls='run';label='进行中';detail=t.state}
+  return {bucket,cls,label,detail};
+}
+function ensureTaskCard(id){
+  let c=$(`.task-card[data-task="${id}"]`);if(c)return c;
+  const t=tasks[id];if(!t)return null;
+  c=document.createElement('div');c.className='task-card';c.dataset.task=id;c.dataset.title=t.title;
+  c.innerHTML='<div><div class="task-card-title"></div><div class="task-card-meta"></div></div><span class="status"></span>';
+  $('#taskList').prepend(c);activateKeyboard(c,()=>{renderTask(id);showToast('已打开任务')});
+  return c;
+}
+function activeWriterTask(excludeId){return Object.entries(tasks).find(([id,t])=>id!==excludeId&&t&&t.writerOwned&&!isTerminal(t))||null}
+function showWriteLockConflict(taskId,blockingId){
+  const t=tasks[taskId],blocking=tasks[blockingId];if(!t||!blocking)return;
+  t.mode='proposal';t.writeBlockedBy=blockingId;t.state='等待项目可用';t.stateTone='amber';t.error={title:'当前项目正在执行另一个修改任务',text:`任务“${blocking.title}”正在修改项目。这个任务会在前一个任务结束后才能继续。`,action:'查看正在执行的任务',actionTask:blockingId};
+  if(!t.messages.some(m=>m[1]?.includes('已有一个修改任务正在执行')))t.messages.push(['agent','当前项目已有一个修改任务正在执行。我会先等待，不会同时修改项目。',now()]);updateTaskCard(taskId);refreshViewedTask(taskId);
+}
+function makeProposalFromNeed(t,text){
+  const security=/安全|认证|权限|会话|密码/.test(text);
+  return security?{goal:'提升登录安全性',items:['检查认证与会话处理','保持现有登录接口兼容','补充安全相关测试'],files:'预计 4 个文件',risk:'可能涉及认证逻辑，需要确认范围'}:{goal:`优化登录流程：${text.length>22?text.slice(0,22)+'…':text}`,items:['确认当前登录链路','只修改与目标直接相关的部分','补充对应测试'],files:'预计 3–4 个文件',risk:'暂无高风险操作'};
+}
+function reviseProposal(t,text){
+  const current=t.proposal||{goal:t.title,items:[],files:'待确认',risk:'待确认'};
+  const optional=/可选|非必填|不必填/.test(text);
+  return {goal:optional?current.goal.replace('增加用户 email 字段','增加可选的用户 email 字段'):current.goal,items:optional?['email 改为可选字段',...current.items.filter(x=>!x.includes('可选'))]:[...current.items,`补充要求：${text.replace(/^我想调整一下修改方案[:：]?\s*/,'').slice(0,32)}`],files:current.files,risk:current.risk};
+}
+function makeScopeExpansionProposal(t,text){
+  const existing=(t.changes||[]).length,mentionsPayment=/支付|payment/i.test(text);
+  t.scopeBaseChanges=(t.changes||[]).map(x=>[...x]);
+  t.plannedChanges=mentionsPayment?[...t.scopeBaseChanges,['payment/callback.py','已修改',5,1]]:[...t.scopeBaseChanges,['相关模块文件','已修改',4,1]];
+  t.resumeFromScopeExpansion=true;
+  return {goal:`在当前任务中加入：${text.length>24?text.slice(0,24)+'…':text}`,items:['保留当前已完成的修改','重新确认新增影响范围','必要时重新请求授权'],files:`预计 ${Math.max(existing+1,2)} 个文件以上`,risk:'修改范围已扩大，需要重新确认'};
+}
+function renderWriteAvailability(){
+  const blocked=writeBlocked(),t=viewedTask(),terminal=isTerminal(t),stopping=!!t?.cancelPending;
+  const newTaskUnavailable=!project.loaded||blocked||stopping;
+  const composerUnavailable=!project.loaded||blocked||terminal||stopping;
+  $('#newTop').disabled=newTaskUnavailable;
+  $('#newTaskBtn').disabled=newTaskUnavailable;
+  $('#send').disabled=composerUnavailable;
+  composer.disabled=composerUnavailable;
+  if(blocked)composer.placeholder='请先处理上次未完成任务后再开始新的修改。';
+  else if(terminal)composer.placeholder='这个任务已经结束，如需继续修改，请创建新任务。';
+  else if(stopping)composer.placeholder='请先完成停止任务的处理。';
+  else if(t?.awaitingProposalAdjustment)composer.placeholder='告诉 Mentor 你想怎么调整方案…';
+  else composer.placeholder='告诉 Mentor 你想做什么…';
+  const confirm=$('#confirmProposal'),adjust=$('#adjustProposal');
+  if(confirm)confirm.disabled=blocked||terminal||stopping||!!t?.awaitingProposalAdjustment;
+  if(adjust)adjust.disabled=blocked||terminal||stopping;
+  $('#switchProject').disabled=blocked;
+  $('#openProjectSettings').disabled=blocked;
+  $('#openProjectEmpty').disabled=blocked;
+  $('#chooseProject').disabled=blocked;
+  renderBadges();
+  renderGovernance();
+}
+function switchView(name){
+  $$('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${name}`));
+  $$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===name));
+  composerWrap.classList.toggle('show',name==='workbench'&&project.loaded);
+  if(name==='governance')renderGovernance();
+  renderWriteAvailability();
+}
+$$('.nav-item').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
+function switchTab(name,{focus=false}={}){
+  $$('.tab').forEach(x=>{const active=x.dataset.tab===name;x.classList.toggle('active',active);x.setAttribute('aria-selected',String(active));x.tabIndex=active?0:-1;if(active&&focus)x.focus()});
+  $$('.panel').forEach(x=>{const active=x.id===name;x.classList.toggle('active',active);x.setAttribute('aria-hidden',String(!active))});
+}
+$$('.tab').forEach(b=>{b.addEventListener('click',()=>switchTab(b.dataset.tab));b.addEventListener('keydown',e=>{const tabs=$$('.tab'),i=tabs.indexOf(b);let next=null;if(e.key==='ArrowRight')next=(i+1)%tabs.length;if(e.key==='ArrowLeft')next=(i-1+tabs.length)%tabs.length;if(e.key==='Home')next=0;if(e.key==='End')next=tabs.length-1;if(next!==null){e.preventDefault();switchTab(tabs[next].dataset.tab,{focus:true})}})});
+
+function msg(role,text,time,extra=''){return `<article class="message ${role}"><div class="msg-avatar">${role==='user'?'WW':'M'}</div><div class="msg-wrap"><div class="msg-role">${role==='user'?'你':'Mentor'} <span class="msg-time">${time}</span></div><div class="msg-body"><p>${escapeHtml(text)}</p>${extra}</div></div></article>`}
+function proposalHtml(p){return `<div class="proposal" id="proposalCard"><div class="proposal-head">修改方案</div><div class="proposal-main"><div class="proposal-goal">${escapeHtml(p.goal)}</div></div><div class="proposal-list">${p.items.map(x=>`<div class="proposal-row"><span class="proposal-dot"></span>${escapeHtml(x)}</div>`).join('')}</div><div class="proposal-meta"><span>预计影响：<b>${escapeHtml(p.files)}</b></span><span>风险：<b>${escapeHtml(p.risk)}</b></span></div><div class="proposal-foot"><span class="hint">确认后 Mentor 才会开始修改</span><button class="btn small" id="adjustProposal">调整方案</button><button class="btn dark small" id="confirmProposal">确认并继续</button></div></div>`}
+function progressHtml(items){return `<div class="progress-list">${items.map((x,i)=>`<div class="progress-row"><span class="progress-dot ${i===items.length-1?'active':''}"></span>${escapeHtml(x)}</div>`).join('')}</div>`}
+function renderActionError(t){const box=$('#actionError');if(t?.error){box.classList.remove('hidden');$('#actionErrorTitle').textContent=t.error.title;$('#actionErrorText').textContent=t.error.text;$('#actionErrorAction').textContent=t.error.action||'查看详情';}else{box.classList.add('hidden')}}
+function paintTask(id){
+  const t=tasks[id];if(!t)return;
+  $('#workbenchEmpty').classList.add('hidden');$('#noProjectState').classList.add('hidden');$('#workbenchActive').classList.remove('hidden');
+  $('#activeTitle').textContent=t.title;$('#activeState').textContent=t.state;$('#activeState').style.color=stateColor(t.stateTone);
+  const stop=$('#stopTask');stop.classList.toggle('hidden',isTerminal(t));stop.setAttribute('aria-label',t.mode==='proposal'?'停止任务并拒绝修改方案':'停止任务');stop.title=t.mode==='proposal'?'停止任务（拒绝修改方案）':'停止任务';
+  let html=t.messages.map((m,i)=>{let extra='';if(i===t.messages.length-1&&t.mode==='proposal')extra=proposalHtml(t.proposal);if(i===t.messages.length-1&&t.mode==='needs')extra=`<div class="need-card"><div class="need-title">需要你补充</div><div class="need-question">${escapeHtml(t.question)}</div></div>`;if(i===t.messages.length-1&&t.mode==='progress')extra=progressHtml(t.progress||[]);return msg(...m,extra)}).join('');
+  thread.innerHTML=html;renderActionError(t);renderChanges(t);renderChecks(t);bindDynamicTaskButtons();renderWriteAvailability();
+  if($('#view-workbench').classList.contains('active'))conversation.scrollTop=conversation.scrollHeight;
+}
+function renderTask(id){if(!tasks[id])return;currentTask=id;switchView('workbench');paintTask(id)}
+function refreshViewedTask(id){if(currentTask===id)paintTask(id)}
+function diffSummary(path,plus,minus){const p=path.toLowerCase();let lines;if(p.includes('payment'))lines=['更新回调校验','调整失败处理','同步相关测试'];else if(p.includes('auth'))lines=['调整认证逻辑','保持现有接口约束','同步认证检查'];else if(p.includes('order'))lines=['补充字段处理','同步接口逻辑','更新相关测试'];else if(p.includes('user')||p.includes('email'))lines=['补充字段校验','同步保存逻辑','更新相关测试'];else lines=['更新相关实现','同步调用逻辑','调整对应检查'];return `<span>@@ 修改 ${plus+minus} 行</span>\n${lines.map(x=>`<span class="diff-add">+ ${escapeHtml(x)}</span>`).join('\n')}`}
+function renderChanges(t){const list=$('#changesList'),empty=$('#changesEmpty');if(!t.changes.length){list.classList.add('hidden');empty.classList.remove('hidden');return}list.classList.remove('hidden');empty.classList.add('hidden');list.innerHTML=t.changes.map((f,i)=>`<div><div class="simple-row file-row" role="button" tabindex="0" aria-expanded="false" data-diff="diff-${i}"><span class="file-dot"></span><strong>${escapeHtml(f[0])}</strong><span class="row-spacer"></span><span class="file-state">${escapeHtml(f[1])}</span><span class="diff-stat"><span class="plus">+${f[2]}</span> <span class="minus">-${f[3]}</span></span></div><div class="diff-box" id="diff-${i}">${diffSummary(f[0],f[2],f[3])}</div></div>`).join('');$$('.file-row',list).forEach(r=>activateKeyboard(r,()=>{const box=$('#'+r.dataset.diff),open=box.classList.toggle('open');r.setAttribute('aria-expanded',String(open))}))}
+function renderChecks(t){$('#checksList').innerHTML=t.checks.map(c=>`<div class="simple-row"><strong>${escapeHtml(c[0])}</strong><span class="check-status ${c[2]}">${escapeHtml(c[1])}</span></div>`).join('')}
+function appendTaskMessage(taskId,role,text){const t=tasks[taskId];if(!t)return;t.messages.push([role,text,now()]);refreshViewedTask(taskId)}
+function beginProposalExecution(taskId){
+  const t=tasks[taskId];if(!t||t.mode!=='proposal'||writeBlocked()||isTerminal(t))return;
+  const writer=activeWriterTask(taskId);if(writer){showWriteLockConflict(taskId,writer[0]);return}
+  t.writeBlockedBy=null;t.error=null;const token=beginTaskRun(t,{writer:true}),resuming=!!t.resumeFromScopeExpansion,baseChanges=resuming?(t.scopeBaseChanges||t.changes||[]).map(x=>[...x]):[];
+  t.error=null;t.mode='progress';t.state=resuming?'正在重新评估':'正在分析';t.stateTone='blue';t.progress=[resuming?'正在重新确认影响范围':'正在分析相关文件'];
+  if(!resuming){t.changed=false;t.changes=[]}
+  t.checks=[['需求是否满足','检查中','running'],['相关测试','等待','waiting'],['修改是否超出范围','等待','waiting'],['是否还有待处理确认','已通过','passed']];
+  t.messages.push(['agent',resuming?'好的。我会先重新确认新增范围，再继续修改。':'好的。我先确认相关文件和影响范围。',now()]);updateTaskCard(taskId);refreshViewedTask(taskId);showToast(resuming?'已确认新的修改范围':'已确认修改方案');
+  setTimeout(()=>{if(!taskRunActive(t,token))return;t.progress=[resuming?'正在重新确认影响范围':'正在分析相关文件','已确认影响范围'];t.state='正在处理';t.stateTone='blue';t.messages.push(['agent','影响范围已经确认，准备继续修改。',now()]);updateTaskCard(taskId);refreshViewedTask(taskId)},650);
+  setTimeout(()=>{if(!taskRunActive(t,token))return;const planned=(t.plannedChanges||[]).map(x=>[...x]);if(resuming){const merged=new Map(baseChanges.map(x=>[x[0],x]));planned.forEach(x=>merged.set(x[0],x));t.changes=[...merged.values()]}else t.changes=planned;t.changed=t.changes.length>0;t.progress=[resuming?'正在重新确认影响范围':'正在分析相关文件','已确认影响范围',`正在修改 ${t.changes.length} 个文件`];t.messages.push(['agent',`已经开始修改 ${t.changes.length} 个文件。`,now()]);t.resumeFromScopeExpansion=false;t.scopeBaseChanges=null;updateTaskCard(taskId);refreshViewedTask(taskId)},1300);
+  setTimeout(()=>{if(!taskRunActive(t,token))return;t.state='检查中';t.stateTone='blue';t.progress=['已完成代码修改','正在运行必要检查'];t.checks=[['需求是否满足','检查中','running'],['相关测试','检查中','running'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已通过','passed']];t.messages.push(['agent','代码修改完成，正在运行必要检查。',now()]);updateTaskCard(taskId);refreshViewedTask(taskId)},2200);
+  setTimeout(()=>{if(!taskRunActive(t,token))return;invalidateTaskRun(t);t.mode='done';t.state='已完成';t.stateTone='green';t.progress=[];t.checks=[['需求是否满足','已通过','passed'],['相关测试','已通过','passed'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已通过','passed']];t.messages.push(['agent','所有必要检查已通过，这个任务已经完成。',now()]);updateTaskCard(taskId);refreshViewedTask(taskId);releaseWriter(taskId)},3200);
+}
+function bindDynamicTaskButtons(){
+  $('#confirmProposal')?.addEventListener('click',()=>{if(writeBlocked()){showToast('请先处理上次未完成任务');return}beginProposalExecution(currentTask)});
+  $('#adjustProposal')?.addEventListener('click',()=>{const t=viewedTask();if(!t||isTerminal(t))return;t.awaitingProposalAdjustment=true;t.proposalInvalidated=true;composer.value='我想调整一下修改方案：';renderWriteAvailability();composer.focus()});
+}
+function now(){return new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}
+function escapeHtml(s){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c))}
+function send(){
+  if(writeBlocked()){showToast('请先处理上次未完成任务');return}
+  const active=viewedTask();if(active&&isTerminal(active)){showToast('这个任务已经结束，请创建新任务');return}if(active?.cancelPending){showToast('请先完成停止任务的处理');return}
+  const text=composer.value.trim();if(!text)return;if($('#workbenchEmpty').classList.contains('hidden')===false){startBlankTask(text);return}
+  const taskId=currentTask,t=tasks[taskId];if(!t)return;
+  if(t.mode==='draft'||t.mode==='revising'||t.mode==='replanning'){showToast('Mentor 正在整理新的修改方案');return}
+
+  if(t.mode==='needs'){
+    t.messages.push(['user',text,now()]);composer.value='';t.mode='revising';t.state='正在整理方案';t.stateTone='blue';t.checks=[['需求是否满足','正在整理','running'],['相关测试','等待','waiting'],['修改是否超出范围','等待','waiting'],['是否还有待处理确认','等待','waiting']];
+    const token=beginTaskRun(t);updateTaskCard(taskId);refreshViewedTask(taskId);
+    setTimeout(()=>{if(!taskRunActive(t,token))return;t.proposal=makeProposalFromNeed(t,text);t.plannedChanges=[['auth/login_service.py','已修改',6,2],['auth/session.py','已修改',4,1],['api/login.py','已修改',3,1],['tests/test_login.py','已修改',10,0]];t.proposalVersion=(t.proposalVersion||0)+1;t.mode='proposal';t.state='等待你确认';t.stateTone='amber';t.messages.push(['agent','好的，根据你的补充，我更新了修改方案。',now()]);t.checks=[['需求是否满足','等待确认','action'],['相关测试','等待','waiting'],['修改是否超出范围','等待','waiting'],['是否还有待处理确认','需处理','action']];invalidateTaskRun(t);updateTaskCard(taskId);refreshViewedTask(taskId)},360);
+    return;
+  }
+
+  if(t.mode==='proposal'){
+    // Proposal 阶段的任何新输入都视为对当前方案的反馈；“调整方案”只是快捷入口。旧方案立即失效，生成新版本后必须重新确认。
+    t.messages.push(['user',text,now()]);composer.value='';t.awaitingProposalAdjustment=false;t.proposalInvalidated=true;t.mode='revising';t.state='正在更新方案';t.stateTone='blue';
+    const token=beginTaskRun(t);updateTaskCard(taskId);refreshViewedTask(taskId);
+    setTimeout(()=>{
+      if(!taskRunActive(t,token))return;
+      t.proposal=reviseProposal(t,text);t.proposalVersion=(t.proposalVersion||1)+1;t.proposalInvalidated=false;t.mode='proposal';
+      const stillWaiting=!!t.writeBlockedBy&&!!activeWriterTask(taskId)&&activeWriterTask(taskId)[0]===t.writeBlockedBy;
+      if(stillWaiting){t.state='等待项目可用';t.stateTone='amber'}else{t.writeBlockedBy=null;t.error=null;t.state='等待你确认';t.stateTone='amber'}
+      t.messages.push(['agent','好的，我已经按你的要求更新了修改方案。',now()]);t.checks=[['需求是否满足','等待确认','action'],['相关测试','等待','waiting'],['修改是否超出范围','等待','waiting'],['是否还有待处理确认','需处理','action']];invalidateTaskRun(t);updateTaskCard(taskId);refreshViewedTask(taskId)
+    },360);
+    return;
+  }
+
+  if(t.mode==='progress'){
+    const scopeExpansion=/(顺便|另外|同时|也把|还要|再加|再改|支付|新增|额外)/.test(text);
+    t.messages.push(['user',text,now()]);composer.value='';
+    if(scopeExpansion){
+      // 范围扩大先阻止未来 AgentAction，但在 Harness 到达安全点前继续持有 WRITE ownership。
+      invalidateTaskRun(t);const pauseToken=newExecutionToken();t.scopePauseToken=pauseToken;t.mode='replanning';t.state='正在安全暂停';t.stateTone='blue';t.progress=['已停止新的操作','正在等待安全暂停点'];t.messages.push(['agent','这个要求超出了当前已确认范围。我会先安全暂停当前执行，记录现有修改后再重新评估范围。',now()]);t.checks=[['需求是否满足','重新确认中','running'],['相关测试','等待','waiting'],['修改是否超出范围','需重新确认','action'],['是否还有待处理确认','需处理','action']];
+      updateTaskCard(taskId);refreshViewedTask(taskId);
+      setTimeout(()=>{
+        if(t.scopePauseToken!==pauseToken||t.cancelPending||isTerminal(t))return;
+        t.scopePauseToken=null;releaseWriter(taskId);t.state='正在重新评估';t.progress=['已到达安全暂停点','正在重新评估新增范围'];t.messages.push(['agent','当前修改状态已安全记录，现在开始重新评估新增范围。',now()]);
+        const token=beginTaskRun(t);updateTaskCard(taskId);refreshViewedTask(taskId);
+        setTimeout(()=>{if(!taskRunActive(t,token))return;t.proposal=makeScopeExpansionProposal(t,text);t.proposalVersion=(t.proposalVersion||1)+1;t.mode='proposal';t.state='等待你确认';t.stateTone='amber';t.messages.push(['agent','新增影响范围已经整理好，需要你重新确认后我才会继续。',now()]);invalidateTaskRun(t);updateTaskCard(taskId);refreshViewedTask(taskId)},460);
+      },320);
+    }else{
+      t.messages.push(['agent','我会继续按当前已确认范围执行。如果要增加新的修改内容，我会先暂停并重新确认范围。',now()]);refreshViewedTask(taskId);
+    }
+    return;
+  }
+
+  if(t.mode==='write-wait'){
+    t.messages.push(['user',text,now()],['agent','当前项目仍有另一个写任务在执行。这个任务会继续等待，不会同时修改项目。',now()]);composer.value='';refreshViewedTask(taskId);return;
+  }
+
+  t.messages.push(['user',text,now()]);composer.value='';refreshViewedTask(taskId);
+  setTimeout(()=>{const task=tasks[taskId];if(!task||isTerminal(task)||task.cancelPending)return;task.messages.push(['agent','收到。我先确认需求，再给你修改方案。',now()]);refreshViewedTask(taskId)},180);
+}
+$('#send').addEventListener('click',send);composer.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+function startBlankTask(text){
+  if(writeBlocked()){showToast('请先处理上次未完成任务');return}
+  const id=`draft-${Date.now()}`;
+  tasks[id]={title:text.length>28?text.slice(0,28)+'…':text,state:'正在整理方案',stateTone:'blue',mode:'draft',changed:false,proposalVersion:0,messages:[['user',text,now()],['agent','收到。我先确认需求，再给你修改方案。',now()]],changes:[],plannedChanges:[['src/相关模块','已修改',5,1],['tests/相关测试','已修改',8,0]],checks:[['需求是否满足','正在整理','running'],['相关测试','等待','waiting'],['修改是否超出范围','等待','waiting'],['是否还有待处理确认','等待','waiting']]};
+  currentTask=id;ensureTaskCard(id);updateTaskCard(id);paintTask(id);composer.value='';renderBadges();
+  const t=tasks[id],token=beginTaskRun(t);
+  setTimeout(()=>{if(!taskRunActive(t,token))return;t.proposal={goal:text.length>34?text.slice(0,34)+'…':text,items:['确认相关实现与调用位置','只修改与目标直接相关的部分','补充对应检查'],files:'预计 2–4 个文件',risk:'暂无高风险操作'};t.proposalVersion=1;t.mode='proposal';t.state='等待你确认';t.stateTone='amber';t.messages.push(['agent','我把修改范围整理好了，请确认。',now()]);t.checks=[['需求是否满足','等待确认','action'],['相关测试','等待','waiting'],['修改是否超出范围','等待','waiting'],['是否还有待处理确认','需处理','action']];invalidateTaskRun(t);updateTaskCard(id);refreshViewedTask(id)},420);
+}
+function newTask(){if(writeBlocked()){showToast('请先处理上次未完成任务');return}if(!project.loaded){switchView('workbench');$('#workbenchActive').classList.add('hidden');$('#workbenchEmpty').classList.add('hidden');$('#noProjectState').classList.remove('hidden');return}currentTask=null;$('#noProjectState').classList.add('hidden');$('#workbenchActive').classList.add('hidden');$('#workbenchEmpty').classList.remove('hidden');switchView('workbench');renderWriteAvailability();setTimeout(()=>composer.focus(),30)}
+$('#newTop').addEventListener('click',newTask);$('#newTaskBtn').addEventListener('click',newTask);
+
+$$('.task-card').forEach(c=>activateKeyboard(c,()=>{renderTask(c.dataset.task);showToast('已打开任务')}));
+function updateTaskCard(id){
+  const t=tasks[id],c=ensureTaskCard(id);if(!c||!t)return;const status=c.querySelector('.status'),meta=c.querySelector('.task-card-meta'),title=c.querySelector('.task-card-title'),view=taskCardPresentation(t);
+  c.dataset.status=view.bucket;c.dataset.title=t.title;title.textContent=t.title;status.className=`status ${view.cls}`;status.textContent=view.label;meta.textContent=`刚刚 · ${view.detail}`;
+  renderBadges();if($('#view-tasks').classList.contains('active'))filterTasks();
+}
+$$('.seg-btn').forEach(b=>b.addEventListener('click',()=>{$$('.seg-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');filterTasks()}));
+$('#taskSearch').addEventListener('input',filterTasks);
+function filterTasks(){const f=$('.seg-btn.active').dataset.filter,q=$('#taskSearch').value.trim().toLowerCase();let visible=0;$$('.task-card').forEach(c=>{const ok=(f==='all'||c.dataset.status===f)&&c.textContent.toLowerCase().includes(q);c.style.display=ok?'grid':'none';if(ok)visible++});$('#taskEmpty').classList.toggle('hidden',visible>0)}
+
+$$('.memory-filter').forEach(b=>b.addEventListener('click',()=>{$$('.memory-filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');filterMemory()}));$('#memorySearch').addEventListener('input',filterMemory);
+function filterMemory(){const f=$('.memory-filter.active').dataset.memory,q=$('#memorySearch').value.trim().toLowerCase();let visible=0;$$('.memory-card').forEach(c=>{const ok=(f==='all'||c.dataset.memoryStatus===f)&&c.textContent.toLowerCase().includes(q);c.style.display=ok?'grid':'none';if(ok)visible++});$('#memoryEmpty').classList.toggle('hidden',visible>0)}
+$$('.memory-card').forEach(c=>activateKeyboard(c,()=>{const text=c.querySelector('.memory-text').textContent;$('#drawerTitle').textContent=c.dataset.memoryTitle;$('#drawerText').textContent=text;$('#drawerSource').textContent=c.dataset.source;$('#drawerFiles').innerHTML=c.dataset.files.split(' · ').map(x=>`<div class="detail-file">${escapeHtml(x)}</div>`).join('');$('#drawerTrust').textContent=c.dataset.trust;openDrawer()}));
+function openDrawer(){lastFocused=document.activeElement;$('#memoryDrawer').classList.add('open');$('#memoryDrawer').setAttribute('aria-hidden','false');$('#drawerBackdrop').classList.add('open');setTimeout(()=>$('#drawerClose').focus(),0)}
+function closeDrawer(){$('#memoryDrawer').classList.remove('open');$('#memoryDrawer').setAttribute('aria-hidden','true');$('#drawerBackdrop').classList.remove('open');lastFocused?.focus?.();lastFocused=null}
+$('#drawerClose').addEventListener('click',closeDrawer);$('#drawerBackdrop').addEventListener('click',closeDrawer);
+
+function renderGovernance(){
+  const t=tasks.auth,pending=!!t&&(t.mode==='approval'||(t.mode==='paused'&&t.approvalRequired));
+  $('#approvalSectionLabel').classList.toggle('hidden',!pending);$('#approvalCard').classList.toggle('hidden',!pending);if(!pending)$('#evidenceBox').classList.remove('open');
+  if(pending){$('#approvalCard').style.opacity='1';$('#grantApproval').disabled=writeBlocked();$('#denyApproval').disabled=writeBlocked();}
+  const grant=!!t&&!isTerminal(t)&&!!t.grant?.active;t&&($('#grantMeta').textContent=grant?`${t.grant.scope} · 仅本次任务有效`:'暂无本次授权');
+  const grantExecuting=grant&&!!t&&(t.writerOwned||t.mode==='progress');
+  $('#clearGrant').disabled=!grant||writeBlocked()||grantExecuting;
+  $('#clearGrant').title=grantExecuting?'任务正在执行，如需停止，请先停止任务。':'';
+}
+$('#showEvidence').addEventListener('click',()=>$('#evidenceBox').classList.toggle('open'));
+function startApprovedExecution(taskId='auth'){
+  const t=tasks[taskId];
+  if(!t||!t.grant?.active||t.approvalRequired||isTerminal(t))return;
+  if(writeBlocked()){
+    t.mode='write-wait';t.state='等待项目可用';t.stateTone='amber';t.progress=['本次授权已生效','等待恢复完成'];
+    updateTaskCard(taskId);renderGovernance();refreshViewedTask(taskId);return;
+  }
+  const writer=activeWriterTask(taskId);
+  if(writer){
+    t.writeBlockedBy=writer[0];t.mode='write-wait';t.state='等待项目可用';t.stateTone='amber';t.progress=['本次授权已生效','等待前一个修改任务结束'];
+    t.error={title:'当前项目正在执行另一个修改任务',text:`任务“${writer[1].title}”正在修改项目。本次授权会保留，前一个任务结束后才能开始执行。`,action:'查看正在执行的任务',actionTask:writer[0]};
+    if(!t.messages.some(m=>m[1]?.includes('本次授权会保留')))t.messages.push(['agent','本次授权已经生效，但项目当前有另一个写任务。本次授权会保留，我不会同时修改项目。',now()]);
+    updateTaskCard(taskId);renderGovernance();refreshViewedTask(taskId);return;
+  }
+  t.writeBlockedBy=null;t.error=null;t.mode='progress';t.state='正在处理';t.stateTone='blue';t.progress=['本次授权已生效','正在分析认证相关文件'];
+  t.checks=[['需求是否满足','检查中','running'],['相关测试','等待','waiting'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已通过','passed']];
+  if(!t.messages.some(m=>m[1]?.includes('只在已确认范围内继续')))t.messages.push(['agent','本次授权已生效，我会只在已确认范围内继续。',now()]);
+  const token=beginTaskRun(t,{writer:true});updateTaskCard(taskId);renderGovernance();refreshViewedTask(taskId);
+  setTimeout(()=>{if(!taskRunActive(t,token))return;t.changed=true;t.changes=(t.plannedChanges||[]).map(x=>[...x]);t.progress=['本次授权已生效','已确认认证影响范围',`正在修改 ${t.changes.length} 个文件`];t.messages.push(['agent',`已开始修改 ${t.changes.length} 个文件。`,now()]);updateTaskCard(taskId);refreshViewedTask(taskId)},900);
+  setTimeout(()=>{if(!taskRunActive(t,token))return;invalidateTaskRun(t);t.mode='done';t.state='已完成';t.stateTone='green';t.progress=[];t.checks=[['需求是否满足','已通过','passed'],['相关测试','已通过','passed'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已通过','passed']];t.messages.push(['agent','认证相关修改已经通过必要检查。',now()]);t.grant=null;t.approvalRequired=false;updateTaskCard(taskId);renderGovernance();refreshViewedTask(taskId);releaseWriter(taskId)},2600);
+}
+$('#grantApproval').addEventListener('click',()=>{
+  if(writeBlocked()){showToast('请先处理上次未完成任务');return}
+  const t=tasks.auth;if(!t)return;
+  t.grant={active:true,scope:'允许修改 auth/middleware.py'};t.approvalRequired=false;
+  t.messages.push(['agent','本次授权已记录。开始执行前仍会检查项目是否可写。',now()]);
+  updateTaskCard('auth');renderGovernance();refreshViewedTask('auth');showToast('已允许本次操作');
+  startApprovedExecution('auth');
+});
+$('#denyApproval').addEventListener('click',()=>{if(writeBlocked()){showToast('请先处理上次未完成任务');return}const t=tasks.auth;if(!t)return;invalidateTaskRun(t);t.mode='paused';t.state='已暂停';t.stateTone='muted';t.approvalRequired=true;t.grant=null;t.checks=[['需求是否满足','等待','waiting'],['相关测试','等待','waiting'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','需处理','action']];t.messages.push(['agent','本次授权没有通过，任务已暂停。',now()]);updateTaskCard('auth');renderGovernance();refreshViewedTask('auth');releaseWriter('auth');showToast('本次授权暂未通过')});
+$('#clearGrant').addEventListener('click',()=>{const t=tasks.auth;if(!t?.grant?.active)return;if(t.writerOwned||t.mode==='progress'){showToast('任务正在执行，如需停止，请先停止任务');return}invalidateTaskRun(t);t.grant=null;t.approvalRequired=true;t.writeBlockedBy=null;t.error=null;t.mode='approval';t.state='等待你授权';t.stateTone='amber';t.progress=[];t.checks=[['需求是否满足','等待','waiting'],['相关测试','等待','waiting'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','需处理','action']];t.messages.push(['agent','本次授权已撤销，继续修改前需要重新确认。',now()]);updateTaskCard('auth');renderGovernance();refreshViewedTask('auth');showToast('本次授权已撤销')});
+$('#blockDetail').addEventListener('click',()=>openModal('blockModal'));
+
+$$('.history-row').forEach(r=>activateKeyboard(r,()=>renderTask(r.dataset.task)));$('#fullRecord').addEventListener('click',()=>openModal('recordModal'));
+
+$('#stopTask').addEventListener('click',()=>{
+  const t=viewedTask();if(!t||isTerminal(t)||t.cancelPending)return;
+  // Proposal 阶段：停止任务 = 拒绝修改方案 / Cancel Task。
+  t.cancelPending=true;t.scopePauseToken=null;invalidateTaskRun(t);renderWriteAvailability();
+  const count=(t.changes||[]).length;$('#stopSub').textContent=t.changed?`本次已修改 ${count} 个文件。`:'任务已停止，尚未修改文件。';$('#stopInfo').classList.toggle('hidden',!t.changed);$('#rollbackChanges').classList.toggle('hidden',!t.changed);$('#keepChanges').textContent=t.changed?'保留当前改动':'结束任务';openModal('stopModal');
+});
+function finishStoppedTask(kind){const taskId=currentTask,t=tasks[taskId];if(!t)return;t.scopePauseToken=null;invalidateTaskRun(t);t.cancelPending=false;if(kind==='cancelled'){t.state='已取消';t.stateTone='muted';t.mode='cancelled';t.progress=[];t.checks=[['需求是否满足','未完成','failed'],['相关测试','已停止','waiting'],['修改是否超出范围','已通过','passed'],['是否还有待处理确认','已停止','waiting']];t.messages.push(['agent',t.changed?'任务已停止，当前修改已保留。':'任务已停止，尚未修改文件。',now()])}else{t.state='已回滚';t.stateTone='muted';t.mode='rollback';t.progress=[];t.changed=false;t.changes=[];t.checks=[['需求是否满足','未完成','failed'],['相关测试','已停止','waiting'],['修改是否超出范围','已回滚','waiting'],['是否还有待处理确认','已停止','waiting']];t.messages.push(['agent','本次任务产生的修改已回滚。',now()])}t.grant=null;t.approvalRequired=false;updateTaskCard(taskId);renderGovernance();forceCloseModal('stopModal');renderTask(taskId);releaseWriter(taskId);showToast(kind==='cancelled'?'任务已结束':'已回滚本次修改')}
+$('#keepChanges').addEventListener('click',()=>finishStoppedTask('cancelled'));$('#rollbackChanges').addEventListener('click',()=>finishStoppedTask('rollback'));
+
+function renderRecovery(){const banner=$('#recoveryBanner');if(!recoveryState.active){banner.classList.add('hidden');if($('#recoveryModal').classList.contains('open'))closeModal('recoveryModal');renderWriteAvailability();return}banner.classList.remove('hidden');if(recoveryState.safe>0){$('#recoveryTitle').textContent='上次任务未正常结束';$('#recoverySummary').textContent=`发现 ${recoveryState.total} 个未完成修改`;}else{$('#recoveryTitle').textContent='恢复仍需处理';$('#recoverySummary').textContent=`仍有 ${recoveryState.conflicts} 个文件需要人工处理`;}$('#recoveryModalSub').textContent=recoveryState.safe>0?`发现 ${recoveryState.total} 个未完成修改。`:`仍有 ${recoveryState.conflicts} 个文件需要人工处理。`;$('#recoveryCurrent').innerHTML=recoveryState.safe>0?`<strong>当前状态</strong><br>${recoveryState.safe} 个文件可以安全恢复；${recoveryState.conflicts} 个文件检测到外部修改，不能自动覆盖。`:`<strong>当前状态</strong><br>${recoveryState.conflicts} 个文件检测到外部修改，不能自动覆盖。请先人工处理文件冲突，再重新检查。`;$('#safeRollback').classList.toggle('hidden',recoveryState.safe===0);$('#recheckRecovery').classList.toggle('hidden',recoveryState.safe>0);renderWriteAvailability()}
+$('#recoveryOpen').addEventListener('click',()=>{renderRecovery();openModal('recoveryModal')});
+$('#safeRollback').addEventListener('click',()=>{recoveryState.total=recoveryState.conflicts;recoveryState.safe=0;recoveryState.active=recoveryState.conflicts>0;renderRecovery();showToast(recoveryState.active?'已恢复安全部分，仍有冲突需要处理':'恢复已完成');setTimeout(()=>$('#recheckRecovery')?.focus(),0)});
+$('#recheckRecovery').addEventListener('click',()=>{if(!recoveryState.active)return;recoveryState.conflicts=0;recoveryState.total=0;recoveryState.active=false;renderRecovery();showToast('重新检查通过，可以开始新的任务')});
+
+function renderProject(){project.loaded=!!project.loaded;$('#projectCard').classList.toggle('hidden',!project.loaded);$('#topProjectName').textContent=project.loaded?project.name:'Mentor';$('#topBranch').textContent=project.branch||'';$('#topBranch').classList.toggle('hidden',!project.loaded);$('#sideProjectName').textContent=project.name||'';$('#sideProjectMeta').textContent=project.loaded?`本地 Git 项目 · ${project.branch}`:'';$('#settingsProjectPath').textContent=project.loaded?project.path:'尚未打开项目';composerWrap.classList.toggle('show',project.loaded&&$('#view-workbench').classList.contains('active'));renderWriteAvailability()}
+function openProject(){if(writeBlocked()){showToast('请先处理上次未完成任务，再切换项目');return}openModal('projectModal')}
+$('#switchProject').addEventListener('click',openProject);$('#openProjectSettings').addEventListener('click',openProject);$('#openProjectEmpty').addEventListener('click',openProject);
+$('#chooseProject').addEventListener('click',()=>{if(writeBlocked()){showToast('请先处理上次未完成任务，再切换项目');return}Object.assign(project,{loaded:true,name:'SE-w-mentor',branch:'main',path:'C:\\Users\\ww\\Desktop\\SE-w-mentor'});closeModal('projectModal');renderProject();$('#noProjectState').classList.add('hidden');currentTask=null;$('#workbenchActive').classList.add('hidden');$('#workbenchEmpty').classList.remove('hidden');switchView('workbench');showToast('项目已打开')});
+function renderCredential(){const status=$('#credentialStatus'),value=$('#credentialValue'),source=$('#credentialSource');status.textContent=credentialConfigured?'已配置':'未配置';status.style.background=credentialConfigured?'var(--greenSoft)':'#efede8';status.style.color=credentialConfigured?'#5f8068':'#7e817a';value.childNodes[0].nodeValue=credentialConfigured?'凭据已配置':'尚未配置凭据';source.textContent=credentialConfigured?'Windows 凭据管理器':'';source.classList.toggle('hidden',!credentialConfigured);$('#updateCredential').textContent=credentialConfigured?'更新':'配置';$('#deleteCredential').classList.toggle('hidden',!credentialConfigured);$('#credentialModalTitle').textContent=credentialConfigured?'更新 OpenAI 凭据':'配置 OpenAI 凭据'}
+$('#actionErrorAction').addEventListener('click',()=>{const t=viewedTask();if(t?.error?.actionTask){renderTask(t.error.actionTask);showToast('已打开正在执行的任务')}else switchTab('checks')});
+$('#updateCredential').addEventListener('click',()=>{$('#credentialInput').value='';openModal('credentialModal')});$('#saveCredential').addEventListener('click',()=>{const input=$('#credentialInput');if(!input.value.trim()){input.setAttribute('aria-invalid','true');showToast('请输入凭据');input.focus();return}input.removeAttribute('aria-invalid');credentialConfigured=true;renderCredential();closeModal('credentialModal');showToast('凭据已保存')});$('#deleteCredential').addEventListener('click',()=>{credentialConfigured=false;$('#credentialInput').value='';$('#credentialInput').removeAttribute('aria-invalid');renderCredential();showToast('凭据已删除')});
+function activateKeyboard(el,handler){el.setAttribute('role','button');el.tabIndex=0;el.addEventListener('click',handler);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();handler()}})}
+function focusables(root){return $$('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',root).filter(el=>!el.classList.contains('hidden')&&el.offsetParent!==null)}
+function openModal(id){const m=$('#'+id);if(id==='credentialModal')clearSensitiveModalInput(id);lastFocused=document.activeElement;m.classList.add('open');m.setAttribute('aria-hidden','false');setTimeout(()=>{const f=focusables(m);(f[0]||m.querySelector('.modal-box'))?.focus?.()},0)}
+function clearSensitiveModalInput(id){if(id==='credentialModal'){const input=$('#credentialInput');if(input){input.value='';input.removeAttribute('aria-invalid')}}}
+function closeModal(id){const m=$('#'+id);if(m?.dataset.static==='true'&&m.classList.contains('open'))return;clearSensitiveModalInput(id);m.classList.remove('open');m.setAttribute('aria-hidden','true');lastFocused?.focus?.();lastFocused=null}
+function forceCloseModal(id){const m=$('#'+id);clearSensitiveModalInput(id);m.classList.remove('open');m.setAttribute('aria-hidden','true');lastFocused?.focus?.();lastFocused=null}
+$$('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));$$('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m&&m.dataset.static!=='true')closeModal(m.id)}));
+// stopModal 在用户发出停止请求后必须选择保留或回滚，因此不允许 Escape/Backdrop 丢失该决策。
+
+document.addEventListener('keydown',e=>{const openModalEl=$('.modal.open');const drawerOpen=$('#memoryDrawer').classList.contains('open');if(e.key==='Escape'){if(openModalEl){if(openModalEl.dataset.static==='true')return;e.preventDefault();closeModal(openModalEl.id);return}if(drawerOpen){e.preventDefault();closeDrawer();return}}if(e.key==='Tab'){const root=openModalEl||(drawerOpen?$('#memoryDrawer'):null);if(!root)return;const f=focusables(root);if(!f.length)return;const first=f[0],last=f[f.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
+const toast=$('#toast');function showToast(t){toast.textContent=t;toast.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>toast.classList.remove('show'),1700)}
+renderProject();renderCredential();renderRecovery();renderGovernance();Object.keys(tasks).forEach(updateTaskCard);renderTask('email');switchTab('chat');renderWriteAvailability();
+</script>
+</body>
+</html>

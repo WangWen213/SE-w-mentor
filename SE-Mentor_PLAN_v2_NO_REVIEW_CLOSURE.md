@@ -700,8 +700,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T020 — 识别语言、构建工具和测试框架
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[x] branch complete
+- **阻塞说明**：无。普通 Vitest/Vite config 入口仍受既有 esbuild sandbox 限制；T093 scoped harness、type-check、无配置 Vite build 本体通过。
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-01-01`, `OQ-02`, `OQ-03`
 - **目标**：P0 确定性识别 Python 主项目和 TypeScript 辅助项目的工具链，不自动执行未知命令。
@@ -724,7 +724,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T020.xml
   - evidence/diffs/T020.patch
   - `AGENT_LOG.md` 中的 T020 记录
-- **Commit**：`未填写`
+- **Commit**：`feat(frontend): implement T093 web UI baseline`
 
 ## T021 — 计算并持久化项目有效配置
 
