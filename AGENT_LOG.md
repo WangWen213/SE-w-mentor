@@ -3727,6 +3727,59 @@ file path. The Vite build body passes with `configFile: false`.
 `frontend/package.json` still has no `lint` script, so frontend lint is recorded as not configured.
 T095 was not started.
 
+## 2026-08-10 T095 Impact And Governance WebUI
+
+### Task ID
+T095
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+`[x]` branch complete.
+
+### Dependency Check
+T087, T093, and T094 evidence are present on the current branch.
+
+### Implementation Summary
+Integrated the frozen Governance page with typed T087 analysis/governance data. The UI now loads
+Impact/Governance by current proposal context, guards stale responses with a request identity, and
+renders facts, inferences, unknowns, evidence, impact scope, rule hits, and ALLOW/WARN/BLOCK
+presentation. Approval, TemporaryGrant, execution, SSE, diff, validation, recovery, knowledge,
+credential, audit, and replay APIs were not added.
+
+### Backend Contract Exposure
+Extended the existing T087 governance response with T095 presentation fields and WARN exposure:
+`facts`, `inferences`, `unknowns`, `evidence`, `impactScope`, `ruleHits`, and `nonApprovable`.
+Existing unconfirmed-proposal safety behavior remains unchanged.
+
+### Evidence
+RED: `evidence/tdd/T095-red.log`
+GREEN: `evidence/tdd/T095-green.log`
+JUnit: `evidence/test-reports/T095.xml`
+Frontend smoke: `evidence/logs/T095-smoke.log`
+API contract: `evidence/logs/T095-api-contract.log`
+Type-check: `evidence/logs/T095-type-check.log`
+Build: `evidence/logs/T095-build.log`
+Lint command: `evidence/logs/T095-lint.log`
+Ruff: `evidence/logs/T095-ruff.log`
+Ruff format: `evidence/logs/T095-ruff-format.log`
+Vitest sandbox: `evidence/logs/T095-vitest-sandbox.log`
+npm build sandbox: `evidence/logs/T095-build-sandbox.log`
+Diff: `evidence/diffs/T095.patch`
+
+### Sandbox Classification
+The standard Vitest and npm build entries still fail before test/build execution with the known
+esbuild sandbox config-load signature: `Cannot read directory "../../.."` and the frontend config
+file path. The Vite build body passes with `configFile: false`.
+
+### Notes
+`frontend/package.json` still has no `lint` script, so frontend lint is recorded as not configured.
+T096 was not started.
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

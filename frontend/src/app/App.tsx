@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { createMentorApi, type LockStatus, type MentorApi, type Project, type Proposal, type Task } from "../api/mentorApi";
+import { createMentorApi, type GovernanceReport, type LockStatus, type Project, type Proposal, type Task } from "../api/mentorApi";
 import { cards, type NavKey } from "./fixtures";
 import { AppShell } from "./AppShell";
 import { Button } from "../components/Button";
@@ -9,6 +9,7 @@ import { EmptyState } from "../components/EmptyState";
 import { Modal } from "../components/Modal";
 import { StatusBadge } from "../components/StatusBadge";
 import { NewTaskPage } from "../pages/NewTaskPage";
+import { AnalysisPage } from "../pages/AnalysisPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { ProposalReviewPage } from "../pages/ProposalReviewPage";
 
@@ -26,6 +27,10 @@ export function App() {
   const [taskError, setTaskError] = useState<string | null>(null);
   const [newTaskPending, setNewTaskPending] = useState(false);
   const [proposalAction, setProposalAction] = useState<string | null>(null);
+  const [governanceReport, setGovernanceReport] = useState<GovernanceReport | null>(null);
+  const [governanceLoading, setGovernanceLoading] = useState(false);
+  const [governanceError, setGovernanceError] = useState<string | null>(null);
+  const governanceRequestRef = useRef(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -184,6 +189,40 @@ export function App() {
     setActiveView("workbench");
   };
 
+  const loadGovernance = useCallback(async () => {
+    if (!activeProposal || activeProposal.status !== "CONFIRMED") {
+      setGovernanceReport(null);
+      setGovernanceError(null);
+      return;
+    }
+    const requestId = governanceRequestRef.current + 1;
+    governanceRequestRef.current = requestId;
+    setGovernanceLoading(true);
+    setGovernanceError(null);
+    try {
+      await api.indexAnalysis();
+      const report = await api.runGovernance(activeProposal.id, activeProposal.items);
+      if (governanceRequestRef.current === requestId) {
+        setGovernanceReport(report);
+      }
+    } catch (error) {
+      if (governanceRequestRef.current === requestId) {
+        setGovernanceError(userError(error));
+        setGovernanceReport(null);
+      }
+    } finally {
+      if (governanceRequestRef.current === requestId) {
+        setGovernanceLoading(false);
+      }
+    }
+  }, [activeProposal, api]);
+
+  useEffect(() => {
+    if (activeView === "governance") {
+      void loadGovernance();
+    }
+  }, [activeView, loadGovernance]);
+
   return (
     <AppShell
       activeView={activeView}
@@ -226,7 +265,14 @@ export function App() {
         />
       ) : null}
       {activeView === "memory" ? <MemoryView onOpenDrawer={() => setDrawerOpen(true)} /> : null}
-      {activeView === "governance" ? <GovernanceView /> : null}
+      {activeView === "governance" ? (
+        <AnalysisPage
+          error={governanceError}
+          loading={governanceLoading}
+          report={governanceReport}
+          onReload={() => void loadGovernance()}
+        />
+      ) : null}
       {activeView === "evaluation" ? <EvaluationView /> : null}
       {activeView === "settings" ? <SettingsView /> : null}
       <Modal open={modalOpen} title="任务已停止" onClose={() => setModalOpen(false)}>
@@ -286,41 +332,6 @@ function userError(error: unknown): string {
     return error.message;
   }
   return "请求没有完成";
-}
-
-function GovernanceView() {
-  return (
-    <Page title="治理" action="查看当前规则">
-      <section className="approval-card">
-        <div>
-          <div className="approval-kicker">需要确认</div>
-          <div className="approval-title">公共接口变化需要你确认范围</div>
-          <div className="approval-sub">Mentor 会在确认后继续，不会自行扩大修改。</div>
-        </div>
-        <div className="approval-actions">
-          <Button>查看依据</Button>
-          <Button variant="dark">允许本次</Button>
-        </div>
-      </section>
-      <div className="policy-list">
-        {cards.policies.map(([level, items]) => (
-          <div className="policy-row" key={level}>
-            <div className="policy-level">
-              <span className={`level-dot ${level === "允许" ? "allow" : level === "阻止" ? "block" : "ask"}`} />
-              {level}
-            </div>
-            <div className="policy-items">
-              {items.split("、").map((item) => (
-                <span className="policy-chip" key={item}>
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Page>
-  );
 }
 
 function EvaluationView() {

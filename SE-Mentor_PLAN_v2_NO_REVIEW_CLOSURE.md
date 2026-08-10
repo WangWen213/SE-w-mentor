@@ -756,8 +756,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T022 — 原子获取项目 READ/WRITE 锁
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[x] branch complete
+- **阻塞说明**：无。普通 Vitest/Vite config 入口仍受既有 esbuild sandbox 限制；T095 scoped harness、API contract、type-check、无配置 Vite build 本体通过。
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-01-03`, `NFR-SEC-03`, `AC-FR01-03`
 - **目标**：以数据库事务原子获取锁，保证同项目同一时间最多一个活动写任务。
@@ -780,7 +780,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T022.xml
   - evidence/diffs/T022.patch
   - `AGENT_LOG.md` 中的 T022 记录
-- **Commit**：`未填写`
+- **Commit**：`feat(frontend): integrate T095 impact governance views`
 
 ## T023 — 锁心跳、过期、释放与强制恢复
 

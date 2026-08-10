@@ -9,6 +9,7 @@ export type TaskStatus =
   | "ROLLED_BACK";
 
 export type ProposalStatus = "DRAFT" | "CONFIRMED" | "REJECTED" | "SUPERSEDED";
+export type GovernanceDecisionKind = "ALLOW" | "WARN" | "BLOCK";
 
 export interface ApiErrorInfo {
   code: string;
@@ -62,6 +63,49 @@ export interface Proposal {
   status: ProposalStatus;
 }
 
+export interface GovernanceEvidence {
+  detail: string;
+  file: string;
+  label: string;
+  line: number;
+}
+
+export interface GovernanceFact {
+  file: string;
+  line: number;
+  summary: string;
+}
+
+export interface ImpactScope {
+  files: string[];
+  summary: string;
+}
+
+export interface RuleHit {
+  label: string;
+  level: GovernanceDecisionKind;
+  reason: string;
+}
+
+export interface GovernanceReport {
+  changedPaths: string[];
+  decision: GovernanceDecisionKind;
+  evidence: GovernanceEvidence[];
+  evidenceRef: string;
+  facts: GovernanceFact[];
+  impactScope: ImpactScope;
+  inferences: string[];
+  nonApprovable: boolean;
+  proposalId: string;
+  ruleHits: RuleHit[];
+  unknowns: string[];
+}
+
+export interface AnalysisIndexResult {
+  evidenceRef: string;
+  status: "INDEXED";
+}
+
 export class MentorApiError extends Error {
   readonly code: string;
   readonly status: number;
@@ -86,6 +130,8 @@ export interface MentorApi {
   getTask(taskId: string): Promise<Task>;
   getTaskList(projectId: string): Promise<TaskList>;
   getProjectLocks(projectId: string): Promise<LockStatus>;
+  indexAnalysis(): Promise<AnalysisIndexResult>;
+  runGovernance(proposalId: string, changedPaths: string[]): Promise<GovernanceReport>;
 }
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -148,7 +194,22 @@ export function createMentorApi(fetcher: FetchLike = fetch): MentorApi {
       request<LockStatus>(`/api/projects/${projectId}/locks`),
     getTask: (taskId) => request<Task>(`/api/tasks/${taskId}`),
     getTaskList: (projectId) => request<TaskList>(`/api/projects/${projectId}/tasks`),
+    indexAnalysis: () => request<AnalysisIndexResult>("/api/analysis/index", { method: "POST" }),
+    runGovernance: (proposalId, changedPaths) =>
+      request<GovernanceReport>(`/api/proposals/${proposalId}/governance`, {
+        body: JSON.stringify({ changedPaths }),
+        method: "POST",
+      }),
   };
+}
+
+export function governanceDecisionLabel(decision: GovernanceDecisionKind): string {
+  const labels: Record<GovernanceDecisionKind, string> = {
+    ALLOW: "自动允许",
+    BLOCK: "始终阻止",
+    WARN: "需要你的确认",
+  };
+  return labels[decision];
 }
 
 export function taskStateLabel(status: TaskStatus): string {
