@@ -3158,6 +3158,34 @@ JUnit: `evidence/test-reports/T080.xml`
 Regression: `evidence/logs/T080-regression.log`
 Diff: `evidence/diffs/T080.patch`
 
+## 2026-08-10 Phase 7 Checkpoint
+
+### Scope
+T074-T080 validation, repair, completion, and knowledge update checkpoint.
+
+### Status
+PASS with known Vitest/esbuild sandbox failure classification for `scripts/check_all.py`.
+
+### Evidence
+Scoped: `evidence/logs/phase7-scoped.log`, `evidence/test-reports/phase7-scoped.xml`
+Regression: `evidence/logs/phase7-regression.log`
+Backend pytest: `evidence/logs/phase7-backend-pytest.log`
+Models/meta: `evidence/logs/phase7-models-meta.log`
+Ruff check: `evidence/logs/phase7-ruff-check.log`
+Ruff format: `evidence/logs/phase7-ruff-format.log`
+Mypy: `evidence/logs/phase7-mypy.log`
+Alembic head: `evidence/logs/phase7-alembic-head.log`
+Frontend type-check: `evidence/logs/phase7-frontend-type-check.log`
+check_all: `evidence/logs/phase7-check-all.log`
+
+### Sandbox Classification
+`scripts/check_all.py` completed backend/meta/type-check gates and failed only at Vitest startup
+with the known esbuild sandbox signature: `Cannot read directory "../../.."` and
+`frontend/vitest.config.mjs`.
+
+### Next Task
+T081 not started.
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
