@@ -3393,6 +3393,35 @@ JUnit: `evidence/test-reports/T100.xml`
 Regression: `evidence/logs/T100-regression.log`
 Diff: `evidence/diffs/T100.patch`
 
+## 2026-08-10 T086 Project Task Proposal API
+
+### Task ID
+T086
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T027, T023, and T100 evidence are present on the current branch.
+
+### Implementation Summary
+Added REST routes for project registration/config/lock status, task creation/lookup, and proposal
+creation/confirm/reject with a consistent envelope and redacted config response. Task creation does
+not trigger code writes.
+
+### Evidence
+RED: `evidence/tdd/T086-red.log`
+GREEN: `evidence/tdd/T086-green.log`
+JUnit: `evidence/test-reports/T086.xml`
+Regression: `evidence/logs/T086-regression.log`
+Diff: `evidence/diffs/T086.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
