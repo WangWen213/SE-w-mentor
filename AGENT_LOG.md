@@ -2948,6 +2948,36 @@ Alembic gate: `evidence/logs/T073-checkpoint/alembic-head-gate.log`
 Frontend type-check: `evidence/logs/T073-checkpoint/frontend-type-check.log`
 Canonical gate: `evidence/logs/T073-checkpoint/check-all.log`
 
+## 2026-08-10 T074 Flaky Validation Tests
+
+### Task ID
+T074
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T071 validation execution, T072 failure classification, and T032 read-only Git baseline evidence are
+present on the current branch.
+
+### Implementation Summary
+Added bounded flaky-test detection for same-revision, same-environment attempts. Alternating pass and
+fail outcomes are classified as `FLAKY_TEST`, do not drive code patching, and are marked as test
+experience knowledge candidates with concise pass/fail evidence.
+
+### Evidence
+RED: `evidence/tdd/T074-red.log`
+GREEN: `evidence/tdd/T074-green.log`
+JUnit: `evidence/test-reports/T074.xml`
+Regression: `evidence/logs/T074-regression.log`
+Diff: `evidence/diffs/T074.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
