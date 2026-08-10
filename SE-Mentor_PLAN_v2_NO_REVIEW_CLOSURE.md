@@ -1925,7 +1925,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T063 — 注册只读 Git 工具动作
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`Git Tool`, `FR-07`
@@ -1949,7 +1949,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T063.xml
   - evidence/diffs/T063.patch
   - `AGENT_LOG.md` 中的 T063 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: register read-only git tools`
 
 ## T064 — 显式回滚任务修改
 

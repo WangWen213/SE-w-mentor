@@ -2490,6 +2490,37 @@ JUnit: `evidence/test-reports/T062.xml`
 Regression: `evidence/logs/T062-regression.log`
 Diff: `evidence/diffs/T062.patch`
 
+## 2026-08-10 T063 Read-Only Git Tools
+
+### Task ID
+T063
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T032 read-only Git service and T057 dispatcher audit path are present on the current branch. T064 was
+not started.
+
+### Implementation Summary
+Registered only read-capable Git tool specs for status, revision, diff, history, and external change
+detection. Added a `ReadOnlyGitTools` wrapper around the existing Git service with project-internal
+pathspec validation, structured result dataclasses, diff line limiting, and no commit/push or other
+write-capable registrations.
+
+### Evidence
+RED: `evidence/tdd/T063-red.log`
+GREEN: `evidence/tdd/T063-green.log`
+JUnit: `evidence/test-reports/T063.xml`
+Regression: `evidence/logs/T063-regression.log`
+Diff: `evidence/diffs/T063.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
