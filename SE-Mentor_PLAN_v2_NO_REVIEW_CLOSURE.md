@@ -2095,7 +2095,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T069 — 停滞、重新规划与预算终止
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-05-05`, `E2E-05`, `NFR-OBS-11`
@@ -2119,7 +2119,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T069.xml
   - evidence/diffs/T069.patch
   - `AGENT_LOG.md` 中的 T069 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: detect semantic stagnation`
 
 ## T070 — 根据影响生成 ValidationPlan
 

@@ -2754,6 +2754,36 @@ JUnit: `evidence/test-reports/T068.xml`
 Regression: `evidence/logs/T068-regression.log`
 Diff: `evidence/diffs/T068.patch`
 
+## 2026-08-10 T069 Stagnation Monitor
+
+### Task ID
+T069
+
+### Agent
+Codex
+
+### Branch
+`codex/T025-T057-critical-path`
+
+### Status After
+Branch implementation complete.
+
+### Dependency Check
+T068 progress detection, T034 token budget gate, and T067 cancellation/runtime control are present on
+the current branch.
+
+### Implementation Summary
+Added semantic stagnation tracking that counts repeated no-progress actions by action type and
+target, avoids treating reads of different files as repeated stagnation, enforces iteration/token
+budgets before future provider work, sets `STAGNATION_WARNING`, and emits a warning alert.
+
+### Evidence
+RED: `evidence/tdd/T069-red.log`
+GREEN: `evidence/tdd/T069-green.log`
+JUnit: `evidence/test-reports/T069.xml`
+Regression: `evidence/logs/T069-regression.log`
+Diff: `evidence/diffs/T069.patch`
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs
