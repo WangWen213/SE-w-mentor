@@ -1,2 +1,2 @@
 def message() -> str:
-    return 'old'
+    return "old"

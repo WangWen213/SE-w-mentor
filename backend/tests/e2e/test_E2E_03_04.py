@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 
 from phase1_test_helpers import PROPOSAL_HASH, REVISION, create_schema, seed_task_graph
+from sqlalchemy.orm import Session
 
 from se_mentor.approvals.decision_service import ApprovalDecisionService
 from se_mentor.approvals.request_service import ApprovalRequestService
@@ -175,7 +176,7 @@ def _deny_recursive_delete() -> RuleDefinition:
 
 
 def _policy(
-    session,
+    session: Session,
     ids: dict[str, str],
     decision_id: str,
     approval_request_id: str,

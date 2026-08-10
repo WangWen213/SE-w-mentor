@@ -3331,6 +3331,39 @@ JUnit: `evidence/test-reports/T085.xml`
 Regression: `evidence/logs/T085-regression.log`
 Diff: `evidence/diffs/T085.patch`
 
+## 2026-08-10 Phase 8 Checkpoint
+
+### Scope
+T081-T085 offline E2E checkpoint.
+
+### Status
+PASS with known Vitest/esbuild sandbox failure classification for `scripts/check_all.py`.
+
+### Checkpoint Amendments
+Full `check_all.py` surfaced strict mypy/fixture packaging issues in the new E2E fixtures and
+dynamic offline runner import. The checkpoint commit keeps those fixes scoped to E2E tests and
+fixtures without changing production harness behavior.
+
+### Evidence
+E2E: `evidence/logs/phase8-e2e.log`, `evidence/test-reports/phase8-e2e.xml`
+Integration regression: `evidence/logs/phase8-integration-regression.log`
+Backend pytest: `evidence/logs/phase8-backend-pytest.log`
+Models/meta: `evidence/logs/phase8-models-meta.log`
+Ruff check: `evidence/logs/phase8-ruff-check.log`
+Ruff format: `evidence/logs/phase8-ruff-format.log`
+Mypy: `evidence/logs/phase8-mypy.log`
+Alembic head: `evidence/logs/phase8-alembic-head.log`
+Frontend type-check: `evidence/logs/phase8-frontend-type-check.log`
+check_all: `evidence/logs/phase8-check-all.log`
+
+### Sandbox Classification
+`scripts/check_all.py` completed backend/meta/type-check gates and failed only at Vitest startup
+with the known esbuild sandbox signature: `Cannot read directory "../../.."` and
+`frontend/vitest.config.mjs`.
+
+### Next Tasks
+T086 not started. T100 not started.
+
 ## 2026-08-08 T019-T032 Project/Index Core Batch
 
 ### Task IDs

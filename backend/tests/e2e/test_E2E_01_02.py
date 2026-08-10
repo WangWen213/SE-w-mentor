@@ -7,7 +7,9 @@ import socket
 import subprocess
 from pathlib import Path
 
+import pytest
 from phase1_test_helpers import PROPOSAL_HASH, REVISION, create_schema, seed_task_graph
+from sqlalchemy.orm import Session
 
 from se_mentor.agent.completion_gate import CompletionGate, CompletionSnapshot
 from se_mentor.agent.repair_loop import RepairAttempt, RepairLoop
@@ -16,15 +18,22 @@ from se_mentor.knowledge.update_success import SuccessfulTaskResult, SuccessKnow
 from se_mentor.models.approval import ExecutionPolicy, ExecutionPolicyStatus
 from se_mentor.models.execution import WorkspaceLockMode
 from se_mentor.models.validation import ValidationPlan, ValidationPlanStatus
-from se_mentor.policy.grants import TemporaryGrantService
+from se_mentor.policy.grants import TemporaryGrant, TemporaryGrantService
 from se_mentor.tools.apply_patch import AtomicApplyPatchTool, StructuredPatch
 from se_mentor.tools.registry import ToolRegistry, ToolSpec
 from se_mentor.transactions.manager import TransactionManager
-from se_mentor.validation.executor import CommandResult, ValidationExecutor
+from se_mentor.validation.executor import (
+    CommandResult,
+    ValidationExecutionResult,
+    ValidationExecutor,
+)
 from se_mentor.workspace.lock_service import WorkspaceLockService
 
 
-def test_E2E_01_normal_change_loop(tmp_path: Path, monkeypatch) -> None:
+def test_E2E_01_normal_change_loop(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     repo = _copy_fixture(tmp_path)
     _init_git(repo)
     network_calls: list[str] = []
@@ -60,7 +69,7 @@ def test_E2E_01_normal_change_loop(tmp_path: Path, monkeypatch) -> None:
             patch=StructuredPatch(
                 "app.py",
                 before,
-                (("return 'old'", "return 'new'"),),
+                (('return "old"', 'return "new"'),),
             ),
             revision=REVISION,
         )
@@ -89,7 +98,10 @@ def test_E2E_01_normal_change_loop(tmp_path: Path, monkeypatch) -> None:
     assert network_calls == []
 
 
-def test_E2E_02_failed_then_repaired(tmp_path: Path, monkeypatch) -> None:
+def test_E2E_02_failed_then_repaired(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     repo = _copy_fixture(tmp_path)
     _init_git(repo)
     monkeypatch.setattr(
@@ -123,7 +135,7 @@ def test_E2E_02_failed_then_repaired(tmp_path: Path, monkeypatch) -> None:
             action_id=ids["action_id"],
             transaction_id=prepared.transaction_id,
             grant=grant,
-            patch=StructuredPatch("app.py", first_before, (("return 'old'", "return 'broken'"),)),
+            patch=StructuredPatch("app.py", first_before, (('return "old"', 'return "broken"'),)),
             revision=REVISION,
         )
         first_validation = _validate(
@@ -140,7 +152,7 @@ def test_E2E_02_failed_then_repaired(tmp_path: Path, monkeypatch) -> None:
             transaction_id=prepared.transaction_id,
             grant=grant,
             patch=StructuredPatch(
-                "app.py", first.after_sha256, (("return 'broken'", "return 'new'"),)
+                "app.py", first.after_sha256, (('return "broken"', 'return "new"'),)
             ),
             revision=REVISION,
         )
@@ -176,7 +188,11 @@ def _init_git(repo: Path) -> None:
     subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True)
 
 
-def _policy_and_plan(session, ids: dict[str, str], write_paths: tuple[str, ...]):
+def _policy_and_plan(
+    session: Session,
+    ids: dict[str, str],
+    write_paths: tuple[str, ...],
+) -> tuple[ExecutionPolicy, TemporaryGrant, ValidationPlan]:
     policy = ExecutionPolicy(
         task_id=ids["task_id"],
         action_id=ids["action_id"],
@@ -216,7 +232,13 @@ def _policy_and_plan(session, ids: dict[str, str], write_paths: tuple[str, ...])
     return policy, grant, plan
 
 
-def _validation_plan(session, ids: dict[str, str], policy_id: str, *, version: int):
+def _validation_plan(
+    session: Session,
+    ids: dict[str, str],
+    policy_id: str,
+    *,
+    version: int,
+) -> ValidationPlan:
     plan = ValidationPlan(
         task_id=ids["task_id"],
         proposal_id=ids["proposal_id"],
@@ -232,15 +254,15 @@ def _validation_plan(session, ids: dict[str, str], policy_id: str, *, version: i
 
 
 def _validate(
-    session,
+    session: Session,
     tmp_path: Path,
     ids: dict[str, str],
     policy_id: str,
-    grant,
+    grant: TemporaryGrant,
     plan_id: str,
     *,
     should_pass: bool,
-):
+) -> ValidationExecutionResult:
     registry = ToolRegistry()
     registry.register(ToolSpec("RUN_VALIDATION", "LOW", 30))
     return ValidationExecutor(

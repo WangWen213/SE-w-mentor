@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from phase1_test_helpers import PROPOSAL_HASH, REVISION, create_schema, seed_task_graph
+from sqlalchemy.orm import Session
 
 from se_mentor.agent.iteration import SingleTurnAgentRunner
 from se_mentor.agent.runtime import AgentRuntime
@@ -163,7 +164,7 @@ def _copy_fixture(tmp_path: Path) -> Path:
     return repo
 
 
-def _policy(session, ids: dict[str, str], write_paths: tuple[str, ...]) -> ExecutionPolicy:
+def _policy(session: Session, ids: dict[str, str], write_paths: tuple[str, ...]) -> ExecutionPolicy:
     policy = ExecutionPolicy(
         task_id=ids["task_id"],
         action_id=ids["action_id"],

@@ -64,7 +64,7 @@ def test_E2E_07_crash_recovery(tmp_path: Path) -> None:
     assert summaries[0].external_changes == ("external.py",)
     assert blocked.status == LockAcquireStatus.RECOVERY_REQUIRED
 
-    (repo / "external.py").write_text("before crash\n", encoding="utf-8")
+    (repo / "external.py").write_text('state = "before crash"\n', encoding="utf-8")
     with session_scope(session_factory) as session:
         resolution = TransactionRecoveryService(session, project_root=repo).resolve_by_rollback(
             task_id=ids["task_id"],
