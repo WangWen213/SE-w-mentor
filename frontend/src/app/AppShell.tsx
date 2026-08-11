@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type { Project } from "../api/mentorApi";
 import type { NavKey } from "./fixtures";
 import { navItems } from "./fixtures";
@@ -7,7 +9,7 @@ interface AppShellProps {
   activeView: NavKey;
   children: React.ReactNode;
   onNewTask: () => void;
-  onOpenProject: () => void;
+  onOpenProject: (rootPath: string) => void;
   onViewChange: (view: NavKey) => void;
   project: Project | null;
 }
@@ -22,6 +24,7 @@ export function AppShell({
 }: AppShellProps) {
   const projectName = project?.id ?? "未打开项目";
   const branch = project?.branch ?? "main";
+  const [rootPath, setRootPath] = useState(project?.rootPath ?? "");
 
   return (
     <div className="app">
@@ -40,9 +43,29 @@ export function AppShell({
             {projectName}
           </div>
           <div className="project-meta">{branch} · 本地工作区</div>
-          <button className="project-open" type="button" onClick={onOpenProject}>
-            打开其他项目
-          </button>
+          <form
+            className="project-open-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onOpenProject(rootPath);
+            }}
+          >
+            <label className="sr-only" htmlFor="project-root-path">
+              本地 Git 项目路径
+            </label>
+            <input
+              id="project-root-path"
+              className="project-path-input"
+              name="rootPath"
+              placeholder="输入本地 Git 项目路径"
+              type="text"
+              value={rootPath}
+              onChange={(event) => setRootPath(event.target.value)}
+            />
+            <button className="project-open" type="submit">
+              打开本地项目
+            </button>
+          </form>
         </section>
 
         <nav aria-label="SE-Mentor 主导航" className="nav">

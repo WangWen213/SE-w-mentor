@@ -46,6 +46,10 @@ assert(backendProposals.includes('@router.post("/{proposal_id}/adjust")'), "back
 assert(app.includes("loadTaskList"), "task list should refresh from API");
 assert(app.includes("createTask"), "create task should call API");
 assert(app.includes("cancelProposal"), "stop proposal should call reject/cancel API");
+assert(!app.includes("void openProject();"), "fresh page load must not register a project");
+assert(!app.includes("C:/Users/ww/Desktop/SE-w-mentor"), "frontend must not register a hardcoded demo project");
+assert(!app.includes("C:\\Users\\ww\\Desktop\\SE-w-mentor"), "frontend must not render a hardcoded local project path");
+assert(app.includes("openProject = useCallback(async (rootPath: string)"), "project registration must use user-provided rootPath");
 assert(proposal.includes("需要你补充"), "incomplete proposal state should be visible");
 assert(proposal.includes("确认后 Mentor 才会开始修改"), "frozen proposal hint missing");
 assert(proposal.includes("pendingAction !== null"), "proposal actions must avoid duplicate submit");

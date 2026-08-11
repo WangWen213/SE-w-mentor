@@ -29,8 +29,13 @@ import { RecoveryPage } from "../pages/RecoveryPage";
 import { TaskResultPage } from "../pages/TaskResultPage";
 import { useTaskEvents } from "../hooks/useTaskEvents";
 
-export function App() {
-  const api = useMemo(() => createMentorApi(), []);
+interface AppProps {
+  api?: ReturnType<typeof createMentorApi>;
+}
+
+export function App({ api: providedApi }: AppProps = {}) {
+  const defaultApi = useMemo(() => createMentorApi(), []);
+  const api = providedApi ?? defaultApi;
   const [activeView, setActiveView] = useState<NavKey>("workbench");
   const [project, setProject] = useState<Project | null>(null);
   const [lockStatus, setLockStatus] = useState<LockStatus | null>(null);
@@ -80,10 +85,14 @@ export function App() {
     [api],
   );
 
-  const openProject = useCallback(async () => {
+  const openProject = useCallback(async (rootPath: string) => {
+    if (!rootPath.trim()) {
+      setProjectError("project rootPath is required");
+      return;
+    }
     setProjectError(null);
     try {
-      const opened = await api.createProject("C:/Users/ww/Desktop/SE-w-mentor");
+      const opened = await api.createProject(rootPath);
       setProject(opened);
       await api.getProjectConfig(opened.id);
       await loadTaskList(opened.id);
@@ -91,10 +100,6 @@ export function App() {
       setProjectError(userError(error));
     }
   }, [api, loadTaskList]);
-
-  useEffect(() => {
-    void openProject();
-  }, [openProject]);
 
   const openTask = useCallback(
     async (taskId: string) => {
@@ -369,7 +374,7 @@ export function App() {
       activeView={activeView}
       project={project}
       onNewTask={startNewTask}
-      onOpenProject={() => void openProject()}
+      onOpenProject={(rootPath) => void openProject(rootPath)}
       onViewChange={setActiveView}
     >
       {activeView === "workbench" ? (
@@ -444,7 +449,7 @@ export function App() {
           />
         )
       ) : null}
-      {activeView === "settings" ? <SettingsView /> : null}
+      {activeView === "settings" ? <SettingsView project={project} /> : null}
       <Modal open={modalOpen} title="任务已停止" onClose={() => setModalOpen(false)}>
         提案已停止。后续执行、安全点和回滚流程将在后续任务接入。
       </Modal>
@@ -504,7 +509,8 @@ function userError(error: unknown): string {
   return "请求没有完成";
 }
 
-function SettingsView() {
+function SettingsView({ project }: { project: Project | null }) {
+  const projectPath = project?.rootPath ?? "No local project opened";
   return (
     <Page title="设置">
       <div className="settings-grid">
@@ -527,7 +533,7 @@ function SettingsView() {
             </div>
           </div>
         </section>
-        <EmptyState title="本地项目" body="当前目录：C:\\Users\\ww\\Desktop\\SE-w-mentor" />
+        <EmptyState title="本地项目" body={`当前目录：${projectPath}`} />
       </div>
     </Page>
   );
