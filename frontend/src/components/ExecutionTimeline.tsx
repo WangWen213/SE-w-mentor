@@ -19,7 +19,7 @@ export function ExecutionTimeline({ events, reconnecting }: ExecutionTimelinePro
         {events.length === 0 ? (
           <div className="simple-row">
             <strong>等待后端执行状态</strong>
-            <span className="file-state">批准后才会开始执行。</span>
+            <span className="file-state">进入执行后会显示真实任务事件。</span>
           </div>
         ) : null}
         {events.map((event) => (
@@ -27,7 +27,7 @@ export function ExecutionTimeline({ events, reconnecting }: ExecutionTimelinePro
             <span className="file-dot" aria-hidden="true" />
             <span>
               <strong>{taskEventLabel(event.eventType)}</strong>
-              <span className="file-state">{event.payload.message ?? event.payload.state ?? "状态已更新"}</span>
+              <span className="file-state">{presentEventMessage(event)}</span>
             </span>
             <span className="row-spacer" />
             <span className="diff-stat">#{event.eventId}</span>
@@ -36,4 +36,13 @@ export function ExecutionTimeline({ events, reconnecting }: ExecutionTimelinePro
       </div>
     </section>
   );
+}
+
+function presentEventMessage(event: TaskEvent) {
+  const value = event.payload.message ?? event.payload.state ?? "状态已更新";
+  const labels: Record<string, string> = {
+    "cancel requested": "已请求停止",
+    "execution started": "执行已开始",
+  };
+  return labels[value] ?? value;
 }

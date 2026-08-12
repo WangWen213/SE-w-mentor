@@ -90,6 +90,12 @@ from se_mentor.models.validation import (
     ValidationRunStatus,
     ValidationType,
 )
+from se_mentor.models.workbench import (
+    WorkbenchMessage,
+    WorkbenchMessageKind,
+    WorkbenchMessageRole,
+    WorkbenchMessageStatus,
+)
 
 __all__ = [
     "AgentAction",
@@ -161,5 +167,9 @@ __all__ = [
     "WorkspaceLock",
     "WorkspaceLockMode",
     "WorkspaceLockStatus",
+    "WorkbenchMessage",
+    "WorkbenchMessageKind",
+    "WorkbenchMessageRole",
+    "WorkbenchMessageStatus",
     "normalize_project_root_path",
 ]

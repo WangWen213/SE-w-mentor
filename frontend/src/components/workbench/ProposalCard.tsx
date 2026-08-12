@@ -1,38 +1,130 @@
 import type { ProposalFixture } from "../../app/fixtures";
-import { Button } from "../Button";
+
+const label = {
+  acceptance: "验收标准",
+  change: "准备修改",
+  current: "当前方案",
+  decisionComplete: "完整，可确认",
+  decisionClarification: "需要你决定",
+  decisionTechnical: "Mentor 正在补全技术分析",
+  expected: "目标",
+  foot: "确认后 Mentor 才会进入正式影响分析、治理检查和执行。",
+  impact: "预期影响",
+  nonGoal: "不在本次范围",
+  proposal: "本次修改方案",
+  proposalHead: "本次方案",
+  risk: "主要风险",
+  step: "准备怎么改",
+  superseded: "已被新版方案替代",
+  technical: "技术待补全",
+  understanding: "需求理解",
+  unknown: "暂未确定",
+  userDecision: "需要你决定",
+  validation: "验证计划",
+};
 
 interface ProposalCardProps {
   proposal: ProposalFixture;
 }
 
 export function ProposalCard({ proposal }: ProposalCardProps) {
+  const display = proposal.display;
+  const completeness = proposal.completeness;
+  const preparedChanges = display?.preparedChanges ?? proposal.changes ?? [];
+  const risks = display?.risks ?? (proposal.risk ? [proposal.risk] : []);
+  const validation = display?.validation ?? proposal.validation ?? [];
+  const userDecisions = display?.needsUserDecision ?? ["暂无需要你决定的问题。"];
+  const expectedImpact = display?.expectedImpact ?? [proposal.files];
   return (
-    <section className="proposal" data-testid="proposal-card" aria-label="本次修改方案">
-      <div className="proposal-head">本次方案</div>
+    <section className="proposal" data-testid="proposal-card" aria-label={label.proposal}>
+      <div className="proposal-head">
+        {proposal.version ? `Proposal v${proposal.version}` : label.proposalHead}
+        <span className="proposal-state">
+          {proposal.superseded || proposal.status === "SUPERSEDED" ? label.superseded : label.current}
+        </span>
+      </div>
+      {completeness ? <CompletenessPill decision={completeness.decision} /> : null}
       <div className="proposal-main">
-        <div className="proposal-goal">{proposal.goal}</div>
+        <div className="proposal-goal">{presentValue(display?.title ?? proposal.goal)}</div>
       </div>
-      <div className="proposal-list">
-        {proposal.items.map((item) => (
-          <div className="proposal-row" key={item}>
-            <span className="proposal-dot" aria-hidden="true" />
-            <span>{item}</span>
-          </div>
-        ))}
-      </div>
-      <div className="proposal-meta">
-        <span>
-          <b>影响</b> {proposal.files}
-        </span>
-        <span>
-          <b>风险</b> {proposal.risk}
-        </span>
-      </div>
+      <ProposalSection title={label.understanding} values={[display?.understanding ?? proposal.understanding ?? ""]} />
+      <ProposalSection title={label.expected} values={[display?.goal ?? proposal.expectedBehavior ?? ""]} />
+      <ProposalChangeSection changes={preparedChanges} />
+      <ProposalSection title={label.step} values={display?.steps ?? proposal.steps ?? []} numbered />
+      <ProposalSection title={label.impact} values={expectedImpact} />
+      <ProposalSection title={label.risk} values={risks} />
+      <ProposalSection title={label.validation} values={validation} />
+      <ProposalSection title={label.nonGoal} values={display?.nonGoals ?? proposal.nonGoals ?? []} />
+      {display?.technicalUnknowns && display.technicalUnknowns.length > 0 ? (
+        <ProposalSection title={label.technical} values={display.technicalUnknowns} />
+      ) : null}
+      <ProposalSection title={label.userDecision} values={userDecisions} />
       <div className="proposal-foot">
-        <span className="hint">确认后 Mentor 才会开始修改。</span>
-        <Button>再调整</Button>
-        <Button variant="dark">确认方案</Button>
+        <span className="hint">{label.foot}</span>
       </div>
     </section>
   );
+}
+
+function CompletenessPill({ decision }: { decision: string }) {
+  const text =
+    decision === "COMPLETE"
+      ? label.decisionComplete
+      : decision === "NEEDS_USER_CLARIFICATION"
+        ? label.decisionClarification
+        : label.decisionTechnical;
+  return <div className={`proposal-completeness ${decision.toLowerCase()}`}>{text}</div>;
+}
+
+function ProposalChangeSection({ changes }: { changes: Array<{ action: string; path: string; reason: string; symbol?: string | null }> }) {
+  if (changes.length === 0) {
+    return null;
+  }
+  return (
+    <div className="proposal-list">
+      <div className="proposal-section-title">{label.change}</div>
+      {changes.map((change, index) => (
+        <div className="proposal-row" key={`${change.path}:${change.symbol ?? ""}:${index}`}>
+          <span className="proposal-dot" aria-hidden="true" />
+          <span>
+            <b>{String(index + 1).padStart(2, "0")} {presentValue(change.path)}</b>
+            {change.symbol ? ` / ${change.symbol}` : ""}
+            <br />
+            {presentValue(change.action)}
+            <br />
+            {presentValue(change.reason)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProposalSection({ numbered = false, title, values }: { numbered?: boolean; title: string; values: string[] }) {
+  const visible = values.map(presentValue).filter((value) => value !== label.unknown);
+  if (visible.length === 0) {
+    return null;
+  }
+  return (
+    <div className="proposal-list">
+      <div className="proposal-section-title">{title}</div>
+      {visible.map((value, index) => (
+        <div className="proposal-row" key={`${title}:${value}:${index}`}>
+          <span className="proposal-dot" aria-hidden="true" />
+          <span>{numbered ? `${index + 1}. ` : ""}{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function presentValue(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toUpperCase() === "UNKNOWN") {
+    return label.unknown;
+  }
+  if (/^scope is unknown$/i.test(trimmed)) {
+    return label.unknown;
+  }
+  return value;
 }

@@ -1,11 +1,28 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from se_mentor.security.path_policy import PathPolicy
+
+_EXCLUDED_DIRS = {
+    ".agents",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".sementor",
+    ".tmp",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "evidence",
+    "node_modules",
+}
 
 
 @dataclass(frozen=True)
@@ -48,9 +65,7 @@ def build_file_inventory(
     scanned = 0
     limit_status = "OK"
 
-    for path in sorted(root.rglob("*"), key=lambda value: value.relative_to(root).as_posix()):
-        if ".git" in path.parts or not path.is_file():
-            continue
+    for path in _iter_files(root):
         rel = path.relative_to(root).as_posix()
         scanned += 1
         if scanned > max_files:
@@ -91,6 +106,7 @@ def _git_status(root: Path) -> dict[str, str]:
         check=False,
         capture_output=True,
         text=False,
+        timeout=10,
     )
     if result.returncode != 0:
         return {}
@@ -110,6 +126,7 @@ def _is_git_ignored(root: Path, relative_path: str) -> bool:
         check=False,
         capture_output=True,
         text=True,
+        timeout=10,
     )
     if toplevel.returncode != 0 or Path(toplevel.stdout.strip()).resolve() != root:
         return False
@@ -117,5 +134,14 @@ def _is_git_ignored(root: Path, relative_path: str) -> bool:
         ["git", "check-ignore", "--quiet", relative_path],
         cwd=root,
         check=False,
+        timeout=10,
     )
     return result.returncode == 0
+
+
+def _iter_files(root: Path):
+    for current, dirs, files in os.walk(root):
+        dirs[:] = [name for name in dirs if name not in _EXCLUDED_DIRS]
+        current_path = Path(current)
+        for name in sorted(files):
+            yield current_path / name

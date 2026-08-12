@@ -91,6 +91,11 @@ class ImpactReportService:
     ) -> dict[str, Any]:
         return {
             "bundle_hash": evidence_bundle.bundle_hash,
+            "language": "zh-CN",
+            "language_instruction": (
+                "User-facing natural-language values MUST be Simplified Chinese. "
+                "Keep JSON property names unchanged."
+            ),
             "evidence_ids": [item.evidence_id for item in evidence_bundle.items],
             "direct_impacts": [_serialize_impact(impact) for impact in direct_impacts],
             "indirect_impacts": [_serialize_impact(impact) for impact in indirect_impacts],
@@ -113,10 +118,34 @@ def _parse_response(content: str) -> dict[str, Any]:
     try:
         data = json.loads(content)
     except json.JSONDecodeError as exc:
-        raise ImpactReportGenerationError("invalid impact report JSON") from exc
+        candidate = _extract_json_object(content)
+        if candidate is None:
+            raise ImpactReportGenerationError("invalid impact report JSON") from exc
+        try:
+            data = json.loads(candidate)
+        except json.JSONDecodeError as nested:
+            raise ImpactReportGenerationError("invalid impact report JSON") from nested
     if not isinstance(data, dict):
         raise ImpactReportGenerationError("invalid impact report JSON")
     return data
+
+
+def _extract_json_object(content: str) -> str | None:
+    stripped = content.strip()
+    if stripped.startswith("```") and stripped.endswith("```"):
+        lines = stripped.splitlines()
+        if len(lines) >= 3:
+            return "\n".join(lines[1:-1]).strip()
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(content):
+        if char != "{":
+            continue
+        try:
+            _, end = decoder.raw_decode(content[index:])
+        except json.JSONDecodeError:
+            continue
+        return content[index : index + end]
+    return None
 
 
 def _serialize_impact(impact: DirectImpact | IndirectImpact) -> dict[str, Any]:

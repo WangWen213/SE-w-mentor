@@ -8,15 +8,18 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from se_mentor.agent.iteration import SingleTurnAgentRunner
 from se_mentor.agent.runtime import AgentRuntime
+from se_mentor.context.context_builder import ContextBuilder
 from se_mentor.api.envelope import error, ok
 from se_mentor.api.events import BUS
-from se_mentor.api.state import STATE
+from se_mentor.api.runtime import get_domain_provider
 from se_mentor.db.session import session_scope
 from se_mentor.models.approval import ExecutionPolicy, ExecutionPolicyStatus
 from se_mentor.models.execution import WorkspaceLockMode
 from se_mentor.models.task import ChangeTask, TaskStatus
 from se_mentor.policy.grants import TemporaryGrantService
+from se_mentor.tools.registry import ToolRegistry, ToolSpec
 from se_mentor.workspace.lock_service import LockAcquireStatus, WorkspaceLockService
 
 router = APIRouter(prefix="/api/tasks", tags=["execution"])
@@ -85,13 +88,13 @@ class BackendExecutionAuthority:
             task.workspace_lock_id = lock_result.lock.id
             task.active_policy_id = policy.id
             task.status = TaskStatus.EXECUTING
-            if self._runtime is not None:
-                self._runtime.run_once(
-                    task_id=task.id,
-                    proposal_hash=grant.proposal_hash,
-                    revision=grant.revision,
-                    goal=command,
-                )
+            runtime = self._runtime or _runtime_for(session, task)
+            runtime.run_once(
+                task_id=task.id,
+                proposal_hash=grant.proposal_hash,
+                revision=grant.revision,
+                goal=command,
+            )
             event = BUS.publish(
                 task_id=task_id,
                 event_type="EXECUTION_STARTED",
@@ -142,43 +145,38 @@ def get_execution_authority() -> ExecutionAuthority:
 
 @router.post("/{task_id}/execute")
 def execute(task_id: str, payload: ExecuteRequest, response: Response) -> dict[str, object]:
-    task = STATE.tasks.get(task_id)
-    if task is None:
-        response.status_code = status.HTTP_404_NOT_FOUND
-        return error("TASK_NOT_FOUND", "task not found")
-    if task.get("status") == "BLOCKED":
+    if _SESSION_FACTORY is None:
         response.status_code = status.HTTP_409_CONFLICT
-        task["toolCalls"] = _tool_calls(task)
-        return error("TASK_BLOCKED", "blocked tasks cannot execute tools")
-    if task.get("recoveryRequired"):
-        response.status_code = status.HTTP_409_CONFLICT
-        task["toolCalls"] = _tool_calls(task)
-        return error("RECOVERY_REQUIRED", "resolve recovery before executing tools")
+        return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
+    with session_scope(_SESSION_FACTORY) as session:
+        task = session.get(ChangeTask, task_id)
+        if task is None:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return error("TASK_NOT_FOUND", "task not found")
+        if task.status == TaskStatus.BLOCKED:
+            response.status_code = status.HTTP_409_CONFLICT
+            return error("TASK_BLOCKED", "blocked tasks cannot execute tools")
     try:
         result = get_execution_authority().execute(task_id=task_id, command=payload.command)
     except PermissionError as exc:
         response.status_code = status.HTTP_409_CONFLICT
-        task["toolCalls"] = _tool_calls(task)
         return error("EXECUTION_REJECTED", str(exc))
     except BlockingIOError as exc:
         response.status_code = status.HTTP_409_CONFLICT
-        task["toolCalls"] = _tool_calls(task)
         return error("LOCK_CONFLICT", str(exc))
     except ValueError as exc:
         response.status_code = status.HTTP_409_CONFLICT
-        task["toolCalls"] = _tool_calls(task)
         return error("EXECUTION_UNAVAILABLE", str(exc))
-    task["toolCalls"] = _tool_calls(task) + 1
-    task["status"] = result.get("status", "EXECUTING")
     return ok(result)
 
 
 @router.post("/{task_id}/cancel")
 def cancel(task_id: str, response: Response) -> dict[str, object]:
-    task = STATE.tasks.get(task_id)
-    if task is None:
-        response.status_code = status.HTTP_404_NOT_FOUND
-        return error("TASK_NOT_FOUND", "task not found")
+    if _SESSION_FACTORY is not None:
+        with session_scope(_SESSION_FACTORY) as session:
+            if session.get(ChangeTask, task_id) is None:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return error("TASK_NOT_FOUND", "task not found")
     try:
         return ok(get_execution_authority().cancel(task_id=task_id))
     except ValueError as exc:
@@ -188,10 +186,46 @@ def cancel(task_id: str, response: Response) -> dict[str, object]:
 
 @router.get("/{task_id}/policy")
 def policy(task_id: str, response: Response) -> dict[str, object]:
-    if task_id not in STATE.tasks:
-        response.status_code = status.HTTP_404_NOT_FOUND
-        return error("TASK_NOT_FOUND", "task not found")
-    return ok({"taskId": task_id, "writePaths": [], "commands": []})
+    if _SESSION_FACTORY is None:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
+    with session_scope(_SESSION_FACTORY) as session:
+        task = session.get(ChangeTask, task_id)
+        if task is None:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return error("TASK_NOT_FOUND", "task not found")
+        policy_row = _active_policy(session, task)
+        if policy_row is None:
+            return ok({"taskId": task_id, "writePaths": [], "commands": []})
+        return ok(
+            {
+                "taskId": task_id,
+                "writePaths": list(_json_tuple(policy_row.write_paths_json)),
+                "commands": list(_json_tuple(policy_row.commands_json)),
+            }
+        )
+
+
+def _runtime_for(session: Session, task: ChangeTask) -> AgentRuntime:
+    registry = ToolRegistry()
+    for name in ("READ_FILE", "SEARCH_CODE", "APPLY_PATCH", "CREATE_FILE", "DELETE_FILE", "RUN_COMMAND"):
+        registry.register(ToolSpec(name=name, risk="domain-policy", timeout_seconds=30))
+    runner = SingleTurnAgentRunner(
+        session,
+        project_root=task.project.root_path,
+        context_builder=ContextBuilder(max_chars=16000),
+        provider=get_domain_provider(),
+        registry=registry,
+        tool_handlers={
+            "READ_FILE": lambda action: action,
+            "SEARCH_CODE": lambda action: action,
+            "APPLY_PATCH": lambda action: action,
+            "CREATE_FILE": lambda action: action,
+            "DELETE_FILE": lambda action: action,
+            "RUN_COMMAND": lambda action: action,
+        },
+    )
+    return AgentRuntime(session, runner=runner)
 
 
 def _active_policy(session: Session, task: ChangeTask) -> ExecutionPolicy | None:

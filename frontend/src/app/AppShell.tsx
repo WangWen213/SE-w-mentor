@@ -1,17 +1,37 @@
-import { useState } from "react";
+import type { ReactNode } from "react";
 
 import type { Project } from "../api/mentorApi";
+import { Button } from "../components/Button";
 import type { NavKey } from "./fixtures";
 import { navItems } from "./fixtures";
-import { Button } from "../components/Button";
+
+const shellText = {
+  bootstrapFailed: "\u9879\u76ee\u5206\u6790\u5931\u8d25\uff0c\u4ecd\u53ef\u8fdb\u5165\u5de5\u4f5c\u53f0",
+  bootstrapping: "\u6b63\u5728\u5206\u6790\u9879\u76ee",
+  currentProject: "\u5f53\u524d\u9879\u76ee",
+  localUser: "\u672c\u5730\u4f7f\u7528\u8005",
+  localWorkbench: "\u672c\u5730\u5de5\u4f5c\u53f0",
+  nav: "SE-Mentor \u4e3b\u5bfc\u822a",
+  newTask: "\u65b0\u5efa\u4efb\u52a1",
+  noProject: "\u672a\u6253\u5f00\u9879\u76ee",
+  openLocalRepo: "\u6253\u5f00\u672c\u5730\u4ed3\u5e93",
+  opening: "\u6b63\u5728\u6253\u5f00",
+  ready: "\u9879\u76ee\u5206\u6790\u5b8c\u6210",
+  registered: "\u9879\u76ee\u5df2\u6ce8\u518c",
+  selectRepo: "\u8bf7\u9009\u62e9\u672c\u5730 Git \u4ed3\u5e93",
+};
 
 interface AppShellProps {
   activeView: NavKey;
-  children: React.ReactNode;
+  children: ReactNode;
   onNewTask: () => void;
-  onOpenProject: (rootPath: string) => void;
+  onOpenProject: () => void;
   onViewChange: (view: NavKey) => void;
   project: Project | null;
+  projectBootstrap: Project["bootstrap"] | null;
+  projectError: string | null;
+  projectOpening: boolean;
+  taskCount: number;
 }
 
 export function AppShell({
@@ -21,10 +41,15 @@ export function AppShell({
   onOpenProject,
   onViewChange,
   project,
+  projectBootstrap,
+  projectError,
+  projectOpening,
+  taskCount,
 }: AppShellProps) {
-  const projectName = project?.id ?? "未打开项目";
+  const projectName = project?.rootPath
+    ? project.rootPath.replaceAll("\\", "/").split("/").filter(Boolean).at(-1) ?? project.id
+    : shellText.noProject;
   const branch = project?.branch ?? "main";
-  const [rootPath, setRootPath] = useState(project?.rootPath ?? "");
 
   return (
     <div className="app">
@@ -36,54 +61,54 @@ export function AppShell({
           <div className="brand-name">Mentor</div>
         </div>
 
-        <section className="project-card" aria-label="当前项目">
-          <div className="project-label">当前项目</div>
+        <section className="project-card" aria-label={shellText.currentProject}>
+          <div className="project-label">{shellText.currentProject}</div>
           <div className="project-name">
             <span className="project-dot" aria-hidden="true" />
             {projectName}
           </div>
-          <div className="project-meta">{branch} · 本地工作区</div>
-          <form
-            className="project-open-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onOpenProject(rootPath);
-            }}
+          <div className="project-meta">
+            {project ? `${branch} - ${project.rootPath ?? project.id}` : shellText.selectRepo}
+          </div>
+          {project && projectBootstrap?.status && projectBootstrap.status !== "READY" ? (
+            <div className={`project-bootstrap ${projectBootstrap.status.toLowerCase()}`}>
+              {projectBootstrap.message ?? bootstrapStatusLabel(projectBootstrap.status)}
+            </div>
+          ) : null}
+          <button
+            className="project-open"
+            disabled={projectOpening}
+            type="button"
+            onClick={onOpenProject}
           >
-            <label className="sr-only" htmlFor="project-root-path">
-              本地 Git 项目路径
-            </label>
-            <input
-              id="project-root-path"
-              className="project-path-input"
-              name="rootPath"
-              placeholder="输入本地 Git 项目路径"
-              type="text"
-              value={rootPath}
-              onChange={(event) => setRootPath(event.target.value)}
-            />
-            <button className="project-open" type="submit">
-              打开本地项目
-            </button>
-          </form>
+            {projectOpening ? shellText.opening : shellText.openLocalRepo}
+          </button>
+          {projectError ? (
+            <div className="project-error" role="alert">
+              {projectError}
+            </div>
+          ) : null}
         </section>
 
-        <nav aria-label="SE-Mentor 主导航" className="nav">
-          {navItems.map((item) => (
-            <button
-              key={item.key}
-              aria-current={activeView === item.key ? "page" : undefined}
-              className={`nav-item ${activeView === item.key ? "active" : ""}`}
-              type="button"
-              onClick={() => onViewChange(item.key)}
-            >
-              <span className="nav-marker" aria-hidden="true">
-                {item.marker}
-              </span>
-              <span>{item.label}</span>
-              {item.count ? <span className="badge">{item.count}</span> : null}
-            </button>
-          ))}
+        <nav aria-label={shellText.nav} className="nav">
+          {navItems.map((item) => {
+            const count = item.key === "tasks" && taskCount > 0 ? String(taskCount) : undefined;
+            return (
+              <button
+                key={item.key}
+                aria-current={activeView === item.key ? "page" : undefined}
+                className={`nav-item ${activeView === item.key ? "active" : ""}`}
+                type="button"
+                onClick={() => onViewChange(item.key)}
+              >
+                <span className="nav-marker" aria-hidden="true">
+                  {item.marker}
+                </span>
+                <span>{item.label}</span>
+                {count ? <span className="badge">{count}</span> : null}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="side-spacer" />
@@ -93,8 +118,8 @@ export function AppShell({
               WW
             </div>
             <div>
-              <strong>本地使用者</strong>
-              <small>Mock 模式可用</small>
+              <strong>{shellText.localUser}</strong>
+              <small>{shellText.localWorkbench}</small>
             </div>
           </div>
         </div>
@@ -105,13 +130,22 @@ export function AppShell({
           <div className="top-project">{projectName}</div>
           <div className="branch">{branch}</div>
           <div className="top-spacer" />
-          <Button>同步状态</Button>
           <Button variant="dark" onClick={onNewTask}>
-            新建任务
+            {shellText.newTask}
           </Button>
         </header>
         {children}
       </main>
     </div>
   );
+}
+
+function bootstrapStatusLabel(status: NonNullable<Project["bootstrap"]>["status"]): string {
+  const labels = {
+    BOOTSTRAP_FAILED: shellText.bootstrapFailed,
+    BOOTSTRAPPING: shellText.bootstrapping,
+    READY: shellText.ready,
+    REGISTERED: shellText.registered,
+  };
+  return labels[status];
 }

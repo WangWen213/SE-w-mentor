@@ -50,7 +50,7 @@ class ProposalReviewService:
         task.failure_code = None
         task.failure_message = f"Proposal confirmed by {actor_id}"
 
-        self._invalidate_downstream_state(proposal.task_id, superseded_ids)
+        self.invalidate_downstream_state(proposal.task_id, superseded_ids)
         self.session.flush()
         return ProposalReviewResult(proposal.id, tuple(superseded_ids))
 
@@ -68,7 +68,7 @@ class ProposalReviewService:
             superseded_ids.append(older.id)
         return superseded_ids
 
-    def _invalidate_downstream_state(self, task_id: str, old_proposal_ids: list[str]) -> None:
+    def invalidate_downstream_state(self, task_id: str, old_proposal_ids: list[str]) -> None:
         if old_proposal_ids:
             for report in self.session.scalars(
                 select(ImpactReport).where(ImpactReport.proposal_id.in_(old_proposal_ids))

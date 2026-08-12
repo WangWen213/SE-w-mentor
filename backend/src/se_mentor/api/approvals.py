@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.state import STATE
 from se_mentor.approvals.decision_service import ApprovalDecisionService
 from se_mentor.db.session import session_scope
 from se_mentor.models.approval import (
@@ -40,7 +41,7 @@ class BackendApprovalAuthority:
 
     def approve(self, *, approval_id: str, approved_scope: tuple[str, ...]) -> dict[str, object]:
         if self._session_factory is None:
-            raise ValueError("approval authority unavailable")
+            return _approve_state_request(approval_id, approved_scope)
         with session_scope(self._session_factory) as session:
             request = session.get(ApprovalRequest, approval_id)
             if request is None:
@@ -120,6 +121,7 @@ def approve(
 
 @router.post("/{approval_id}/reject")
 def reject(approval_id: str) -> dict[str, object]:
+    STATE.approvals[approval_id] = {"id": approval_id, "status": "REJECTED"}
     return ok({"id": approval_id, "status": "REJECTED"})
 
 
@@ -138,3 +140,41 @@ def _json_tuple(value: str) -> tuple[str, ...]:
     if not isinstance(data, list):
         return ()
     return tuple(str(item) for item in data)
+
+
+def _approve_state_request(approval_id: str, approved_scope: tuple[str, ...]) -> dict[str, object]:
+    task_id = _task_id_for_proposal(approval_id)
+    if task_id is None:
+        raise ValueError("approval request not found")
+    policy_id = f"policy-{approval_id}"
+    grant_id = f"grant-{approval_id}"
+    approved = {
+        "id": approval_id,
+        "status": "APPROVED",
+        "approvedScope": list(approved_scope),
+        "temporaryGrant": {
+            "id": grant_id,
+            "approvalId": approval_id,
+            "scope": list(approved_scope),
+            "status": "ACTIVE",
+            "taskId": task_id,
+            "policyId": policy_id,
+        },
+        "executionPolicy": {
+            "id": policy_id,
+            "approvalId": approval_id,
+            "writeAllowed": bool(approved_scope),
+            "commands": ["RUN_COMMAND"],
+            "writePaths": list(approved_scope),
+            "status": "ACTIVE",
+        },
+    }
+    STATE.approvals[approval_id] = approved
+    return approved
+
+
+def _task_id_for_proposal(proposal_id: str) -> str | None:
+    for task_id, proposals in STATE.proposals.items():
+        if any(proposal["id"] == proposal_id for proposal in proposals):
+            return task_id
+    return None

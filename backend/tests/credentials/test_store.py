@@ -51,3 +51,28 @@ def test_T104_set_update_clear_never_persists_or_prints_secret() -> None:
     assert unavailable.provider().get_secret_value("openai") == "sk-proj-session"
     with pytest.raises(KeyringUnavailable):
         unavailable.require_persistent_credentials()
+
+
+def test_provider_metadata_uses_same_keyring_and_session_fallback() -> None:
+    keyring = InMemoryKeyring()
+    store = CredentialStore(profile_id="default", keyring=keyring)
+
+    store.set_provider_metadata(base_url="https://api.example.com/v1", model="model-a")
+    reloaded = CredentialStore(profile_id="default", keyring=keyring)
+
+    assert reloaded.provider_metadata() == {
+        "base_url": "https://api.example.com/v1",
+        "model": "model-a",
+    }
+
+    unavailable = CredentialStore(
+        profile_id="session",
+        keyring=InMemoryKeyring(fail_operations=True),
+    )
+    unavailable.set_provider_metadata(base_url="https://api.example.com/v1", model="model-b")
+
+    assert unavailable.provider_metadata() == {
+        "base_url": "https://api.example.com/v1",
+        "model": "model-b",
+    }
+    assert unavailable.status().persistence == "session"

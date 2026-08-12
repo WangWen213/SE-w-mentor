@@ -17,9 +17,9 @@ export function TaskHeader({ task, onStop }: TaskHeaderProps) {
         <h1 className="task-name">{task.title}</h1>
       </div>
       <div className="task-head-actions">
-        <Button>查看范围</Button>
+        <Button>{"\u67e5\u770b\u8303\u56f4"}</Button>
         <Button variant="danger" onClick={onStop}>
-          停止
+          {"\u505c\u6b62"}
         </Button>
       </div>
     </header>

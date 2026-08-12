@@ -26,7 +26,7 @@ export function RecoveryPage({ items, onKeep, onRollback, pendingTaskId }: Recov
             <span>
               <span className="memory-title">{item.taskId}</span>
               <span className="memory-text">
-                {item.conflict ? "检测到恢复冲突，需要人工处理" : item.sideEffects}
+                {item.conflict ? "检测到恢复冲突，需要人工处理。" : item.sideEffects}
               </span>
               <span className="memory-meta">
                 <span className={item.conflict ? "memory-tag warn" : "memory-tag ok"}>

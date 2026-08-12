@@ -1,9 +1,9 @@
 import type { TaskTab } from "../../app/fixtures";
 
 const tabs: Array<{ key: TaskTab; label: string }> = [
-  { key: "conversation", label: "对话" },
-  { key: "changes", label: "改动" },
-  { key: "checks", label: "检查" },
+  { key: "conversation", label: "\u5bf9\u8bdd" },
+  { key: "changes", label: "\u6539\u52a8" },
+  { key: "checks", label: "\u68c0\u67e5" },
 ];
 
 interface TaskTabsProps {
@@ -13,7 +13,7 @@ interface TaskTabsProps {
 
 export function TaskTabs({ active, onChange }: TaskTabsProps) {
   return (
-    <div aria-label="任务内容" className="tabs" role="tablist">
+    <div aria-label="\u4efb\u52a1\u5185\u5bb9" className="tabs" role="tablist">
       {tabs.map((tab) => (
         <button
           key={tab.key}

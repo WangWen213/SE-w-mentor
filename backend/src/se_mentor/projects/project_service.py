@@ -56,6 +56,7 @@ def _git(cwd: Path, *args: str) -> str:
         check=False,
         capture_output=True,
         text=True,
+        timeout=10,
     )
     if result.returncode != 0:
         raise ProjectRegistrationError("path is not a valid Git repository")

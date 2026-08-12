@@ -99,5 +99,11 @@ class GitService:
         return self._git_bytes(*args).decode("utf-8", errors="ignore").strip()
 
     def _git_bytes(self, *args: str) -> bytes:
-        result = subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True)
+        result = subprocess.run(
+            ["git", *args],
+            cwd=self.root,
+            check=True,
+            capture_output=True,
+            timeout=10,
+        )
         return result.stdout

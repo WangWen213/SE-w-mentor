@@ -1,9 +1,26 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+
+_EXCLUDED_DIRS = {
+    ".agents",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".sementor",
+    ".tmp",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "evidence",
+    "node_modules",
+}
 
 
 class ToolchainKind(StrEnum):
@@ -33,9 +50,7 @@ def detect_toolchain(project_root: str | Path, *, max_files: int = 5000) -> Tool
     evidence: list[str] = []
     scanned = 0
 
-    for path in sorted(root.rglob("*")):
-        if ".git" in path.parts:
-            continue
+    for path in _iter_paths(root):
         scanned += 1
         if scanned > max_files:
             return ToolchainDetection(
@@ -102,3 +117,11 @@ def _detect_package_json(path: Path, frameworks: set[str]) -> None:
         frameworks.add("vitest")
     if "jest" in text:
         frameworks.add("jest")
+
+
+def _iter_paths(root: Path):
+    for current, dirs, files in os.walk(root):
+        dirs[:] = [name for name in dirs if name not in _EXCLUDED_DIRS]
+        current_path = Path(current)
+        for name in sorted(files):
+            yield current_path / name

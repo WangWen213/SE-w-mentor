@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,6 +15,22 @@ from se_mentor.models.code_index import (
     CodeSymbolRelation,
     CodeSymbolRelationType,
 )
+
+_EXCLUDED_DIRS = {
+    ".agents",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".sementor",
+    ".tmp",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "evidence",
+    "node_modules",
+}
 
 
 @dataclass(frozen=True)
@@ -43,7 +60,8 @@ class RelationExtractor:
         }
         relation_count = 0
         unresolved: list[str] = []
-        for path in sorted(root.rglob("*.py")):
+        seen_relations: set[tuple[str, str, CodeSymbolRelationType]] = set()
+        for path in _iter_python_files(root):
             rel = path.relative_to(root).as_posix()
             module = rel[:-3].replace("/", ".")
             source = by_name.get(module)
@@ -59,13 +77,17 @@ class RelationExtractor:
             for imported in visitor.imports:
                 target = by_module.get(imported.split(".", 1)[0]) or by_module.get(imported)
                 if target is not None and target.id != source.id:
-                    relation_count += self._add(source, target, CodeSymbolRelationType.IMPORTS, rel)
+                    relation_count += self._add(
+                        source, target, CodeSymbolRelationType.IMPORTS, rel, seen_relations
+                    )
                 else:
                     unresolved.append(f"{rel}:IMPORTS:{imported}")
             for call in visitor.calls:
                 target = _resolve_call(call, module, by_name)
                 if target is not None and target.id != source.id:
-                    relation_count += self._add(source, target, CodeSymbolRelationType.CALLS, rel)
+                    relation_count += self._add(
+                        source, target, CodeSymbolRelationType.CALLS, rel, seen_relations
+                    )
                 else:
                     unresolved.append(f"{rel}:CALLS:{call}")
             for table in visitor.read_tables:
@@ -74,6 +96,7 @@ class RelationExtractor:
                     source,
                     CodeSymbolRelationType.READS_TABLE,
                     rel,
+                    seen_relations,
                     allow_self=True,
                     detail=table,
                 )
@@ -83,19 +106,29 @@ class RelationExtractor:
                     source,
                     CodeSymbolRelationType.WRITES_TABLE,
                     rel,
+                    seen_relations,
                     allow_self=True,
                     detail=table,
                 )
             if visitor.serializes:
                 relation_count += self._add(
-                    source, source, CodeSymbolRelationType.SERIALIZES, rel, allow_self=True
+                    source,
+                    source,
+                    CodeSymbolRelationType.SERIALIZES,
+                    rel,
+                    seen_relations,
+                    allow_self=True,
                 )
             if rel.startswith("test_"):
                 for call in visitor.calls:
                     target = _resolve_call(call, module, by_name)
                     if target is not None and target.id != source.id:
                         relation_count += self._add(
-                            source, target, CodeSymbolRelationType.TESTS, rel
+                            source,
+                            target,
+                            CodeSymbolRelationType.TESTS,
+                            rel,
+                            seen_relations,
                         )
         self.session.flush()
         return RelationExtractionResult(relation_count, tuple(unresolved))
@@ -117,6 +150,7 @@ class RelationExtractor:
         target: CodeSymbol,
         relation_type: CodeSymbolRelationType,
         relative_path: str,
+        seen_relations: set[tuple[str, str, CodeSymbolRelationType]],
         *,
         allow_self: bool = False,
         detail: str | None = None,
@@ -134,6 +168,10 @@ class RelationExtractor:
             if not candidates:
                 return 0
             target = candidates[0]
+        relation_key = (source.id, target.id, relation_type)
+        if relation_key in seen_relations:
+            return 0
+        seen_relations.add(relation_key)
         existing = self.session.scalar(
             select(CodeSymbolRelation).where(
                 CodeSymbolRelation.source_symbol_id == source.id,
@@ -206,3 +244,12 @@ def _table(sql: str) -> str:
             if index + 1 < len(parts):
                 return parts[index + 1].lower()
     return "unknown"
+
+
+def _iter_python_files(root: Path):
+    for current, dirs, files in os.walk(root):
+        dirs[:] = [name for name in dirs if name not in _EXCLUDED_DIRS]
+        current_path = Path(current)
+        for name in sorted(files):
+            if name.endswith(".py"):
+                yield current_path / name

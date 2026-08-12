@@ -8,7 +8,7 @@ export function DiffViewer({ trace }: DiffViewerProps) {
   if (!trace) {
     return (
       <section className="result-card" aria-label="代码差异">
-        <div className="result-title">没有可展示的后端 Diff</div>
+        <div className="result-title">尚未产生可展示的后端 Diff</div>
         <p className="detail-text">等待后端返回真实文件变更记录。</p>
       </section>
     );

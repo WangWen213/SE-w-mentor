@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from importlib import import_module
 from typing import Protocol
 
 from se_mentor.security.secrets import CredentialProvider, Secret
 
 SERVICE_NAME = "se-mentor-openai"
+METADATA_SUFFIX = ":metadata"
 
 
 class KeyringUnavailable(RuntimeError):
@@ -58,11 +61,39 @@ class InMemoryKeyring:
         self._values.pop((service_name, username), None)
 
 
+class SystemKeyring:
+    def __init__(self) -> None:
+        try:
+            self._keyring = import_module("keyring")
+        except Exception as exc:
+            raise KeyringUnavailable("keyring package unavailable") from exc
+
+    def set_password(self, service_name: str, username: str, password: str) -> None:
+        try:
+            self._keyring.set_password(service_name, username, password)
+        except Exception as exc:
+            raise KeyringUnavailable("keyring set failed") from exc
+
+    def get_password(self, service_name: str, username: str) -> str | None:
+        try:
+            value = self._keyring.get_password(service_name, username)
+        except Exception as exc:
+            raise KeyringUnavailable("keyring get failed") from exc
+        return value if isinstance(value, str) else None
+
+    def delete_password(self, service_name: str, username: str) -> None:
+        try:
+            self._keyring.delete_password(service_name, username)
+        except Exception as exc:
+            raise KeyringUnavailable("keyring delete failed") from exc
+
+
 class CredentialStore:
     def __init__(self, *, profile_id: str, keyring: Keyring) -> None:
         self.profile_id = profile_id
         self.keyring = keyring
         self._session_value: str | None = None
+        self._session_metadata: dict[str, str | None] = {}
         self._persistence = "keyring"
 
     @property
@@ -109,6 +140,49 @@ class CredentialStore:
     def require_persistent_credentials(self) -> None:
         if self._persistence != "keyring":
             raise KeyringUnavailable("persistent keyring unavailable")
+
+    def set_provider_metadata(self, *, base_url: str | None, model: str | None) -> None:
+        metadata = {"base_url": base_url, "model": model}
+        try:
+            self.keyring.set_password(
+                SERVICE_NAME,
+                f"{self.profile_id}{METADATA_SUFFIX}",
+                json.dumps(metadata, sort_keys=True),
+            )
+            self._session_metadata = {}
+            self._persistence = "keyring"
+        except KeyringUnavailable:
+            self._session_metadata = metadata
+            self._persistence = "session"
+
+    def clear_provider_metadata(self) -> None:
+        self._session_metadata = {}
+        try:
+            self.keyring.delete_password(SERVICE_NAME, f"{self.profile_id}{METADATA_SUFFIX}")
+            self._persistence = "keyring"
+        except KeyringUnavailable:
+            self._persistence = "session"
+
+    def provider_metadata(self) -> dict[str, str | None]:
+        if self._session_metadata:
+            return dict(self._session_metadata)
+        try:
+            raw = self.keyring.get_password(SERVICE_NAME, f"{self.profile_id}{METADATA_SUFFIX}")
+        except KeyringUnavailable:
+            self._persistence = "session"
+            return {}
+        if not raw:
+            return {}
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        return {
+            "base_url": data.get("base_url") if isinstance(data.get("base_url"), str) else None,
+            "model": data.get("model") if isinstance(data.get("model"), str) else None,
+        }
 
     def _secret_for(self, name: str) -> Secret:
         if name != "openai":

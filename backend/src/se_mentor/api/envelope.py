@@ -7,5 +7,13 @@ def ok(data: dict[str, Any], *, meta: dict[str, Any] | None = None) -> dict[str,
     return {"data": data, "error": None, "meta": meta or {}}
 
 
-def error(code: str, message: str, *, meta: dict[str, Any] | None = None) -> dict[str, Any]:
-    return {"data": None, "error": {"code": code, "message": message}, "meta": meta or {}}
+def error(
+    code: str,
+    message: str,
+    *,
+    meta: dict[str, Any] | None = None,
+    **details: Any,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {"code": code, "message": message}
+    payload.update(details)
+    return {"data": None, "error": payload, "meta": meta or {}}

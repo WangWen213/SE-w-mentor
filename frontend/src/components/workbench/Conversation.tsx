@@ -1,12 +1,19 @@
+import { useEffect, useRef } from "react";
+
 import type { TaskFixture } from "../../app/fixtures";
 import { Message } from "./Message";
-import { ProposalCard } from "./ProposalCard";
 
 interface ConversationProps {
   task: TaskFixture;
 }
 
 export function Conversation({ task }: ConversationProps) {
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [task.messages.length]);
+
   return (
     <section
       aria-labelledby="tab-conversation"
@@ -19,7 +26,7 @@ export function Conversation({ task }: ConversationProps) {
           {task.messages.map((message) => (
             <Message key={message.id} message={message} />
           ))}
-          <ProposalCard proposal={task.proposal} />
+          <div ref={bottomRef} aria-hidden="true" />
         </div>
       </div>
     </section>

@@ -1,13 +1,61 @@
 from __future__ import annotations
 
+import subprocess
+import time
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from se_mentor.main import create_app
+from se_mentor.llm.base import LLMRequest, LLMResponse, LLMUsage
 
 
-def test_T095_governance_exposes_facts_inference_unknowns_and_three_decisions() -> None:
+class RecordingProvider:
+    provider_name = "recording"
+    model = "recording"
+
+    def complete(self, request: LLMRequest) -> LLMResponse:
+        if "impact" in request.prompt_summary.lower():
+            return LLMResponse(
+                content=(
+                    '{"fact_refs":["proposal-scope:0"],'
+                    '"narrative":"治理结果来自后端影响分析。",'
+                    '"risks":["UNKNOWN"]}'
+                ),
+                usage=LLMUsage(10, 10),
+                model=self.model,
+                provider=self.provider_name,
+            )
+        return LLMResponse(
+            content=(
+                '{"goal":"调整认证逻辑",'
+                '"expected_behavior":"认证中间件按需求更新。",'
+                '"scope":["auth/middleware.py"],'
+                '"non_goals":[],'
+                '"constraints":[],'
+                '"acceptance":["认证相关测试通过"],'
+                '"user_facts":[],'
+                '"inferences":[],'
+                '"risks":["UNKNOWN"]}'
+            ),
+            usage=LLMUsage(10, 10),
+            model=self.model,
+            provider=self.provider_name,
+        )
+
+
+def test_T095_governance_exposes_facts_inference_unknowns_and_three_decisions(tmp_path: Path, monkeypatch) -> None:
+    provider = RecordingProvider()
+    monkeypatch.setattr("se_mentor.api.proposals.get_domain_provider", lambda: provider)
+    monkeypatch.setattr("se_mentor.api.governance.get_domain_provider", lambda: provider)
     client = TestClient(create_app())
-    project = client.post("/api/projects", json={"rootPath": "C:/repo"}).json()["data"]
+    repo = _git_repo(tmp_path / "repo")
+    project = client.post("/api/projects", json={"rootPath": str(repo)}).json()["data"]
+    for _ in range(20):
+        bootstrap = client.get(f"/api/projects/{project['id']}/bootstrap").json()["data"]
+        if bootstrap["status"] == "READY":
+            break
+        time.sleep(0.1)
     task = client.post(
         "/api/tasks",
         json={"projectId": project["id"], "request": "change auth"},
@@ -37,7 +85,21 @@ def test_T095_governance_exposes_facts_inference_unknowns_and_three_decisions() 
     assert warn.json()["data"]["inferences"]
     assert warn.json()["data"]["unknowns"]
     assert warn.json()["data"]["evidence"]
-    assert warn.json()["data"]["impactScope"]["summary"] == "1 个文件受影响"
+    assert warn.json()["data"]["impactScope"]["summary"] == "1 \u4e2a\u6587\u4ef6\u53d7\u5f71\u54cd"
     assert warn.json()["data"]["ruleHits"][0]["level"] == "WARN"
     assert block.json()["data"]["decision"] == "BLOCK"
     assert block.json()["data"]["nonApprovable"] is True
+
+
+def _git_repo(path: Path) -> Path:
+    path.mkdir(parents=True)
+    subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "tests@example.invalid"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.name", "tests"], cwd=path, check=True)
+    (path / "auth").mkdir()
+    (path / "auth" / "middleware.py").write_text("def auth():\n    return True\n", encoding="utf-8")
+    (path / "src").mkdir()
+    (path / "src" / "user.py").write_text("def user():\n    return True\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=path, check=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=path, check=True, capture_output=True)
+    return path

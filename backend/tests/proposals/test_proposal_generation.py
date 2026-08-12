@@ -27,9 +27,14 @@ def test_AC_FR02_01_generates_required_proposal_fields_without_side_effects(
             MockResponse(
                 match="proposal",
                 content=(
-                    '{"goal":"Add audit logs","expected_behavior":"Audit logs are persisted",'
-                    '"scope":["backend/src"],"non_goals":["frontend"],'
+                    '{"goal":"Add audit logs","understanding":"User wants persisted audit logs",'
+                    '"expected_behavior":"Audit logs are persisted",'
+                    '"scope":["backend/src"],'
+                    '"changes":[{"path":"backend/src","symbol":null,"action":"Add audit log persistence","reason":"Repository backend scope is evidenced"}],'
+                    '"steps":["Locate audit model","Persist audit event"],'
+                    '"non_goals":["frontend"],'
                     '"constraints":["no network"],"acceptance":["pytest passes"],'
+                    '"validation":["pytest passes"],'
                     '"user_facts":["User asked for audit logs"],'
                     '"inferences":["Backend service likely changes"],"risks":["schema drift"]}'
                 ),
