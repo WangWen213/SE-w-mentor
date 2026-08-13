@@ -1,0 +1,128 @@
+stages:
+  - validate
+  - test
+  - security
+  - build
+  - release
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
+    - when: never
+
+variables:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.cache/npm"
+  DEPLOY_IMAGE_TAG: "$CI_COMMIT_SHA"
+
+default:
+  interruptible: true
+
+.backend-python:
+  image: python:3.13-slim
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - .cache/pip/
+  before_script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -e "backend[dev]"
+
+.frontend-node:
+  image: node:20-bookworm
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - .cache/npm/
+      - frontend/node_modules/
+  before_script:
+    - cd frontend
+    - npm ci
+
+quality:
+  extends: .backend-python
+  stage: validate
+  script:
+    - python -m ruff format --check backend scripts tests
+    - python -m ruff check backend scripts tests
+    - cd backend
+    - python -m mypy src tests
+
+migration:
+  extends: .backend-python
+  stage: validate
+  script:
+    - python scripts/ci/check_migrations.py
+
+unit-test:
+  extends: .backend-python
+  stage: test
+  script:
+    - python scripts/ci/run_backend_tests.py
+
+frontend-test:
+  extends: .frontend-node
+  stage: test
+  script:
+    - npm run type-check
+    - npm run test -- --run
+
+mock-e2e:
+  extends: .backend-python
+  stage: test
+  script:
+    - python scripts/ci/run_mock_e2e.py
+
+secret-scan:
+  image: python:3.13-slim
+  stage: security
+  script:
+    - python scripts/ci/scan_secrets.py
+
+security:
+  extends: .backend-python
+  stage: security
+  script:
+    - python scripts/ci/run_security_checks.py
+
+backend-build:
+  extends: .backend-python
+  stage: build
+  script:
+    - python -m pip install build
+    - python -m build backend
+
+frontend-build:
+  extends: .frontend-node
+  stage: build
+  script:
+    - npm run build
+
+release-gate:
+  image: alpine:3.20
+  stage: release
+  needs:
+    - backend-build
+    - frontend-build
+    - migration
+    - mock-e2e
+    - secret-scan
+    - security
+    - unit-test
+  environment:
+    name: production
+    deployment_tier: production
+  rules:
+    - if: '$CI_COMMIT_REF_PROTECTED == "true"'
+    - when: never
+  script:
+    - test -n "$CI_COMMIT_SHA"
+    - test "$DEPLOY_IMAGE_TAG" = "$CI_COMMIT_SHA"
+    - test "$DEPLOY_IMAGE_TAG" != "latest"
+    - test -n "$DEPLOY_HEALTHCHECK_URL"
+    - test -n "$ROLLBACK_RUNBOOK_URL"
+    - echo "Protected release gate validated immutable image tag, health check, and rollback contract."
