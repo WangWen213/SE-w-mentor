@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import json
 import re
+import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -81,6 +85,53 @@ def test_T108_compose_gateway_is_the_public_entrypoint() -> None:
     assert "frontend:" in compose
     assert "backend:" in compose
     assert "se_mentor_internal" in compose
+
+
+def test_T109_production_compose_publishes_only_gateway_http() -> None:
+    assert (ROOT / "deploy" / "docker-compose.production.yml").is_file()
+
+    command = [
+        "docker",
+        "compose",
+        "-f",
+        "deploy/docker-compose.yml",
+        "-f",
+        "deploy/docker-compose.production.yml",
+        "config",
+        "--format",
+        "json",
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        pytest.skip("docker compose CLI is not available")
+
+    assert completed.returncode == 0, completed.stderr
+    config = json.loads(completed.stdout)
+    services = config["services"]
+
+    assert services["backend"].get("ports", []) == []
+    assert services["frontend"].get("ports", []) == []
+
+    gateway_ports = services["gateway"]["ports"]
+    assert gateway_ports == [
+        {
+            "mode": "ingress",
+            "target": 8080,
+            "published": "80",
+            "protocol": "tcp",
+        }
+    ]
+    assert "se_mentor_runtime" in config["volumes"]
+    assert "se_mentor_internal" in config["networks"]
+    assert services["backend"]["environment"]["SE_MENTOR_RUNTIME_PROFILE"] == "CLOUD_DEMO"
+    assert "47.76.106.57" not in read("deploy/docker-compose.production.yml")
 
 
 def test_T107_dockerignore_excludes_dev_runtime_and_secret_material() -> None:

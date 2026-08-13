@@ -1,0 +1,10 @@
+services:
+  backend:
+    ports: !override []
+
+  frontend:
+    ports: !override []
+
+  gateway:
+    ports: !override
+      - "${SE_MENTOR_PUBLIC_HTTP_PORT:-80}:8080"
