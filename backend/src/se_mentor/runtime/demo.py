@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from contextlib import suppress
 from pathlib import Path
 from stat import S_IWRITE
-
 
 DEMO_BASELINE_DIRNAME = ".baseline"
 
@@ -73,7 +73,7 @@ def _ensure_git_repository(root: Path) -> None:
 
 def _git(root: Path, *args: str) -> None:
     result = subprocess.run(
-        ["git", *args],
+        ["git", "-c", f"safe.directory={root.as_posix()}", *args],
         cwd=root,
         check=False,
         capture_output=True,
@@ -86,8 +86,6 @@ def _git(root: Path, *args: str) -> None:
 
 def _make_writable(function, path, _exc_info) -> None:
     target = Path(path)
-    try:
+    with suppress(OSError):
         target.chmod(S_IWRITE)
-    except OSError:
-        pass
     function(path)

@@ -20,6 +20,7 @@ class MockResponse:
     content: str
     input_tokens: int
     output_tokens: int
+    min_call: int = 1
 
 
 class MockLLMProvider:
@@ -50,6 +51,8 @@ class MockLLMProvider:
             raise ProviderTimeout("mock provider timeout")
         self.calls += 1
         for response in self.script:
+            if self.calls < response.min_call:
+                continue
             if response.match in request.input_text or response.match in request.prompt_summary:
                 return LLMResponse(
                     content=response.content,

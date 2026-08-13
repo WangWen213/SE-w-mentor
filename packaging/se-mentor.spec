@@ -28,6 +28,8 @@ hiddenimports = []
 hiddenimports += collect_submodules("uvicorn")
 hiddenimports += collect_submodules("alembic")
 hiddenimports += [
+    "se_mentor.application.harness",
+    "se_mentor.cli.main",
     "se_mentor.models",
     "uvicorn.lifespan.on",
     "uvicorn.loops.auto",

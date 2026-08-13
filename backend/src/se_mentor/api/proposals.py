@@ -26,6 +26,7 @@ from se_mentor.orchestration.change_flow import ChangeFlowOrchestrator
 from se_mentor.proposals.context import ProposalContextBuilder
 from se_mentor.proposals.generator import ProposalGenerationError, ProposalGenerator
 from se_mentor.proposals.review_service import ProposalReviewService
+from se_mentor.proposals.supplement import run_bounded_technical_supplement
 
 router = APIRouter(prefix="/api/tasks/{task_id}/proposals", tags=["proposals"])
 _SESSION_FACTORY = get_session_factory()
@@ -435,39 +436,7 @@ def _run_bounded_technical_supplement(
     proposal: ChangeProposal,
     context,
 ) -> ChangeProposal:
-    reason = task.failure_message or "Proposal needs one bounded technical supplement."
-    supplemented = generator.generate(
-        task_id=task.id,
-        request=LLMRequest(
-            prompt_summary="structured technical proposal supplement",
-            input_text="\n".join(
-                [
-                    "Bounded technical supplement for the existing proposal.",
-                    f"Original request: {task.original_request}",
-                    f"Current proposal version: {proposal.version}",
-                    f"Missing technical analysis: {reason}",
-                    "Reuse the existing selected context and fill only missing technical details.",
-                ]
-            ),
-        ),
-        context_package=context.context_package,
-        evidenced_paths=context.evidenced_paths,
-    )
-    proposal.status = ProposalStatus.SUPERSEDED
-    supplemented.supersedes_id = proposal.id
-    if supplemented.completeness == ProposalCompleteness.COMPLETE:
-        task.failure_code = None
-        task.failure_message = None
-    elif supplemented.completeness == ProposalCompleteness.PARTIALLY_COMPLETE:
-        task.status = TaskStatus.NEEDS_INFORMATION
-    else:
-        task.status = TaskStatus.FAILED
-        task.failure_code = "PROPOSAL_INCOMPLETE_AFTER_SUPPLEMENT"
-        task.failure_message = (
-            "Proposal technical supplement completed but did not produce a confirmable proposal."
-        )
-    session.flush()
-    return supplemented
+    return run_bounded_technical_supplement(session, generator, task, proposal, context)
 
 
 def _proposal_payload(proposal: ChangeProposal) -> dict[str, object]:

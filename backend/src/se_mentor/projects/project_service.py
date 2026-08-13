@@ -51,7 +51,7 @@ def register_project(
 
 def _git(cwd: Path, *args: str) -> str:
     result = subprocess.run(
-        ["git", *args],
+        ["git", "-c", f"safe.directory={cwd.as_posix()}", *args],
         cwd=cwd,
         check=False,
         capture_output=True,

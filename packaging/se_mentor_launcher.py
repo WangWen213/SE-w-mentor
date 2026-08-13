@@ -20,16 +20,36 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8000
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    if args and args[0] in {"--help", "-h"}:
+        from se_mentor.cli.main import main as cli_main
+
+        return cli_main(args)
+    if args and args[0] in {"run", "credentials"}:
+        if any(arg in {"--help", "-h"} for arg in args):
+            from se_mentor.cli.main import main as cli_main
+
+            return cli_main(args)
+        _configure_packaged_runtime()
+        from se_mentor.cli.main import main as cli_main
+
+        return cli_main(args)
+    if args and args[0] == "serve":
+        args = args[1:]
+    if args:
+        from se_mentor.cli.main import main as cli_main
+
+        return cli_main(args)
+    return serve()
+
+
+def serve() -> int:
     resource_root = _resource_root()
     runtime_root = _runtime_root()
     runtime_root.mkdir(parents=True, exist_ok=True)
 
-    os.environ.setdefault("SE_MENTOR_RUNTIME_PROFILE", "LOCAL_FULL")
-    os.environ.setdefault("SE_MENTOR_RUNTIME_ROOT", str(runtime_root))
-    os.environ.setdefault("SE_MENTOR_DATABASE_URL", _database_url(runtime_root))
-
-    _upgrade_database(resource_root, os.environ["SE_MENTOR_DATABASE_URL"])
+    _configure_runtime(resource_root, runtime_root)
 
     host = os.environ.get("SE_MENTOR_HOST", DEFAULT_HOST)
     port = _port()
@@ -42,6 +62,20 @@ def main() -> int:
 
     uvicorn.run(app, host=host, port=port, log_level="info")
     return 0
+
+
+def _configure_packaged_runtime() -> None:
+    resource_root = _resource_root()
+    runtime_root = _runtime_root()
+    runtime_root.mkdir(parents=True, exist_ok=True)
+    _configure_runtime(resource_root, runtime_root)
+
+
+def _configure_runtime(resource_root: Path, runtime_root: Path) -> None:
+    os.environ.setdefault("SE_MENTOR_RUNTIME_PROFILE", "LOCAL_FULL")
+    os.environ.setdefault("SE_MENTOR_RUNTIME_ROOT", str(runtime_root))
+    os.environ.setdefault("SE_MENTOR_DATABASE_URL", _database_url(runtime_root))
+    _upgrade_database(resource_root, os.environ["SE_MENTOR_DATABASE_URL"])
 
 
 def _packaged_app(resource_root: Path) -> FastAPI:
@@ -88,6 +122,10 @@ def _runtime_root() -> Path:
     configured = os.environ.get("SE_MENTOR_RUNTIME_ROOT")
     if configured:
         return Path(configured).expanduser().resolve()
+    if os.environ.get("SE_MENTOR_RUNTIME_PROFILE", "").upper() == "CLOUD_DEMO":
+        demo_runtime = os.environ.get("SE_MENTOR_DEMO_RUNTIME_ROOT")
+        if demo_runtime:
+            return Path(demo_runtime).expanduser().resolve()
     local_app_data = os.environ.get("LOCALAPPDATA")
     if local_app_data:
         return Path(local_app_data) / APP_NAME

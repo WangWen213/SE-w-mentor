@@ -100,7 +100,7 @@ class GitService:
 
     def _git_bytes(self, *args: str) -> bytes:
         result = subprocess.run(
-            ["git", *args],
+            ["git", "-c", f"safe.directory={self.root.as_posix()}", *args],
             cwd=self.root,
             check=True,
             capture_output=True,

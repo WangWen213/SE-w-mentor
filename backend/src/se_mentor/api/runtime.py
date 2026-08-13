@@ -220,6 +220,51 @@ def _cloud_demo_provider() -> MockLLMProvider:
         model="cloud-demo",
         script=(
             MockResponse(
+                match="requires_code_change=true",
+                content=(
+                    '{"action_type":"APPLY_PATCH","parameters":{"relative_path":"app.py",'
+                    '"expected_sha256":null,"replacements":[{"old":"return f\\"Hello, {name}!\\"",'
+                    '"new":"return f\\"Hello from SE-Mentor, {name}!\\""}],'
+                    '"target_evidence":{"selected_path":"app.py",'
+                    '"selected_excerpt":"return f\\"Hello, {name}!\\"",'
+                    '"user_target_description":"update demo greeting text",'
+                    '"matched_semantic_evidence":["SEARCH_CODE:greeting"],'
+                    '"alternative_candidates":[],'
+                    '"selection_reason":"app.py contains the demo greeting function"}},'
+                    '"reason":"Apply the confirmed demo greeting change."}'
+                ),
+                input_tokens=96,
+                output_tokens=96,
+                min_call=2,
+            ),
+            MockResponse(
+                match="requires_code_change=true",
+                content=(
+                    '{"action_type":"SEARCH_CODE","parameters":{"query":"greeting"},'
+                    '"reason":"Locate the demo greeting function."}'
+                ),
+                input_tokens=64,
+                output_tokens=32,
+            ),
+            MockResponse(
+                match="structured change proposal",
+                content=(
+                    '{"goal":"Improve demo greeting",'
+                    '"understanding":"The demo project has a simple greeting function.",'
+                    '"expected_behavior":"The greeting stays testable and becomes friendlier.",'
+                    '"scope":["app.py"],'
+                    '"changes":[{"path":"app.py","symbol":"greeting","action":"update",'
+                    '"reason":"app.py owns the greeting behavior"}],'
+                    '"steps":["Read app.py","Update the greeting text","Run the demo test"],'
+                    '"non_goals":[],"constraints":["Only modify the demo workspace"],'
+                    '"acceptance":["test_app.py passes"],"validation":["pytest -q"],'
+                    '"user_facts":[],"inferences":["This is a CLOUD_DEMO task"],'
+                    '"risks":["The expected test assertion may need a later update"]}'
+                ),
+                input_tokens=128,
+                output_tokens=128,
+            ),
+            MockResponse(
                 match="structured change proposal",
                 content=(
                     '{"goal":"改进演示问候语","understanding":"演示项目包含一个简单问候函数。",'
