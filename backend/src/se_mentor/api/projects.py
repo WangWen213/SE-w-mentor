@@ -12,7 +12,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
-from se_mentor.api.runtime import get_runtime_settings, get_session_factory
+from se_mentor.api.runtime import (
+    ONLINE_SAFE_WORKSPACE_ERROR,
+    get_runtime_settings,
+    get_session_factory,
+)
 from se_mentor.db.session import session_scope
 from se_mentor.git.git_service import GitService
 from se_mentor.models.knowledge import EngineeringKnowledge
@@ -65,6 +69,12 @@ def create_project(payload: ProjectCreate, response: Response) -> dict[str, obje
 
 @router.post("/choose-local", status_code=status.HTTP_201_CREATED)
 def choose_local_project(response: Response) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(
+            ONLINE_SAFE_WORKSPACE_ERROR,
+            "online safe workspace sessions are not implemented yet",
+        )
     if get_runtime_settings().profile is RuntimeProfile.CLOUD_DEMO:
         response.status_code = status.HTTP_409_CONFLICT
         return error(
@@ -83,6 +93,12 @@ def choose_local_project(response: Response) -> dict[str, object]:
 
 def _register_project(root_path: str, response: Response) -> dict[str, object]:
     settings = get_runtime_settings()
+    if settings.profile is RuntimeProfile.ONLINE_SAFE:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(
+            ONLINE_SAFE_WORKSPACE_ERROR,
+            "online safe workspace sessions are not implemented yet",
+        )
     if settings.profile is RuntimeProfile.CLOUD_DEMO:
         try:
             demo_root = ensure_demo_workspace(settings.demo_workspace_root)

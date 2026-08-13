@@ -9,6 +9,7 @@ from pathlib import Path
 class RuntimeProfile(StrEnum):
     LOCAL_FULL = "LOCAL_FULL"
     CLOUD_DEMO = "CLOUD_DEMO"
+    ONLINE_SAFE = "ONLINE_SAFE"
 
 
 class RuntimeProfileError(ValueError):
@@ -24,6 +25,10 @@ class RuntimeSettings:
     @property
     def cloud_demo(self) -> bool:
         return self.profile is RuntimeProfile.CLOUD_DEMO
+
+    @property
+    def online_safe(self) -> bool:
+        return self.profile is RuntimeProfile.ONLINE_SAFE
 
 
 _PROFILE_ENV = "SE_MENTOR_RUNTIME_PROFILE"
@@ -62,6 +67,13 @@ def _runtime_root(profile: RuntimeProfile, env: dict[str, str]) -> Path:
             Path(configured).expanduser().resolve()
             if configured
             else (_repo_root() / ".tmp" / "cloud-demo-runtime").resolve()
+        )
+    if profile is RuntimeProfile.ONLINE_SAFE:
+        configured = env.get(_LOCAL_RUNTIME_ROOT_ENV)
+        return (
+            Path(configured).expanduser().resolve()
+            if configured
+            else (_repo_root() / ".tmp" / "online-safe-runtime").resolve()
         )
     configured = env.get(_LOCAL_RUNTIME_ROOT_ENV)
     if configured:

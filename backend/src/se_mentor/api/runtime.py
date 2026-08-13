@@ -62,6 +62,11 @@ def _build_credential_store() -> CredentialStore:
         return CredentialStore(
             profile_id="cloud-demo", keyring=InMemoryKeyring(fail_operations=True)
         )
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.ONLINE_SAFE:
+        return CredentialStore(
+            profile_id="online-safe-locked",
+            keyring=InMemoryKeyring(fail_operations=True),
+        )
     for keyring_factory in (WindowsCredentialManagerKeyring, SystemKeyring):
         try:
             store = CredentialStore(profile_id="default", keyring=keyring_factory())
@@ -113,6 +118,13 @@ class ProviderRuntimeConfig:
 
 
 _PROVIDER_CONFIG = ProviderRuntimeConfig()
+ONLINE_SAFE_CREDENTIAL_ERROR = "ONLINE_SAFE_SESSION_CREDENTIALS_NOT_READY"
+ONLINE_SAFE_PROVIDER_ERROR = "ONLINE_SAFE_PROVIDER_NOT_READY"
+ONLINE_SAFE_WORKSPACE_ERROR = "ONLINE_SAFE_WORKSPACE_NOT_READY"
+
+
+class OnlineSafeNotReadyError(ProviderConfigError):
+    pass
 
 
 class ProviderFactory:
@@ -120,6 +132,8 @@ class ProviderFactory:
         self.credential_store = credential_store
 
     def create(self) -> LLMProvider:
+        if _RUNTIME_SETTINGS.profile is RuntimeProfile.ONLINE_SAFE:
+            raise OnlineSafeNotReadyError(ONLINE_SAFE_PROVIDER_ERROR)
         profile = os.environ.get("SE_MENTOR_LLM_PROFILE", "LOCAL_FULL").upper()
         if profile == "MOCK":
             raise ProviderAuthError(
@@ -163,6 +177,8 @@ def get_runtime_settings():
 
 
 def set_provider_config(*, base_url: str | None, model: str | None) -> None:
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.ONLINE_SAFE:
+        raise OnlineSafeNotReadyError(ONLINE_SAFE_CREDENTIAL_ERROR)
     if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
         raise ProviderConfigError("provider configuration is unavailable in CLOUD_DEMO")
     _PROVIDER_CONFIG.base_url = _normalize_base_url(base_url)
@@ -174,6 +190,8 @@ def set_provider_config(*, base_url: str | None, model: str | None) -> None:
 
 
 def clear_provider_config() -> None:
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.ONLINE_SAFE:
+        raise OnlineSafeNotReadyError(ONLINE_SAFE_CREDENTIAL_ERROR)
     if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
         raise ProviderConfigError("provider configuration is unavailable in CLOUD_DEMO")
     _PROVIDER_CONFIG.base_url = None
@@ -194,6 +212,16 @@ def credential_status_payload(status: CredentialStatus | None) -> dict[str, obje
             "baseUrl": None,
             "model": "cloud-demo",
         }
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.ONLINE_SAFE:
+        return {
+            "configured": False,
+            "provider": "OpenAI",
+            "source": "ONLINE_SAFE",
+            "baseUrl": None,
+            "model": None,
+            "locked": True,
+            "reason": ONLINE_SAFE_CREDENTIAL_ERROR,
+        }
     env_configured = bool(
         os.environ.get("SE_MENTOR_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
     )
@@ -212,6 +240,8 @@ def credential_status_payload(status: CredentialStatus | None) -> dict[str, obje
 def get_domain_provider() -> LLMProvider:
     if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
         return _cloud_demo_provider()
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.ONLINE_SAFE:
+        raise OnlineSafeNotReadyError(ONLINE_SAFE_PROVIDER_ERROR)
     return ProviderFactory(get_credential_store()).create()
 
 

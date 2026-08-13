@@ -6,11 +6,9 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-
 from phase1_test_helpers import create_schema
 
 from se_mentor.db.session import create_session_factory
-from se_mentor.execution.orchestrator import ExecutionOrchestrator
 from se_mentor.models.project import Project
 from se_mentor.projects.project_service import register_project
 from se_mentor.runtime.demo import reset_demo_runtime, reset_demo_workspace
@@ -20,6 +18,9 @@ from se_mentor.runtime.profiles import RuntimeProfile, RuntimeProfileError, get_
 def test_local_full_is_default_and_invalid_profile_fails_closed(monkeypatch) -> None:
     monkeypatch.delenv("SE_MENTOR_RUNTIME_PROFILE", raising=False)
     assert get_runtime_profile() is RuntimeProfile.LOCAL_FULL
+
+    monkeypatch.setenv("SE_MENTOR_RUNTIME_PROFILE", "ONLINE_SAFE")
+    assert get_runtime_profile() is RuntimeProfile.ONLINE_SAFE
 
     monkeypatch.setenv("SE_MENTOR_RUNTIME_PROFILE", "CLOUD-DEMO")
     with pytest.raises(RuntimeProfileError):
@@ -135,6 +136,134 @@ def test_cloud_demo_tool_registry_excludes_run_command(monkeypatch, tmp_path: Pa
     assert {"READ_FILE", "SEARCH_CODE", "APPLY_PATCH"}.issubset(captured["tools"])
 
 
+def test_online_safe_credentials_are_locked_and_do_not_touch_global_store(
+    monkeypatch, tmp_path: Path
+) -> None:
+    runtime_root = tmp_path / "online-safe-runtime"
+    app_module, projects_api, credentials_api, runtime_module, _ = _reload_api_for_online_safe(
+        monkeypatch, runtime_root
+    )
+
+    class FailingStore:
+        def status(self):
+            raise AssertionError("ONLINE_SAFE must not read global credentials")
+
+        def clear_api_key(self):
+            raise AssertionError("ONLINE_SAFE must not clear global credentials")
+
+    monkeypatch.setattr(runtime_module, "_CREDENTIAL_STORE", FailingStore())
+    client = TestClient(app_module.create_app())
+
+    status_response = client.get("/api/credentials/llm/status")
+    post_response = client.post(
+        "/api/credentials/llm",
+        json={
+            "provider": "openai-compatible",
+            "key": "placeholder-not-used",
+            "baseUrl": "https://api.example.test/v1",
+            "model": "model-a",
+        },
+    )
+    put_response = client.put(
+        "/api/credentials/llm",
+        json={
+            "provider": "openai-compatible",
+            "key": "placeholder-not-used",
+            "baseUrl": "https://api.example.test/v1",
+            "model": "model-a",
+        },
+    )
+    delete_response = client.delete("/api/credentials/llm")
+
+    assert status_response.status_code == 200
+    assert status_response.json()["data"] == {
+        "configured": False,
+        "provider": "OpenAI",
+        "source": "ONLINE_SAFE",
+        "baseUrl": None,
+        "model": None,
+        "locked": True,
+        "reason": runtime_module.ONLINE_SAFE_CREDENTIAL_ERROR,
+    }
+    assert post_response.status_code == 409
+    assert post_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_CREDENTIAL_ERROR
+    assert put_response.status_code == 409
+    assert put_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_CREDENTIAL_ERROR
+    assert delete_response.status_code == 200
+    assert delete_response.json()["data"]["configured"] is False
+    assert projects_api.get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE
+    assert credentials_api.get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE
+
+
+def test_online_safe_provider_is_locked_without_env_key_or_mock_fallback(
+    monkeypatch, tmp_path: Path
+) -> None:
+    runtime_root = tmp_path / "online-safe-runtime"
+    monkeypatch.setenv("OPENAI_API_KEY", "placeholder-openai-key-not-used")
+    monkeypatch.setenv("SE_MENTOR_LLM_PROFILE", "MOCK")
+    _, _, _, runtime_module, _ = _reload_api_for_online_safe(monkeypatch, runtime_root)
+
+    class FailingStore:
+        def provider(self):
+            raise AssertionError("ONLINE_SAFE must not read global credentials")
+
+        def provider_metadata(self):
+            raise AssertionError("ONLINE_SAFE must not read provider metadata")
+
+    monkeypatch.setattr(runtime_module, "_CREDENTIAL_STORE", FailingStore())
+
+    with pytest.raises(runtime_module.OnlineSafeNotReadyError) as exc:
+        runtime_module.get_domain_provider()
+
+    assert str(exc.value) == runtime_module.ONLINE_SAFE_PROVIDER_ERROR
+
+
+def test_online_safe_project_registration_is_locked(monkeypatch, tmp_path: Path) -> None:
+    runtime_root = tmp_path / "online-safe-runtime"
+    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
+        monkeypatch, runtime_root
+    )
+    client = TestClient(app_module.create_app())
+
+    create_response = client.post("/api/projects", json={"rootPath": "/root"})
+    picker_response = client.post("/api/projects/choose-local")
+
+    assert create_response.status_code == 409
+    assert create_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
+    assert picker_response.status_code == 409
+    assert picker_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
+
+
+def test_online_safe_tool_registry_excludes_run_command(monkeypatch, tmp_path: Path) -> None:
+    runtime_root = tmp_path / "online-safe-runtime"
+    _, _, _, _, orchestrator_module = _reload_api_for_online_safe(monkeypatch, runtime_root)
+    engine = create_schema(tmp_path / "tools.sqlite3")
+    session_factory = create_session_factory(engine)
+    captured = {}
+
+    class CaptureRuntime:
+        def __init__(self, session, *, runner, policy=None) -> None:
+            captured["tools"] = {item.name for item in runner.registry.list_specs()}
+
+    monkeypatch.setattr(orchestrator_module, "AgentRuntime", CaptureRuntime)
+    with session_factory() as session:
+        project = Project(root_path=str(tmp_path))
+        session.add(project)
+        session.flush()
+        task = type("Task", (), {"project": project})()
+        orchestrator_module.ExecutionOrchestrator(
+            session_factory, provider_override=object()
+        )._runtime_for(
+            session,
+            task,
+            authorization=_Authorization(),
+            write_context=object(),
+        )
+
+    assert "RUN_COMMAND" not in captured["tools"]
+    assert {"READ_FILE", "SEARCH_CODE", "APPLY_PATCH"}.issubset(captured["tools"])
+
+
 def test_demo_reset_is_idempotent_and_does_not_touch_local_storage(tmp_path: Path) -> None:
     demo_root = _demo_workspace(tmp_path)
     runtime_root = tmp_path / "demo-runtime"
@@ -161,9 +290,26 @@ def _reload_api_for_cloud_demo(monkeypatch, demo_root: Path, runtime_root: Path)
     monkeypatch.setenv("SE_MENTOR_RUNTIME_PROFILE", "CLOUD_DEMO")
     monkeypatch.setenv("SE_MENTOR_DEMO_WORKSPACE", str(demo_root))
     monkeypatch.setenv("SE_MENTOR_DEMO_RUNTIME_ROOT", str(runtime_root))
-    import se_mentor.api.runtime as runtime
-    import se_mentor.api.projects as projects_api
     import se_mentor.api.credentials as credentials_api
+    import se_mentor.api.projects as projects_api
+    import se_mentor.api.runtime as runtime
+    import se_mentor.execution.orchestrator as orchestrator_module
+    import se_mentor.main as main
+
+    runtime = importlib.reload(runtime)
+    projects_api = importlib.reload(projects_api)
+    credentials_api = importlib.reload(credentials_api)
+    orchestrator_module = importlib.reload(orchestrator_module)
+    main = importlib.reload(main)
+    return main, projects_api, credentials_api, runtime, orchestrator_module
+
+
+def _reload_api_for_online_safe(monkeypatch, runtime_root: Path):
+    monkeypatch.setenv("SE_MENTOR_RUNTIME_PROFILE", "ONLINE_SAFE")
+    monkeypatch.setenv("SE_MENTOR_RUNTIME_ROOT", str(runtime_root))
+    import se_mentor.api.credentials as credentials_api
+    import se_mentor.api.projects as projects_api
+    import se_mentor.api.runtime as runtime
     import se_mentor.execution.orchestrator as orchestrator_module
     import se_mentor.main as main
 
