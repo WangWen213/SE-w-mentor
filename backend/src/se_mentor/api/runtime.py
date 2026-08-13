@@ -35,15 +35,30 @@ from se_mentor.llm.base import (
     ProviderRequestError,
     ProviderTimeout,
 )
+from se_mentor.llm.mock import MockLLMProvider, MockResponse
 from se_mentor.llm.openai_provider import OpenAIProviderConfig, OpenAIResponsesProvider
+from se_mentor.runtime.demo import ensure_demo_workspace
+from se_mentor.runtime.profiles import RuntimeProfile, get_runtime_settings as resolve_runtime_settings
 from se_mentor.security.secrets import Secret
 
-_ENGINE = create_sqlite_engine(f"sqlite:///{Path(gettempdir()) / 'se_mentor_api.sqlite3'}")
+_RUNTIME_SETTINGS = resolve_runtime_settings()
+_RUNTIME_SETTINGS.runtime_root.mkdir(parents=True, exist_ok=True)
+if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
+    ensure_demo_workspace(_RUNTIME_SETTINGS.demo_workspace_root)
+
+_DATABASE_PATH = (
+    Path(gettempdir()) / "se_mentor_api.sqlite3"
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.LOCAL_FULL
+    else _RUNTIME_SETTINGS.runtime_root / "se_mentor_api.sqlite3"
+)
+_ENGINE = create_sqlite_engine(f"sqlite:///{_DATABASE_PATH}")
 Base.metadata.create_all(_ENGINE)
 Base.metadata.create_all(_ENGINE, tables=[Base.metadata.tables["task_evaluations"]])
 
 
 def _build_credential_store() -> CredentialStore:
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
+        return CredentialStore(profile_id="cloud-demo", keyring=InMemoryKeyring(fail_operations=True))
     for keyring_factory in (WindowsCredentialManagerKeyring, SystemKeyring):
         try:
             store = CredentialStore(profile_id="default", keyring=keyring_factory())
@@ -143,7 +158,13 @@ def get_credential_store() -> CredentialStore:
     return _CREDENTIAL_STORE
 
 
+def get_runtime_settings():
+    return _RUNTIME_SETTINGS
+
+
 def set_provider_config(*, base_url: str | None, model: str | None) -> None:
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
+        raise ProviderConfigError("provider configuration is unavailable in CLOUD_DEMO")
     _PROVIDER_CONFIG.base_url = _normalize_base_url(base_url)
     _PROVIDER_CONFIG.model = model.strip() if model else None
     get_credential_store().set_provider_metadata(
@@ -153,6 +174,8 @@ def set_provider_config(*, base_url: str | None, model: str | None) -> None:
 
 
 def clear_provider_config() -> None:
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
+        raise ProviderConfigError("provider configuration is unavailable in CLOUD_DEMO")
     _PROVIDER_CONFIG.base_url = None
     _PROVIDER_CONFIG.model = None
     get_credential_store().clear_provider_metadata()
@@ -162,7 +185,15 @@ def get_provider_config() -> ProviderRuntimeConfig:
     return _resolved_provider_config()
 
 
-def credential_status_payload(status: CredentialStatus) -> dict[str, object]:
+def credential_status_payload(status: CredentialStatus | None) -> dict[str, object]:
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
+        return {
+            "configured": True,
+            "provider": "Mock",
+            "source": "CLOUD_DEMO",
+            "baseUrl": None,
+            "model": "cloud-demo",
+        }
     env_configured = bool(
         os.environ.get("SE_MENTOR_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
     )
@@ -179,7 +210,46 @@ def credential_status_payload(status: CredentialStatus) -> dict[str, object]:
 
 
 def get_domain_provider() -> LLMProvider:
+    if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
+        return _cloud_demo_provider()
     return ProviderFactory(get_credential_store()).create()
+
+
+def _cloud_demo_provider() -> MockLLMProvider:
+    return MockLLMProvider(
+        model="cloud-demo",
+        script=(
+            MockResponse(
+                match="structured change proposal",
+                content=(
+                    '{"goal":"改进演示问候语","understanding":"演示项目包含一个简单问候函数。",'
+                    '"expected_behavior":"问候语保持可测试且更友好。","scope":["app.py"],'
+                    '"changes":[{"path":"app.py","symbol":"greeting","action":"update",'
+                    '"reason":"演示受控代码修改"}],"steps":["读取 app.py","更新问候文本","运行演示测试"],'
+                    '"non_goals":[],"constraints":["仅限演示工作区"],'
+                    '"acceptance":["test_app.py 通过"],"validation":["pytest -q"],'
+                    '"user_facts":[],"inferences":["这是 CLOUD_DEMO 演示任务"],"risks":[]}'
+                ),
+                input_tokens=128,
+                output_tokens=128,
+            ),
+            MockResponse(
+                match="bundle_hash",
+                content='{"narrative":"演示变更影响范围仅限 app.py。","risks":[],"fact_refs":[]}',
+                input_tokens=64,
+                output_tokens=32,
+            ),
+            MockResponse(
+                match="execution",
+                content=(
+                    '{"action_type":"SEARCH_CODE","parameters":{"query":"greeting"},'
+                    '"reason":"定位演示问候函数"}'
+                ),
+                input_tokens=64,
+                output_tokens=32,
+            ),
+        ),
+    )
 
 
 def build_openai_provider(

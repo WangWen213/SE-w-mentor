@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from se_mentor.agent.iteration import SingleTurnAgentRunner
 from se_mentor.agent.runtime import AgentRuntime, RuntimePolicy
 from se_mentor.api.events import BUS
-from se_mentor.api.runtime import get_domain_provider
+from se_mentor.api.runtime import get_domain_provider, get_runtime_settings
 from se_mentor.context.context_builder import ContextBuilder
 from se_mentor.db.session import session_scope
 from se_mentor.evaluation.service import EvaluationService
@@ -35,6 +35,7 @@ from se_mentor.models.execution import (
 from se_mentor.models.task import ChangeProposal, ChangeTask, TaskStatus
 from se_mentor.policy.enforcer import PolicyEnforcer
 from se_mentor.policy.grants import ExecutionAuthorization
+from se_mentor.runtime.profiles import RuntimeProfile
 from se_mentor.tools.apply_patch import AtomicApplyPatchTool, StructuredPatch
 from se_mentor.tools.create_file import CreateFileTool
 from se_mentor.tools.delete_file import DeleteFileTool
@@ -353,14 +354,16 @@ class ExecutionOrchestrator:
         write_context: LazyWriteContext,
     ) -> AgentRuntime:
         registry = ToolRegistry()
-        for name in (
+        tool_names = [
             "READ_FILE",
             "SEARCH_CODE",
             "APPLY_PATCH",
             "CREATE_FILE",
             "DELETE_FILE",
-            "RUN_COMMAND",
-        ):
+        ]
+        if get_runtime_settings().profile is RuntimeProfile.LOCAL_FULL:
+            tool_names.append("RUN_COMMAND")
+        for name in tool_names:
             registry.register(ToolSpec(name=name, risk="domain-policy", timeout_seconds=30))
         project_root = Path(task.project.root_path).resolve()
         read_cache: dict[tuple[str, int, int, str], dict[str, object]] = {}

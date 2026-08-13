@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
-from se_mentor.api.runtime import get_session_factory
+from se_mentor.api.runtime import get_runtime_settings, get_session_factory
 from se_mentor.db.session import session_scope
 from se_mentor.git.git_service import GitService
 from se_mentor.models.knowledge import EngineeringKnowledge
@@ -21,6 +21,8 @@ from se_mentor.models.task import ChangeTask
 from se_mentor.projects.bootstrap import ProjectBootstrapService
 from se_mentor.projects.project_repository import find_project_by_root
 from se_mentor.projects.project_service import ProjectRegistrationError, register_project
+from se_mentor.runtime.demo import DemoRuntimeError, ensure_demo_workspace
+from se_mentor.runtime.profiles import RuntimeProfile
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 _SESSION_FACTORY = get_session_factory()
@@ -63,6 +65,12 @@ def create_project(payload: ProjectCreate, response: Response) -> dict[str, obje
 
 @router.post("/choose-local", status_code=status.HTTP_201_CREATED)
 def choose_local_project(response: Response) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.CLOUD_DEMO:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(
+            "CLOUD_DEMO_PROJECT_RESTRICTED",
+            "demo mode only allows the predefined demo workspace",
+        )
     LOGGER.info("PROJECT_CHOOSE_LOCAL START")
     selected = _choose_directory()
     if selected is None:
@@ -74,7 +82,28 @@ def choose_local_project(response: Response) -> dict[str, object]:
 
 
 def _register_project(root_path: str, response: Response) -> dict[str, object]:
-    LOGGER.info("PROJECT_REGISTER START root=%s", root_path)
+    settings = get_runtime_settings()
+    if settings.profile is RuntimeProfile.CLOUD_DEMO:
+        try:
+            demo_root = ensure_demo_workspace(settings.demo_workspace_root)
+            requested_root = Path(root_path).expanduser().resolve(strict=True)
+        except (OSError, DemoRuntimeError):
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return error(
+                "CLOUD_DEMO_PROJECT_RESTRICTED",
+                "demo mode only allows the predefined demo workspace",
+            )
+        if requested_root != demo_root:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return error(
+                "CLOUD_DEMO_PROJECT_RESTRICTED",
+                "demo mode only allows the predefined demo workspace",
+            )
+        root_path = str(demo_root)
+    LOGGER.info(
+        "PROJECT_REGISTER START root=%s",
+        "[cloud-demo-workspace]" if settings.profile is RuntimeProfile.CLOUD_DEMO else root_path,
+    )
     try:
         with session_scope(_SESSION_FACTORY) as session:
             registered = register_project(
