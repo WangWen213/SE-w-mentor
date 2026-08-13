@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import subprocess
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,13 @@ from se_mentor.db.session import create_session_factory
 from se_mentor.models.project import Project
 from se_mentor.projects.project_service import register_project
 from se_mentor.runtime.demo import reset_demo_runtime, reset_demo_workspace
+from se_mentor.runtime.online_sessions import (
+    ONLINE_SESSION_COOKIE_NAME,
+    InMemoryOnlineSessionStore,
+)
 from se_mentor.runtime.profiles import RuntimeProfile, RuntimeProfileError, get_runtime_profile
+
+ONLINE_SAFE_TEST_KEY = "test-online-safe-secret-value"
 
 
 def test_local_full_is_default_and_invalid_profile_fails_closed(monkeypatch) -> None:
@@ -136,7 +143,7 @@ def test_cloud_demo_tool_registry_excludes_run_command(monkeypatch, tmp_path: Pa
     assert {"READ_FILE", "SEARCH_CODE", "APPLY_PATCH"}.issubset(captured["tools"])
 
 
-def test_online_safe_credentials_are_locked_and_do_not_touch_global_store(
+def test_online_safe_credentials_use_secure_ephemeral_session_store(
     monkeypatch, tmp_path: Path
 ) -> None:
     runtime_root = tmp_path / "online-safe-runtime"
@@ -148,51 +155,176 @@ def test_online_safe_credentials_are_locked_and_do_not_touch_global_store(
         def status(self):
             raise AssertionError("ONLINE_SAFE must not read global credentials")
 
+        def set_api_key(self, value):
+            raise AssertionError("ONLINE_SAFE must not write global credentials")
+
+        def update_api_key(self, value):
+            raise AssertionError("ONLINE_SAFE must not update global credentials")
+
         def clear_api_key(self):
             raise AssertionError("ONLINE_SAFE must not clear global credentials")
 
     monkeypatch.setattr(runtime_module, "_CREDENTIAL_STORE", FailingStore())
-    client = TestClient(app_module.create_app())
+    http_client = TestClient(app_module.create_app())
+    https_client = TestClient(app_module.create_app(), base_url="https://testserver")
 
-    status_response = client.get("/api/credentials/llm/status")
-    post_response = client.post(
+    status_response = https_client.get("/api/credentials/llm/status")
+    cookie_header = status_response.headers["set-cookie"]
+    http_post_response = http_client.post(
         "/api/credentials/llm",
         json={
             "provider": "openai-compatible",
-            "key": "placeholder-not-used",
+            "key": ONLINE_SAFE_TEST_KEY,
+            "baseUrl": "https://api.example.test/v1",
+            "model": "model-a",
+        },
+        headers={"X-Forwarded-Proto": "https"},
+    )
+    post_response = https_client.post(
+        "/api/credentials/llm",
+        json={
+            "provider": "openai-compatible",
+            "key": ONLINE_SAFE_TEST_KEY,
             "baseUrl": "https://api.example.test/v1",
             "model": "model-a",
         },
     )
-    put_response = client.put(
+    after_set_response = https_client.get("/api/credentials/llm/status")
+    put_response = https_client.put(
         "/api/credentials/llm",
         json={
             "provider": "openai-compatible",
-            "key": "placeholder-not-used",
-            "baseUrl": "https://api.example.test/v1",
-            "model": "model-a",
+            "key": "",
+            "baseUrl": "https://api.example.test/v2",
+            "model": "model-b",
         },
     )
-    delete_response = client.delete("/api/credentials/llm")
+    delete_response = https_client.delete("/api/credentials/llm")
+    after_delete_response = https_client.get("/api/credentials/llm/status")
+    session_id = https_client.cookies.get(ONLINE_SESSION_COOKIE_NAME)
 
     assert status_response.status_code == 200
-    assert status_response.json()["data"] == {
-        "configured": False,
-        "provider": "OpenAI",
-        "source": "ONLINE_SAFE",
-        "baseUrl": None,
-        "model": None,
-        "locked": True,
-        "reason": runtime_module.ONLINE_SAFE_CREDENTIAL_ERROR,
-    }
-    assert post_response.status_code == 409
-    assert post_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_CREDENTIAL_ERROR
-    assert put_response.status_code == 409
-    assert put_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_CREDENTIAL_ERROR
+    assert status_response.json()["data"]["configured"] is False
+    assert ONLINE_SESSION_COOKIE_NAME in cookie_header
+    assert "HttpOnly" in cookie_header
+    assert "Secure" in cookie_header
+    assert "SameSite=lax" in cookie_header
+    assert http_post_response.status_code == 409
+    assert http_post_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_HTTPS_ERROR
+    assert post_response.status_code == 200
+    assert post_response.json()["data"]["configured"] is True
+    assert after_set_response.status_code == 200
+    assert after_set_response.json()["data"]["configured"] is True
+    assert after_set_response.json()["data"]["source"] == "ONLINE_SAFE_SESSION"
+    assert "key" not in str(after_set_response.json()).lower()
+    assert ONLINE_SAFE_TEST_KEY not in str(after_set_response.json())
+    assert put_response.status_code == 200
+    assert put_response.json()["data"]["baseUrl"] == "https://api.example.test/v2"
+    assert put_response.json()["data"]["model"] == "model-b"
     assert delete_response.status_code == 200
     assert delete_response.json()["data"]["configured"] is False
+    assert after_delete_response.json()["data"]["configured"] is False
+    assert runtime_module.get_online_session_store().credential_for(session_id) is None
     assert projects_api.get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE
     assert credentials_api.get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE
+
+
+def test_online_safe_session_credentials_are_isolated_and_expire(
+    monkeypatch, tmp_path: Path
+) -> None:
+    runtime_root = tmp_path / "online-safe-runtime"
+    current_time = datetime(2026, 8, 14, 0, 0, tzinfo=UTC)
+    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
+        monkeypatch, runtime_root
+    )
+    store = InMemoryOnlineSessionStore(
+        ttl_seconds=60,
+        max_active_sessions=8,
+        clock=lambda: current_time,
+    )
+    monkeypatch.setattr(runtime_module, "_ONLINE_SESSION_STORE", store)
+    client_a = TestClient(app_module.create_app(), base_url="https://testserver")
+    client_b = TestClient(app_module.create_app(), base_url="https://testserver")
+
+    client_a.get("/api/credentials/llm/status")
+    client_b.get("/api/credentials/llm/status")
+    client_a.post(
+        "/api/credentials/llm",
+        json={
+            "provider": "openai-compatible",
+            "key": f"{ONLINE_SAFE_TEST_KEY}-a",
+            "baseUrl": "https://a.example.test/v1",
+            "model": "model-a",
+        },
+    )
+    client_b.post(
+        "/api/credentials/llm",
+        json={
+            "provider": "openai-compatible",
+            "key": f"{ONLINE_SAFE_TEST_KEY}-b",
+            "baseUrl": "https://b.example.test/v1",
+            "model": "model-b",
+        },
+    )
+
+    session_a = client_a.cookies.get(ONLINE_SESSION_COOKIE_NAME)
+    session_b = client_b.cookies.get(ONLINE_SESSION_COOKIE_NAME)
+    credential_a = store.credential_for(session_a)
+    credential_b = store.credential_for(session_b)
+
+    assert credential_a is not None
+    assert credential_b is not None
+    assert credential_a.secret.reveal() == f"{ONLINE_SAFE_TEST_KEY}-a"
+    assert credential_b.secret.reveal() == f"{ONLINE_SAFE_TEST_KEY}-b"
+    assert credential_a.secret.reveal() != credential_b.secret.reveal()
+    assert client_a.get("/api/credentials/llm/status").json()["data"]["baseUrl"] == (
+        "https://a.example.test/v1"
+    )
+    assert client_b.get("/api/credentials/llm/status").json()["data"]["baseUrl"] == (
+        "https://b.example.test/v1"
+    )
+
+    current_time += timedelta(seconds=61)
+    expired_response = client_a.get("/api/credentials/llm/status")
+
+    assert expired_response.status_code == 200
+    assert expired_response.json()["data"]["configured"] is False
+    assert store.credential_for(session_a) is None
+
+
+def test_online_safe_store_reset_loses_credentials_and_sqlite_never_contains_key(
+    monkeypatch, tmp_path: Path
+) -> None:
+    runtime_root = tmp_path / "online-safe-runtime"
+    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
+        monkeypatch, runtime_root
+    )
+    client = TestClient(app_module.create_app(), base_url="https://testserver")
+
+    client.get("/api/credentials/llm/status")
+    set_response = client.post(
+        "/api/credentials/llm",
+        json={
+            "provider": "openai-compatible",
+            "key": ONLINE_SAFE_TEST_KEY,
+            "baseUrl": "https://api.example.test/v1",
+            "model": "model-a",
+        },
+    )
+    session_id = client.cookies.get(ONLINE_SESSION_COOKIE_NAME)
+    sqlite_files = list(runtime_root.glob("se_mentor_api.sqlite3*"))
+
+    assert set_response.status_code == 200
+    assert runtime_module.get_online_session_store().credential_for(session_id) is not None
+    assert sqlite_files
+    assert all(ONLINE_SAFE_TEST_KEY.encode() not in path.read_bytes() for path in sqlite_files)
+
+    runtime_module.get_online_session_store().reset()
+    reset_response = client.get("/api/credentials/llm/status")
+
+    assert reset_response.status_code == 200
+    assert reset_response.json()["data"]["configured"] is False
+    assert runtime_module.get_online_session_store().credential_for(session_id) is None
 
 
 def test_online_safe_provider_is_locked_without_env_key_or_mock_fallback(
@@ -201,7 +333,7 @@ def test_online_safe_provider_is_locked_without_env_key_or_mock_fallback(
     runtime_root = tmp_path / "online-safe-runtime"
     monkeypatch.setenv("OPENAI_API_KEY", "placeholder-openai-key-not-used")
     monkeypatch.setenv("SE_MENTOR_LLM_PROFILE", "MOCK")
-    _, _, _, runtime_module, _ = _reload_api_for_online_safe(monkeypatch, runtime_root)
+    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(monkeypatch, runtime_root)
 
     class FailingStore:
         def provider(self):
@@ -215,7 +347,14 @@ def test_online_safe_provider_is_locked_without_env_key_or_mock_fallback(
     with pytest.raises(runtime_module.OnlineSafeNotReadyError) as exc:
         runtime_module.get_domain_provider()
 
+    status_response = TestClient(
+        app_module.create_app(),
+        base_url="https://testserver",
+    ).get("/api/credentials/llm/status")
+
     assert str(exc.value) == runtime_module.ONLINE_SAFE_PROVIDER_ERROR
+    assert status_response.status_code == 200
+    assert status_response.json()["data"]["configured"] is False
 
 
 def test_online_safe_project_registration_is_locked(monkeypatch, tmp_path: Path) -> None:

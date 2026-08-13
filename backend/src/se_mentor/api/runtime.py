@@ -38,6 +38,7 @@ from se_mentor.llm.base import (
 from se_mentor.llm.mock import MockLLMProvider, MockResponse
 from se_mentor.llm.openai_provider import OpenAIProviderConfig, OpenAIResponsesProvider
 from se_mentor.runtime.demo import ensure_demo_workspace
+from se_mentor.runtime.online_sessions import InMemoryOnlineSessionStore
 from se_mentor.runtime.profiles import RuntimeProfile  # noqa: I001
 from se_mentor.runtime.profiles import get_runtime_settings as resolve_runtime_settings
 from se_mentor.security.secrets import Secret
@@ -119,8 +120,12 @@ class ProviderRuntimeConfig:
 
 _PROVIDER_CONFIG = ProviderRuntimeConfig()
 ONLINE_SAFE_CREDENTIAL_ERROR = "ONLINE_SAFE_SESSION_CREDENTIALS_NOT_READY"
+ONLINE_SAFE_HTTPS_ERROR = "ONLINE_SAFE_HTTPS_REQUIRED"
+ONLINE_SAFE_SESSION_ERROR = "ONLINE_SAFE_SESSION_REQUIRED"
+ONLINE_SAFE_SESSION_EXPIRED_ERROR = "ONLINE_SAFE_SESSION_EXPIRED"
 ONLINE_SAFE_PROVIDER_ERROR = "ONLINE_SAFE_PROVIDER_NOT_READY"
 ONLINE_SAFE_WORKSPACE_ERROR = "ONLINE_SAFE_WORKSPACE_NOT_READY"
+_ONLINE_SESSION_STORE = InMemoryOnlineSessionStore()
 
 
 class OnlineSafeNotReadyError(ProviderConfigError):
@@ -170,6 +175,10 @@ def get_session_factory() -> sessionmaker[Session]:
 
 def get_credential_store() -> CredentialStore:
     return _CREDENTIAL_STORE
+
+
+def get_online_session_store() -> InMemoryOnlineSessionStore:
+    return _ONLINE_SESSION_STORE
 
 
 def get_runtime_settings():
