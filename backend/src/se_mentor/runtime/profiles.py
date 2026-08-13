@@ -27,6 +27,7 @@ class RuntimeSettings:
 
 
 _PROFILE_ENV = "SE_MENTOR_RUNTIME_PROFILE"
+_LOCAL_RUNTIME_ROOT_ENV = "SE_MENTOR_RUNTIME_ROOT"
 _DEMO_WORKSPACE_ENV = "SE_MENTOR_DEMO_WORKSPACE"
 _DEMO_RUNTIME_ROOT_ENV = "SE_MENTOR_DEMO_RUNTIME_ROOT"
 
@@ -41,9 +42,7 @@ def get_runtime_profile(env: dict[str, str] | None = None) -> RuntimeProfile:
         return RuntimeProfile(normalized)
     except ValueError as exc:
         allowed = ", ".join(item.value for item in RuntimeProfile)
-        raise RuntimeProfileError(
-            f"{_PROFILE_ENV} must be one of: {allowed}"
-        ) from exc
+        raise RuntimeProfileError(f"{_PROFILE_ENV} must be one of: {allowed}") from exc
 
 
 def get_runtime_settings(env: dict[str, str] | None = None) -> RuntimeSettings:
@@ -64,6 +63,9 @@ def _runtime_root(profile: RuntimeProfile, env: dict[str, str]) -> Path:
             if configured
             else (_repo_root() / ".tmp" / "cloud-demo-runtime").resolve()
         )
+    configured = env.get(_LOCAL_RUNTIME_ROOT_ENV)
+    if configured:
+        return Path(configured).expanduser().resolve()
     return (_backend_root() / ".sementor").resolve()
 
 

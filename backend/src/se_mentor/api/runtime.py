@@ -38,7 +38,8 @@ from se_mentor.llm.base import (
 from se_mentor.llm.mock import MockLLMProvider, MockResponse
 from se_mentor.llm.openai_provider import OpenAIProviderConfig, OpenAIResponsesProvider
 from se_mentor.runtime.demo import ensure_demo_workspace
-from se_mentor.runtime.profiles import RuntimeProfile, get_runtime_settings as resolve_runtime_settings
+from se_mentor.runtime.profiles import RuntimeProfile  # noqa: I001
+from se_mentor.runtime.profiles import get_runtime_settings as resolve_runtime_settings
 from se_mentor.security.secrets import Secret
 
 _RUNTIME_SETTINGS = resolve_runtime_settings()
@@ -46,19 +47,21 @@ _RUNTIME_SETTINGS.runtime_root.mkdir(parents=True, exist_ok=True)
 if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
     ensure_demo_workspace(_RUNTIME_SETTINGS.demo_workspace_root)
 
-_DATABASE_PATH = (
-    Path(gettempdir()) / "se_mentor_api.sqlite3"
+_DATABASE_URL = os.environ.get("SE_MENTOR_DATABASE_URL") or (
+    f"sqlite:///{Path(gettempdir()) / 'se_mentor_api.sqlite3'}"
     if _RUNTIME_SETTINGS.profile is RuntimeProfile.LOCAL_FULL
-    else _RUNTIME_SETTINGS.runtime_root / "se_mentor_api.sqlite3"
+    else f"sqlite:///{_RUNTIME_SETTINGS.runtime_root / 'se_mentor_api.sqlite3'}"
 )
-_ENGINE = create_sqlite_engine(f"sqlite:///{_DATABASE_PATH}")
+_ENGINE = create_sqlite_engine(_DATABASE_URL)
 Base.metadata.create_all(_ENGINE)
 Base.metadata.create_all(_ENGINE, tables=[Base.metadata.tables["task_evaluations"]])
 
 
 def _build_credential_store() -> CredentialStore:
     if _RUNTIME_SETTINGS.profile is RuntimeProfile.CLOUD_DEMO:
-        return CredentialStore(profile_id="cloud-demo", keyring=InMemoryKeyring(fail_operations=True))
+        return CredentialStore(
+            profile_id="cloud-demo", keyring=InMemoryKeyring(fail_operations=True)
+        )
     for keyring_factory in (WindowsCredentialManagerKeyring, SystemKeyring):
         try:
             store = CredentialStore(profile_id="default", keyring=keyring_factory())
@@ -78,10 +81,7 @@ _MAX_OPENAI_TIMEOUT_SECONDS = 180
 def _ensure_runtime_schema_compatibility() -> None:
     with _ENGINE.begin() as connection:
         ddl = connection.execute(
-            text(
-                "SELECT sql FROM sqlite_master "
-                "WHERE type='table' AND name='knowledge_sources'"
-            )
+            text("SELECT sql FROM sqlite_master WHERE type='table' AND name='knowledge_sources'")
         ).scalar_one_or_none()
     if ddl is None or "GOVERNANCE_AUDIT" in str(ddl):
         return
@@ -225,7 +225,8 @@ def _cloud_demo_provider() -> MockLLMProvider:
                     '{"goal":"改进演示问候语","understanding":"演示项目包含一个简单问候函数。",'
                     '"expected_behavior":"问候语保持可测试且更友好。","scope":["app.py"],'
                     '"changes":[{"path":"app.py","symbol":"greeting","action":"update",'
-                    '"reason":"演示受控代码修改"}],"steps":["读取 app.py","更新问候文本","运行演示测试"],'
+                    '"reason":"演示受控代码修改"}],"steps":["读取 app.py",'
+                    '"更新问候文本","运行演示测试"],'
                     '"non_goals":[],"constraints":["仅限演示工作区"],'
                     '"acceptance":["test_app.py 通过"],"validation":["pytest -q"],'
                     '"user_facts":[],"inferences":["这是 CLOUD_DEMO 演示任务"],"risks":[]}'

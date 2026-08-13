@@ -24,8 +24,7 @@ from se_mentor.api.projects import router as projects_router
 from se_mentor.api.proposals import router as proposals_router
 from se_mentor.api.recovery import router as recovery_router
 from se_mentor.api.replay import router as replay_router
-from se_mentor.api.runtime import get_session_factory
-from se_mentor.api.runtime import get_runtime_settings
+from se_mentor.api.runtime import get_runtime_settings, get_session_factory
 from se_mentor.api.tasks import router as tasks_router
 from se_mentor.api.workbench_messages import router as workbench_messages_router
 from se_mentor.observability.logging import configure_runtime_logging
@@ -34,7 +33,7 @@ LOGGER = logging.getLogger("se_mentor.main")
 
 
 def create_app() -> FastAPI:
-    configure_runtime_logging()
+    configure_runtime_logging(get_runtime_settings().runtime_root)
     LOGGER.info("runtime_profile=%s", get_runtime_settings().profile.value)
     app = FastAPI(title="SE-Mentor API", version="0.1.0")
     session_factory = get_session_factory()
