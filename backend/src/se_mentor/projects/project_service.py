@@ -51,11 +51,12 @@ def register_project(
 
 def _git(cwd: Path, *args: str) -> str:
     result = subprocess.run(
-        ["git", *args],
+        ["git", "-c", f"safe.directory={cwd.as_posix()}", *args],
         cwd=cwd,
         check=False,
         capture_output=True,
         text=True,
+        timeout=10,
     )
     if result.returncode != 0:
         raise ProjectRegistrationError("path is not a valid Git repository")

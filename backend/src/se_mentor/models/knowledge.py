@@ -43,6 +43,7 @@ class KnowledgeSourceType(StrEnum):
     TEST = "TEST"
     USER_REVIEW = "USER_REVIEW"
     COMMITTED_DIFF = "COMMITTED_DIFF"
+    GOVERNANCE_AUDIT = "GOVERNANCE_AUDIT"
 
 
 class KnowledgeRelationType(StrEnum):

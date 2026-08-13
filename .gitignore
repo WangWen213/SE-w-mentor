@@ -31,6 +31,7 @@ MANIFEST
 #   before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+!packaging/*.spec
 
 # Installer logs
 pip-log.txt
@@ -234,6 +235,10 @@ backend/backups/
 /backend/logs/
 secrets/
 backend/secrets/
+certs/
+letsencrypt/
+deploy/nginx/certs/
+deploy/nginx/letsencrypt/
 *.pem
 *.key
 *.sqlite
@@ -247,3 +252,7 @@ evidence/logs/**/*
 !evidence/logs/**/
 !evidence/logs/**/*.log
 !evidence/logs/**/.gitkeep
+
+# SE-Mentor local Windows packaging artifacts.
+packaging/build/
+packaging/dist/

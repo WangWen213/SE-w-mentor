@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="T097 frontend smoke" tests="1" failures="0" errors="0" skipped="0">
+    <testcase classname="frontend.scripts.t097-smoke" name="test_T097_error_view_states_modified_backed_up_rolled_back_and_next_action" />
+  </testsuite>
+</testsuites>

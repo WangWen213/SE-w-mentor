@@ -80,7 +80,10 @@ def test_T001_rejects_invalid_status(tmp_path: Path) -> None:
 
 
 def test_T001_planned_rows_allow_future_paths(tmp_path: Path) -> None:
-    rows = [_valid_planned_row(requirement, task="T025") for requirement in REQUIRED_REQUIREMENTS]
+    rows = [
+        _valid_planned_row(requirement, task="T025")
+        for requirement in REQUIRED_REQUIREMENTS
+    ]
     matrix = _matrix_with_rows(tmp_path, rows)
 
     result = check_matrix(matrix)
@@ -102,8 +105,13 @@ def test_T001_verified_rows_require_existing_test_and_evidence(tmp_path: Path) -
     assert "does not exist" in result.message
 
 
-def test_T115_release_gate_requires_all_p0_requirements_verified(tmp_path: Path) -> None:
-    rows = [_valid_planned_row(requirement, task="T115") for requirement in REQUIRED_REQUIREMENTS]
+def test_T115_release_gate_requires_all_p0_requirements_verified(
+    tmp_path: Path,
+) -> None:
+    rows = [
+        _valid_planned_row(requirement, task="T115")
+        for requirement in REQUIRED_REQUIREMENTS
+    ]
     matrix = _matrix_with_rows(tmp_path, rows)
 
     result = check_matrix(matrix, release_gate=True)
@@ -130,7 +138,10 @@ def test_T001_missing_mapping_returns_nonzero(tmp_path: Path) -> None:
 
 
 def test_T001_duplicate_primary_task_returns_nonzero(tmp_path: Path) -> None:
-    rows = [_valid_planned_row(requirement, task="T025") for requirement in REQUIRED_REQUIREMENTS]
+    rows = [
+        _valid_planned_row(requirement, task="T025")
+        for requirement in REQUIRED_REQUIREMENTS
+    ]
     matrix = _matrix_with_rows(tmp_path, rows)
 
     result = check_matrix(matrix)

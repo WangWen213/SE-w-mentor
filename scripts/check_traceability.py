@@ -157,11 +157,15 @@ def check_matrix(path: Path, *, release_gate: bool = False) -> CheckResult:
 
         primary_task = row["primary task"]
         if not _valid_task(primary_task, plan_tasks):
-            return CheckResult(False, f"{anchor} has invalid primary task {primary_task}")
+            return CheckResult(
+                False, f"{anchor} has invalid primary task {primary_task}"
+            )
 
         for task in _split_task_ids(row["supporting tasks"]):
             if not _valid_task(task, plan_tasks):
-                return CheckResult(False, f"{anchor} has invalid supporting task {task}")
+                return CheckResult(
+                    False, f"{anchor} has invalid supporting task {task}"
+                )
 
         for field in ["test", "evidence"]:
             if not row[field].startswith("`") or not row[field].endswith("`"):
@@ -176,9 +180,15 @@ def check_matrix(path: Path, *, release_gate: bool = False) -> CheckResult:
                         f"{anchor} verified {field} path does not exist: {target}",
                     )
 
-    missing = [requirement for requirement in REQUIRED_REQUIREMENTS if requirement not in by_anchor]
+    missing = [
+        requirement
+        for requirement in REQUIRED_REQUIREMENTS
+        if requirement not in by_anchor
+    ]
     if missing:
-        return CheckResult(False, f"missing P0 requirement mapping: {', '.join(missing)}")
+        return CheckResult(
+            False, f"missing P0 requirement mapping: {', '.join(missing)}"
+        )
 
     if release_gate:
         not_verified = [
@@ -189,7 +199,8 @@ def check_matrix(path: Path, *, release_gate: bool = False) -> CheckResult:
         if not_verified:
             return CheckResult(
                 False,
-                "release gate requires verified P0 requirements: " + ", ".join(not_verified),
+                "release gate requires verified P0 requirements: "
+                + ", ".join(not_verified),
             )
 
     return CheckResult(True, f"{len(REQUIRED_REQUIREMENTS)} P0 requirements mapped")

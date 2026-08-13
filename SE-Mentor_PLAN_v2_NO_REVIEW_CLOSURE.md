@@ -53,9 +53,10 @@
 - **Dependency blocked / NOT STARTED**: T025 `[ ] dependency blocked`, T026 `[ ] dependency blocked`, T027 `[ ] dependency blocked`.
 - **T025 blocker**: T025 depends on T010, T053, and T056; T053 and T056 are still `[ ]`, so T025 must remain NOT STARTED. T026 depends on T025, and T027 depends on T026.
 - **T033**: `[ ] NOT STARTED`.
-- **PLAN_DEPENDENCY_CYCLE: T034 <-> T053**:
-  - T034 requires T053 because token-budget execution must call the same Provider interface used by Mock and real providers, and must prove over-budget requests pause before Provider invocation.
-  - T053 requires T034 because the LLM Provider interface and MockLLMProvider must record usage and enforce the pre-provider token-budget boundary, so Provider completion criteria depend on the T034 budgeting interface.
+- **PLAN_DEPENDENCY_CYCLE: resolved by dependency-correction commit**:
+  - T053 is the Provider primitive: Provider interface, deterministic MockLLMProvider, usage recording, cancellation, and timeout contract.
+  - T053 depends only on T011 and T006; it is not an Agent-facing public execution entry point and must not allow Agent code to bypass the future T034 token-budget gate.
+  - T034 keeps dependency `T033,T053` and establishes the mandatory pre-provider budget gate for all Agent/runtime-facing Provider invocation.
 - **Batch regression**: T019-T024 scoped tests PASS; T028-T032 scoped tests PASS; all model tests PASS; meta/backend regression PASS; Ruff PASS; Ruff format check PASS; mypy PASS; Alembic single head PASS (`0100_audit_alert`).
 - **check_all classification**: backend/meta/type-check portions PASS; final frontend Vitest config load fails in Codex sandbox with esbuild `Cannot read directory "../../.."` and `Could not resolve ...frontend/vitest.config.mjs`. This is classified as the known Codex Vitest/esbuild sandbox failure and was not escalated or re-diagnosed.
 
@@ -670,7 +671,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T019 — 项目路径授权与注册服务
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-01-01`, `NFR-SEC-01`, `AC-FR01-01`
@@ -699,8 +700,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T020 — 识别语言、构建工具和测试框架
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[x] branch complete
+- **阻塞说明**：无。普通 Vitest/Vite config 入口仍受既有 esbuild sandbox 限制；T093 scoped harness、type-check、无配置 Vite build 本体通过。
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-01-01`, `OQ-02`, `OQ-03`
 - **目标**：P0 确定性识别 Python 主项目和 TypeScript 辅助项目的工具链，不自动执行未知命令。
@@ -723,12 +724,12 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T020.xml
   - evidence/diffs/T020.patch
   - `AGENT_LOG.md` 中的 T020 记录
-- **Commit**：`未填写`
+- **Commit**：`feat(frontend): implement T093 web UI baseline`
 
 ## T021 — 计算并持久化项目有效配置
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[x] branch complete
+- **阻塞说明**：无。普通 Vitest/Vite config 入口仍受既有 esbuild sandbox 限制；T094 scoped harness、API contract、type-check、无配置 Vite build 本体通过。
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-01-02`, `AC-FR01-02`
 - **目标**：把系统、运行 Profile、项目和任务配置合成为可审计的 effective config。
@@ -751,12 +752,12 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T021.xml
   - evidence/diffs/T021.patch
   - `AGENT_LOG.md` 中的 T021 记录
-- **Commit**：`未填写`
+- **Commit**：`feat(frontend): integrate T094 project task proposal flows`
 
 ## T022 — 原子获取项目 READ/WRITE 锁
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[x] branch complete
+- **阻塞说明**：无。普通 Vitest/Vite config 入口仍受既有 esbuild sandbox 限制；T095 scoped harness、API contract、type-check、无配置 Vite build 本体通过。
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-01-03`, `NFR-SEC-03`, `AC-FR01-03`
 - **目标**：以数据库事务原子获取锁，保证同项目同一时间最多一个活动写任务。
@@ -779,12 +780,12 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T022.xml
   - evidence/diffs/T022.patch
   - `AGENT_LOG.md` 中的 T022 记录
-- **Commit**：`未填写`
+- **Commit**：`feat(frontend): integrate T095 impact governance views`
 
 ## T023 — 锁心跳、过期、释放与强制恢复
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[x] branch complete
+- **阻塞说明**：无。普通 Vitest/Vite config 入口仍受既有 esbuild sandbox 限制；T096 scoped harness、API contract、type-check、无配置 Vite build 本体通过。
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-01-04`, `AC-FR01-04～05`, `NFR-USA-08`
 - **目标**：维护锁生命周期，并在异常过期时阻止新写任务直到完成恢复判断。
@@ -807,11 +808,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T023.xml
   - evidence/diffs/T023.patch
   - `AGENT_LOG.md` 中的 T023 记录
-- **Commit**：`未填写`
+- **Commit**：`feat(frontend): integrate T096 approval execution events`
 
 ## T024 — 创建任务与严格状态机
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete; T096 corrective authority pass applied
 - **阻塞说明**：无
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-02-01`, `FR-05-06`, `数据模型任务执行约束`
@@ -836,11 +837,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T024.xml
   - evidence/diffs/T024.patch
   - `AGENT_LOG.md` 中的 T024 记录
-- **Commit**：`未填写`
+- **Commit**：`dd6ae0c`; corrective follow-up `pending`
 
 ## T025 — 生成结构化 Change Proposal
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-project`
 - **覆盖需求**：`FR-02-02`, `US-01 AC-01`
@@ -865,7 +866,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T025.xml
   - evidence/diffs/T025.patch
   - `AGENT_LOG.md` 中的 T025 记录
-- **Commit**：`未填写`
+- **Commit**：`current T097 branch commit`
 
 ## T026 — 评估提案完整性并进入 NEEDS_INFORMATION
 
@@ -1660,7 +1661,7 @@ T000-T008 规约/契约/迁移门禁
   1. 重复执行一致
   2. usage 写入 LLMCall
   3. 取消和超时接口可 fake
-- **依赖**：T011,T006,T034
+- **依赖**：T011,T006
 - **可并行性**：否
 - **预期证据**：
   - evidence/test-reports/T053.xml
@@ -1784,7 +1785,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T058 — 创建任务事务与备份目录
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-01`, `NFR-SEC-04`
@@ -1808,11 +1809,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T058.xml
   - evidence/diffs/T058.patch
   - `AGENT_LOG.md` 中的 T058 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: prepare task transactions`
 
 ## T059 — 原子 APPLY_PATCH 工具
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-04`, `AC-FR07`
@@ -1836,11 +1837,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T059.xml
   - evidence/diffs/T059.patch
   - `AGENT_LOG.md` 中的 T059 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: apply structured patches atomically`
 
 ## T060 — 受控 CREATE_FILE 工具
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-05`
@@ -1864,11 +1865,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T060.xml
   - evidence/diffs/T060.patch
   - `AGENT_LOG.md` 中的 T060 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: create files through policy`
 
 ## T061 — 受控 DELETE_FILE 工具
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-06`, `危险动作审批`
@@ -1892,11 +1893,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T061.xml
   - evidence/diffs/T061.patch
   - `AGENT_LOG.md` 中的 T061 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: delete files through policy`
 
 ## T062 — Shell 沙箱与命令策略
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-07`, `NFR-SEC-05`, `OQ-04/11/14`
@@ -1920,11 +1921,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T062.xml
   - evidence/diffs/T062.patch
   - `AGENT_LOG.md` 中的 T062 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: run shell commands in sandbox`
 
 ## T063 — 注册只读 Git 工具动作
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`Git Tool`, `FR-07`
@@ -1948,11 +1949,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T063.xml
   - evidence/diffs/T063.patch
   - `AGENT_LOG.md` 中的 T063 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: register read-only git tools`
 
 ## T064 — 显式回滚任务修改
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-08`, `E2E-06`
@@ -1976,11 +1977,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T064.xml
   - evidence/diffs/T064.patch
   - `AGENT_LOG.md` 中的 T064 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: rollback task transactions`
 
 ## T065 — 异常中断事务恢复
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-07-09`, `E2E-07`, `NFR-USA-08`
@@ -2004,11 +2005,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T065.xml
   - evidence/diffs/T065.patch
   - `AGENT_LOG.md` 中的 T065 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: recover unfinished transactions`
 
 ## T066 — 自研 Agent 单轮编排器
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-05-03`, `自研 Harness`
@@ -2032,11 +2033,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T066.xml
   - evidence/diffs/T066.patch
   - `AGENT_LOG.md` 中的 T066 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: orchestrate single agent iteration`
 
 ## T067 — Agent 运行状态、取消与安全点
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-runtime`
 - **覆盖需求**：`FR-05-03`, `NFR-USA-06`, `E2E-06`
@@ -2060,13 +2061,13 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T067.xml
   - evidence/diffs/T067.patch
   - `AGENT_LOG.md` 中的 T067 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: control agent cancellation`
 
 # Phase 7 验证与反馈
 
 ## T068 — 实质进展检测
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-05-04`, `OQ-13`, `NFR-USA-07`
@@ -2090,11 +2091,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T068.xml
   - evidence/diffs/T068.patch
   - `AGENT_LOG.md` 中的 T068 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: detect material progress`
 
 ## T069 — 停滞、重新规划与预算终止
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-05-05`, `E2E-05`, `NFR-OBS-11`
@@ -2118,11 +2119,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T069.xml
   - evidence/diffs/T069.patch
   - `AGENT_LOG.md` 中的 T069 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: detect semantic stagnation`
 
 ## T070 — 根据影响生成 ValidationPlan
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08-01`, `审查 ValidationPlanner 缺口`
@@ -2146,11 +2147,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T070.xml
   - evidence/diffs/T070.patch
   - `AGENT_LOG.md` 中的 T070 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: plan validation from impact`
 
 ## T071 — 执行验证并记录客观结果
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08-02`, `NFR-OBS-07`
@@ -2175,11 +2176,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T071.xml
   - evidence/diffs/T071.patch
   - `AGENT_LOG.md` 中的 T071 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: execute validation checks`
 
 ## T072 — 分类验证失败
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08-03`, `审查 FailureClassifier 缺口`
@@ -2203,11 +2204,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T072.xml
   - evidence/diffs/T072.patch
   - `AGENT_LOG.md` 中的 T072 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: classify validation failures`
 
 ## T073 — 统一 FeedbackSignal 与反馈压缩
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08-04`, `FeedbackController`
@@ -2231,11 +2232,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T073.xml
   - evidence/diffs/T073.patch
   - `AGENT_LOG.md` 中的 T073 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: compact feedback signals`
 
 ## T074 — Flaky Test 检测
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08`, `测试经验`, `审查 Flaky 缺口`
@@ -2259,11 +2260,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T074.xml
   - evidence/diffs/T074.patch
   - `AGENT_LOG.md` 中的 T074 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: detect flaky validation tests`
 
 ## T075 — 验证规避检测
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08-06`, `US-05 AC-04`, `NFR-SEC-05`
@@ -2287,11 +2288,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T075.xml
   - evidence/diffs/T075.patch
   - `AGENT_LOG.md` 中的 T075 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: detect validation evasion`
 
 ## T076 — 有限自动修正循环
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-08-05`, `US-05 AC-02～03`, `E2E-02`
@@ -2315,11 +2316,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T076.xml
   - evidence/diffs/T076.patch
   - `AGENT_LOG.md` 中的 T076 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: bound repair loop attempts`
 
 ## T077 — 修正动作再治理与范围扩展暂停
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`再治理`, `US-04 AC-04`
@@ -2343,11 +2344,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T077.xml
   - evidence/diffs/T077.patch
   - `AGENT_LOG.md` 中的 T077 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: regovern repair patches`
 
 ## T078 — CompletionGate 与 StopPolicy
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-05-06`, `FR-08-07`, `数据模型任务完成约束`, `OQ-17`
@@ -2371,11 +2372,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T078.xml
   - evidence/diffs/T078.patch
   - `AGENT_LOG.md` 中的 T078 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: gate task completion`
 
 ## T079 — 成功任务的知识更新
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-09-01～03`, `US-06 AC-01`
@@ -2399,11 +2400,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T079.xml
   - evidence/diffs/T079.patch
   - `AGENT_LOG.md` 中的 T079 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: update knowledge from successful tasks`
 
 ## T080 — 失败、取消与回滚任务的经验更新
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-validation`
 - **覆盖需求**：`FR-09`, `US-06 AC-02/04`
@@ -2427,13 +2428,13 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T080.xml
   - evidence/diffs/T080.patch
   - `AGENT_LOG.md` 中的 T080 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: update knowledge from failed tasks`
 
 # Phase 8 离线 E2E
 
 ## T081 — E2E-01 正常闭环与 E2E-02 自动修正
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-e2e`
 - **覆盖需求**：`E2E-01`, `E2E-02`, `FR-12-02～03`
@@ -2457,11 +2458,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T081.xml
   - evidence/diffs/T081.patch
   - `AGENT_LOG.md` 中的 T081 记录
-- **Commit**：`未填写`
+- **Commit**：`test: add e2e normal and repair loops`
 
 ## T082 — E2E-03 高风险审批与 E2E-04 危险动作阻止
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-e2e`
 - **覆盖需求**：`E2E-03`, `E2E-04`
@@ -2485,11 +2486,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T082.xml
   - evidence/diffs/T082.patch
   - `AGENT_LOG.md` 中的 T082 记录
-- **Commit**：`未填写`
+- **Commit**：`test: add e2e governance approval and deny`
 
 ## T083 — E2E-05 停滞与 E2E-06 取消回滚
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-e2e`
 - **覆盖需求**：`E2E-05`, `E2E-06`
@@ -2513,11 +2514,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T083.xml
   - evidence/diffs/T083.patch
   - `AGENT_LOG.md` 中的 T083 记录
-- **Commit**：`未填写`
+- **Commit**：`test: add e2e stagnation and cancel rollback`
 
 ## T084 — E2E-07 崩溃恢复与 E2E-08 知识保鲜
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-e2e`
 - **覆盖需求**：`E2E-07`, `E2E-08`
@@ -2541,11 +2542,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T084.xml
   - evidence/diffs/T084.patch
   - `AGENT_LOG.md` 中的 T084 记录
-- **Commit**：`未填写`
+- **Commit**：`test: add e2e recovery and freshness`
 
 ## T085 — 全离线确定性与网络封锁测试
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-e2e`
 - **覆盖需求**：`FR-12`, `发布门禁`
@@ -2569,13 +2570,13 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T085.xml
   - evidence/diffs/T085.patch
   - `AGENT_LOG.md` 中的 T085 记录
-- **Commit**：`未填写`
+- **Commit**：`test: add offline deterministic e2e runner`
 
 # Phase 9 API
 
 ## T086 — 项目、配置、锁、任务与提案 API
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-api`
 - **覆盖需求**：`FR-01`, `FR-02`, `FR-10`
@@ -2601,11 +2602,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T086.xml
   - evidence/diffs/T086.patch
   - `AGENT_LOG.md` 中的 T086 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add project task proposal api`
 
 ## T087 — 影响分析与治理 API
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-api`
 - **覆盖需求**：`FR-04`, `FR-06-01～02`, `FR-10`
@@ -2630,11 +2631,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T087.xml
   - evidence/diffs/T087.patch
   - `AGENT_LOG.md` 中的 T087 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add analysis governance api`
 
 ## T088 — 审批、ExecutionPolicy 与执行 API
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-api`
 - **覆盖需求**：`FR-06-03～05`, `FR-07`
@@ -2659,11 +2660,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T088.xml
   - evidence/diffs/T088.patch
   - `AGENT_LOG.md` 中的 T088 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add approval execution api`
 
 ## T089 — 取消、回滚与恢复 API
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-api`
 - **覆盖需求**：`FR-07-08～09`, `NFR-USA-06/08`
@@ -2687,11 +2688,11 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T089.xml
   - evidence/diffs/T089.patch
   - `AGENT_LOG.md` 中的 T089 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add recovery api`
 
 ## T090 — SSE 实时任务事件
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-api`
 - **覆盖需求**：`NFR-PERF-05`, `FR-10-01`, `NFR-OBS-09`
@@ -2716,7 +2717,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T090.xml
   - evidence/diffs/T090.patch
   - `AGENT_LOG.md` 中的 T090 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add task event stream`
 
 ## T091 — 知识、凭据状态与项目设置 API
 
@@ -2749,7 +2750,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T092 — Diff、审计、告警与任务回放 API
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-api`
 - **覆盖需求**：`FR-10-03`, `FR-11`, `NFR-OBS-09～11`
@@ -2775,7 +2776,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T092.xml
   - evidence/diffs/T092.patch
   - `AGENT_LOG.md` 中的 T092 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add replay and diff api`
 
 # Phase 10 WebUI
 
@@ -2995,7 +2996,7 @@ T000-T008 规约/契约/迁移门禁
 
 ## T100 — 结构化日志、Correlation ID 与可操作错误模型
 
-- **状态**：[ ] 未开始
+- **状态**：[x] branch complete
 - **阻塞说明**：无
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`NFR-USA-02`, `NFR-OBS-01～07`, `审查 P0-10`
@@ -3020,7 +3021,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T100.xml
   - evidence/diffs/T100.patch
   - `AGENT_LOG.md` 中的 T100 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add structured logging errors`
 
 ## T101 — 核心指标、告警服务与任务回放构建器
 
@@ -3112,8 +3113,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T104 — Windows Credential Manager 凭据生命周期
 
-- **状态**：[!] 实现未开始；实机验收外部阻塞
-- **阻塞说明**：需要 Windows 10/11 x64 干净测试环境
+- **状态**：[!] branch implementation complete；实机验收外部阻塞
+- **阻塞说明**：本地内存 keyring 单测通过；仍需要 Windows 10/11 x64 干净测试环境完成最终实机验收
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`NFR-CRED-04～10`, `OQ-12`
 - **目标**：实现 set/status/update/clear 和 Keyring 失败时仅会话临时 Key，不落明文。
@@ -3137,7 +3138,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T104.xml
   - evidence/diffs/T104.patch
   - `AGENT_LOG.md` 中的 T104 记录
-- **Commit**：`未填写`
+- **Commit**：`feat: add credential lifecycle store`
 
 ## T105 — PyInstaller onedir Windows 分发
 

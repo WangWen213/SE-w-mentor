@@ -23,6 +23,7 @@ from se_mentor.models.code_index import (
     CodeSymbolRelation,
     CodeSymbolRelationType,
 )
+from se_mentor.models.evaluation import TaskEvaluation, TaskEvaluationStatus
 from se_mentor.models.execution import (
     BackupEntry,
     FileChange,
@@ -90,6 +91,12 @@ from se_mentor.models.validation import (
     ValidationRunStatus,
     ValidationType,
 )
+from se_mentor.models.workbench import (
+    WorkbenchMessage,
+    WorkbenchMessageKind,
+    WorkbenchMessageRole,
+    WorkbenchMessageStatus,
+)
 
 __all__ = [
     "AgentAction",
@@ -145,6 +152,8 @@ __all__ = [
     "ProposalCreatedByType",
     "ProposalStatus",
     "RiskLevel",
+    "TaskEvaluation",
+    "TaskEvaluationStatus",
     "TaskTransaction",
     "TaskIteration",
     "TaskIterationPhase",
@@ -161,5 +170,9 @@ __all__ = [
     "WorkspaceLock",
     "WorkspaceLockMode",
     "WorkspaceLockStatus",
+    "WorkbenchMessage",
+    "WorkbenchMessageKind",
+    "WorkbenchMessageRole",
+    "WorkbenchMessageStatus",
     "normalize_project_root_path",
 ]

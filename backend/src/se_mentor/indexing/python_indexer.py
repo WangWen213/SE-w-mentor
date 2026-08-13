@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,6 +11,22 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from se_mentor.models.code_index import CodeIndex, CodeIndexStatus, CodeSymbol, CodeSymbolKind
+
+_EXCLUDED_DIRS = {
+    ".agents",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".sementor",
+    ".tmp",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "evidence",
+    "node_modules",
+}
 
 
 @dataclass(frozen=True)
@@ -48,7 +65,8 @@ class PythonIndexer:
         self.session.flush()
         parse_errors: list[str] = []
         symbol_count = 0
-        for path in sorted(root.rglob("*.py")):
+        seen_symbol_keys: set[str] = set()
+        for path in _iter_python_files(root):
             rel = path.relative_to(root).as_posix()
             module = rel[:-3].replace("/", ".")
             symbol_count += self._add_symbol(
@@ -60,6 +78,7 @@ class PythonIndexer:
                 CodeSymbolKind.MODULE,
                 rel,
                 path.read_text(encoding="utf-8", errors="ignore"),
+                seen_symbol_keys,
             )
             try:
                 tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
@@ -78,6 +97,7 @@ class PythonIndexer:
                     symbol.kind,
                     rel,
                     symbol.signature,
+                    seen_symbol_keys,
                 )
         index.evidence_json = json.dumps({"parse_errors": parse_errors}, sort_keys=True)
         self.session.flush()
@@ -93,7 +113,11 @@ class PythonIndexer:
         kind: CodeSymbolKind,
         relative_path: str,
         signature: str,
+        seen_symbol_keys: set[str],
     ) -> int:
+        if symbol_key in seen_symbol_keys:
+            return 0
+        seen_symbol_keys.add(symbol_key)
         self.session.add(
             CodeSymbol(
                 code_index_id=index.id,
@@ -164,3 +188,12 @@ def _parse_errors(evidence_json: str) -> tuple[str, ...]:
     if isinstance(data, dict) and isinstance(data.get("parse_errors"), list):
         return tuple(str(item) for item in data["parse_errors"])
     return ()
+
+
+def _iter_python_files(root: Path):
+    for current, dirs, files in os.walk(root):
+        dirs[:] = [name for name in dirs if name not in _EXCLUDED_DIRS]
+        current_path = Path(current)
+        for name in sorted(files):
+            if name.endswith(".py"):
+                yield current_path / name
