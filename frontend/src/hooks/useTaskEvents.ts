@@ -6,6 +6,7 @@ const reconnectHeader = "Last-Event-ID";
 
 export function useTaskEvents(api: MentorApi, taskId: string | null) {
   const [events, setEvents] = useState<TaskEvent[]>([]);
+  const [reconnectCount, setReconnectCount] = useState(0);
   const [reconnecting, setReconnecting] = useState(false);
   const lastEventId = useRef<number | null>(null);
   const seenEventIds = useRef<Set<number>>(new Set());
@@ -35,6 +36,7 @@ export function useTaskEvents(api: MentorApi, taskId: string | null) {
         }
         return merged;
       });
+      setReconnectCount((current) => current + 1);
     } finally {
       if (activeTaskId.current === taskId) {
         setReconnecting(false);
@@ -45,6 +47,7 @@ export function useTaskEvents(api: MentorApi, taskId: string | null) {
   useEffect(() => {
     activeTaskId.current = taskId;
     setEvents([]);
+    setReconnectCount(0);
     lastEventId.current = null;
     seenEventIds.current = new Set();
     void reconnect();
@@ -53,5 +56,5 @@ export function useTaskEvents(api: MentorApi, taskId: string | null) {
     };
   }, [reconnect, taskId]);
 
-  return { events, lastEventId: lastEventId.current, reconnect, reconnecting };
+  return { events, lastEventId: lastEventId.current, reconnect, reconnectCount, reconnecting };
 }

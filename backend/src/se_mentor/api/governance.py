@@ -62,7 +62,10 @@ def current_governance(proposal_id: str, response: Response) -> dict[str, object
         impact_report, decision, approval = existing
         if not _impact_scope_matches(impact_report, changed_paths):
             response.status_code = status.HTTP_409_CONFLICT
-            return error("GOVERNANCE_SCOPE_STALE", "persisted governance scope does not match proposal")
+            return error(
+                "GOVERNANCE_SCOPE_STALE",
+                "persisted governance scope does not match proposal",
+            )
         approval = _ensure_execution_readiness(
             session,
             proposal=proposal,
@@ -70,7 +73,9 @@ def current_governance(proposal_id: str, response: Response) -> dict[str, object
             approval=approval,
             changed_paths=changed_paths,
         )
-        return ok(_governance_payload(proposal_id, changed_paths, impact_report, decision, approval))
+        return ok(
+            _governance_payload(proposal_id, changed_paths, impact_report, decision, approval)
+        )
 
 
 @router.post("/{proposal_id}/governance")
@@ -99,7 +104,15 @@ def run_governance(
                     approval=approval,
                     changed_paths=changed_paths,
                 )
-                return ok(_governance_payload(proposal_id, changed_paths, impact_report, decision, approval))
+                return ok(
+                    _governance_payload(
+                        proposal_id,
+                        changed_paths,
+                        impact_report,
+                        decision,
+                        approval,
+                    )
+                )
         if not changed_paths:
             _mark_governance_failed(
                 session,
@@ -132,17 +145,27 @@ def run_governance(
                 changed_paths=changed_paths,
             )
             session.flush()
-            return ok(_governance_payload(proposal_id, changed_paths, impact_report, decision, approval))
+            return ok(
+                _governance_payload(proposal_id, changed_paths, impact_report, decision, approval)
+            )
         except ProviderError as exc:
             _mark_governance_failed(session, proposal.task_id, exc.code, str(exc))
             response.status_code = status.HTTP_409_CONFLICT
-            return error(exc.code if exc.code != "PROVIDER_AUTH" else "PROVIDER_UNAVAILABLE", str(exc))
+            return error(
+                exc.code if exc.code != "PROVIDER_AUTH" else "PROVIDER_UNAVAILABLE",
+                str(exc),
+            )
         except ImpactReportGenerationError as exc:
             _mark_governance_failed(session, proposal.task_id, "IMPACT_REPORT_FAILED", str(exc))
             response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
             return error("IMPACT_REPORT_FAILED", str(exc))
         except Exception as exc:
-            _mark_governance_failed(session, proposal.task_id, "GOVERNANCE_FAILED", str(exc) or "Governance failed")
+            _mark_governance_failed(
+                session,
+                proposal.task_id,
+                "GOVERNANCE_FAILED",
+                str(exc) or "Governance failed",
+            )
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return error("GOVERNANCE_FAILED", str(exc) or "Governance failed")
 
@@ -169,7 +192,11 @@ def _latest_governance(session, proposal_id: str):
     approval = session.scalar(
         select(ApprovalRequest)
         .where(ApprovalRequest.governance_decision_id == decision.id)
-        .where(ApprovalRequest.status.in_([ApprovalRequestStatus.PENDING, ApprovalRequestStatus.APPROVED]))
+        .where(
+            ApprovalRequest.status.in_(
+                [ApprovalRequestStatus.PENDING, ApprovalRequestStatus.APPROVED]
+            )
+        )
     )
     return report, decision, approval
 
@@ -240,7 +267,9 @@ def _generate_impact_report(session, proposal: ChangeProposal, changed_paths: tu
         task_id=proposal.task_id,
         revision=revision,
         required_refs=tuple(item.evidence_id for item in evidence_items),
-        unresolved_assumptions=tuple(str(item) for item in _json_object(proposal.assumptions_json).values()),
+        unresolved_assumptions=tuple(
+            str(item) for item in _json_object(proposal.assumptions_json).values()
+        ),
     )
     direct_impacts = tuple(
         DirectImpact(
@@ -270,17 +299,23 @@ def _governance_payload(
     decision,
     approval,
 ) -> dict[str, object]:
-    direct = _json_any(impact_report.direct_impacts_json, [])
-    indirect = _json_any(impact_report.indirect_impacts_json, [])
-    uncertainties = _json_any(impact_report.uncertainties_json, {})
-    evidence = _json_any(impact_report.evidence_json, [])
+    direct = _json_any(impact_report.direct_impacts_json, []) if impact_report is not None else []
+    indirect = (
+        _json_any(impact_report.indirect_impacts_json, []) if impact_report is not None else []
+    )
+    uncertainties = (
+        _json_any(impact_report.uncertainties_json, {}) if impact_report is not None else {}
+    )
+    evidence = _json_any(impact_report.evidence_json, []) if impact_report is not None else []
     return {
         "proposalId": proposal_id,
         "approvalRequestId": approval.id if approval is not None else None,
         "approvalStatus": approval.status if approval is not None else None,
         "decision": decision.decision,
         "changedPaths": sorted(changed_paths),
-        "evidenceRef": f"impact-report://{impact_report.id}",
+        "evidenceRef": f"impact-report://{impact_report.id}"
+        if impact_report is not None
+        else f"governance-decision://{decision.id}",
         "facts": [
             {
                 "summary": f"{item.get('kind', 'FILE')} impact: {item.get('relative_path', '')}",
@@ -289,7 +324,11 @@ def _governance_payload(
             }
             for item in direct
         ],
-        "inferences": [str(uncertainties.get("narrative", ""))] if uncertainties.get("narrative") else [],
+        "inferences": (
+            [str(uncertainties.get("narrative", ""))]
+            if uncertainties.get("narrative")
+            else []
+        ),
         "unknowns": [str(item) for item in uncertainties.get("unknowns", [])],
         "evidence": [
             {
@@ -302,7 +341,7 @@ def _governance_payload(
         ],
         "impactScope": {
             "files": sorted(changed_paths),
-            "summary": f"{len(set(changed_paths))} files affected",
+            "summary": f"{len(set(changed_paths))} 个文件受影响",
             "direct": direct,
             "indirect": indirect,
             "risks": [str(item) for item in uncertainties.get("risks", [])],

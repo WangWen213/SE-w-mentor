@@ -37,7 +37,9 @@ def list_knowledge(project_id: str, response: Response) -> dict[str, object]:
         )
 
 
-def _knowledge_payload(session: Session, row: EngineeringKnowledge, project: Project) -> dict[str, object]:
+def _knowledge_payload(
+    session: Session, row: EngineeringKnowledge, project: Project
+) -> dict[str, object]:
     evidence = _project_understanding_evidence(session, row)
     return {
         "id": row.id,
@@ -56,13 +58,15 @@ def _presentation(
     project: Project,
     evidence: dict[str, Any],
 ) -> dict[str, object] | None:
+    if row.knowledge_key.startswith("task-evaluation:"):
+        return _task_evaluation_presentation(row, evidence)
     if not row.knowledge_key.startswith("project-understanding:"):
-        return None
+        return _generic_presentation(row, evidence)
     sufficiency = _semantic_sufficiency(evidence)
     key_paths = _key_paths(evidence)
     return {
         "kind": "project-understanding",
-        "title": "Project Understanding",
+        "title": "项目画像",
         "statusLabel": _status_label(row.status),
         "sufficiency": sufficiency,
         "summary": _overview(project, evidence, sufficiency),
@@ -75,6 +79,56 @@ def _presentation(
         "tests": _tests(evidence),
         "gitBaseline": _git_baseline(evidence),
         "risks": _risks(evidence, sufficiency),
+        "details": evidence or {"summary": row.summary},
+    }
+
+
+def _task_evaluation_presentation(
+    row: EngineeringKnowledge,
+    evidence: dict[str, Any],
+) -> dict[str, object]:
+    task_title = str(evidence.get("taskTitle") or row.summary)
+    change_quality = evidence.get("changeQuality")
+    governance = evidence.get("governance")
+    execution = evidence.get("execution")
+    scope = _strings(change_quality.get("scope")) if isinstance(change_quality, dict) else []
+    changed_files = _strings(execution.get("changedFiles")) if isinstance(execution, dict) else []
+    decision = governance.get("decision") if isinstance(governance, dict) else None
+    reason = governance.get("reason") if isinstance(governance, dict) else None
+    return {
+        "kind": "engineering-decision",
+        "title": "历史工程决策",
+        "statusLabel": _status_label(row.status),
+        "summary": task_title,
+        "projectType": None,
+        "techStack": [],
+        "structure": [],
+        "scale": [],
+        "modules": [],
+        "keyPaths": _dedupe([*scope, *changed_files])[:16],
+        "tests": [],
+        "gitBaseline": [],
+        "risks": [str(reason)] if reason else [],
+        "decision": str(decision) if decision else None,
+        "details": evidence or {"summary": row.summary},
+    }
+
+
+def _generic_presentation(row: EngineeringKnowledge, evidence: dict[str, Any]) -> dict[str, object]:
+    return {
+        "kind": "engineering-memory",
+        "title": _knowledge_type_label(row.knowledge_type),
+        "statusLabel": _status_label(row.status),
+        "summary": row.summary,
+        "projectType": None,
+        "techStack": [],
+        "structure": [],
+        "scale": [],
+        "modules": [],
+        "keyPaths": _json_list(row.scope_json),
+        "tests": [],
+        "gitBaseline": [],
+        "risks": [],
         "details": evidence or {"summary": row.summary},
     }
 
@@ -120,34 +174,28 @@ def _semantic_sufficiency(evidence: dict[str, Any]) -> str:
 def _overview(project: Project, evidence: dict[str, Any], sufficiency: str) -> str:
     name = _project_name(project.root_path)
     if sufficiency == "INSUFFICIENT":
-        return (
-            f"{name}: project understanding is not complete. Current structured evidence is not "
-            "sufficient to identify core modules reliably."
-        )
+        return f"{name} 的工程画像仍需更多证据确认，当前只展示已从持久化记录中确认的信息。"
     if sufficiency == "PARTIAL":
-        return f"{name}: partial project understanding based on the indexed repository evidence."
+        return f"{name} 的项目画像已根据已索引证据形成初步版本。"
     project_type = _project_type(evidence)
     if project_type:
-        return (
-            f"{name}: {project_type} identified from manifests, toolchain evidence, code index, "
-            "symbol relations, and Git baseline."
-        )
-    return f"{name}: candidate project understanding based on the current repository evidence."
+        return f"{name}：已根据清单、工具链、代码索引和 Git 基线识别为 {project_type}。"
+    return f"{name}：已根据当前持久化工程证据形成候选项目画像。"
 
 
 def _project_type(evidence: dict[str, Any]) -> str | None:
     stack = set(_tech_stack(evidence))
     manifests = set(_strings(evidence.get("manifests")))
     if "React" in stack and "FastAPI" in stack:
-        return "mixed full-stack"
+        return "前后端混合项目"
     if "React" in stack:
-        return "React frontend"
+        return "React 前端"
     if "FastAPI" in stack:
-        return "Python backend"
+        return "Python 后端"
     if any(path.endswith("pom.xml") for path in manifests):
-        return "Java backend"
+        return "Java 后端"
     if len(stack) > 1:
-        return "mixed project"
+        return "混合项目"
     return next(iter(stack), None)
 
 
@@ -156,7 +204,9 @@ def _tech_stack(evidence: dict[str, Any]) -> list[str]:
     manifests = _strings(evidence.get("manifests"))
     frameworks = _strings(evidence.get("test_frameworks"))
     toolchain = str(evidence.get("toolchain_kind") or "")
-    evidence_text = json.dumps(evidence.get("toolchain_evidence"), sort_keys=True, default=str).lower()
+    evidence_text = json.dumps(
+        evidence.get("toolchain_evidence"), sort_keys=True, default=str
+    ).lower()
     manifest_text = " ".join(manifests).lower()
     if "pyproject.toml" in manifest_text or "requirements" in manifest_text:
         values.append("Python")
@@ -175,8 +225,12 @@ def _tech_stack(evidence: dict[str, Any]) -> list[str]:
 
 
 def _scale(evidence: dict[str, Any]) -> list[str]:
-    labels = (("file_count", "files"), ("symbol_count", "symbols"), ("relation_count", "relations"))
-    return [f"{value} {label}" for key, label in labels if (value := _int(evidence.get(key))) is not None]
+    labels = (("file_count", "文件"), ("symbol_count", "符号"), ("relation_count", "关系"))
+    return [
+        f"{value} {label}"
+        for key, label in labels
+        if (value := _int(evidence.get(key))) is not None
+    ]
 
 
 def _structure(key_paths: list[str]) -> list[str]:
@@ -208,37 +262,37 @@ def _key_paths(evidence: dict[str, Any]) -> list[str]:
 
 def _tests(evidence: dict[str, Any]) -> list[str]:
     frameworks = _strings(evidence.get("test_frameworks"))
-    return frameworks if frameworks else ["No test framework identified from toolchain evidence."]
+    return frameworks if frameworks else ["尚未从工具链证据中确认测试框架。"]
 
 
 def _git_baseline(evidence: dict[str, Any]) -> list[str]:
     values: list[str] = []
     revision = evidence.get("revision")
     if isinstance(revision, str) and revision:
-        values.append(f"revision {revision[:12]}")
+        values.append(f"基线 revision {revision[:12]}")
     modified = _int(evidence.get("modified_count"))
     untracked = _int(evidence.get("untracked_count"))
     if modified is not None:
-        values.append(f"{modified} modified paths")
+        values.append(f"{modified} 个已修改路径")
     if untracked is not None:
-        values.append(f"{untracked} untracked paths")
+        values.append(f"{untracked} 个未跟踪路径")
     return values
 
 
 def _risks(evidence: dict[str, Any], sufficiency: str) -> list[str]:
     risks: list[str] = []
     if sufficiency == "INSUFFICIENT":
-        risks.append("Structured evidence is insufficient for reliable module identification.")
+        risks.append("结构化证据不足，核心模块识别仍需复核。")
     unresolved = _int(evidence.get("unresolved_relation_count"))
     if unresolved:
-        risks.append(f"{unresolved} unresolved symbol relations.")
+        risks.append(f"{unresolved} 个符号关系尚未解析。")
     parse_errors = _int(evidence.get("parse_error_count"))
     if parse_errors:
-        risks.append(f"{parse_errors} parse errors.")
+        risks.append(f"{parse_errors} 个解析错误。")
     limit_status = evidence.get("inventory_limit_status")
     if limit_status and str(limit_status).upper() not in {"OK", "COMPLETE"}:
-        risks.append(f"File inventory status: {limit_status}.")
-    return risks or ["Candidate memory still requires human review before it can be treated as verified."]
+        risks.append(f"文件清单状态：{limit_status}。")
+    return risks or ["候选记忆仍需人工复核后才能视为已验证。"]
 
 
 def _json_list(value: str | None) -> list[str]:
@@ -267,13 +321,23 @@ def _json_object(value: str | None) -> dict[str, Any]:
 
 def _status_label(status_value: str) -> str:
     labels = {
-        "CANDIDATE": "Needs review",
-        "FAILED_EXPERIENCE": "Failed experience",
-        "REVIEWED": "Reviewed",
-        "STALE": "Stale",
-        "VERIFIED": "Verified",
+        "CANDIDATE": "待进一步确认",
+        "FAILED_EXPERIENCE": "失败经验",
+        "REVIEWED": "已复核",
+        "STALE": "已过期",
+        "VERIFIED": "已验证",
     }
     return labels.get(status_value, status_value)
+
+
+def _knowledge_type_label(value: str) -> str:
+    labels = {
+        "CONSTRAINT": "工程约束",
+        "DECISION": "工程决策",
+        "FAILURE": "失败经验",
+        "PATTERN": "工程模式",
+    }
+    return labels.get(value, value)
 
 
 def _project_name(root_path: str) -> str:

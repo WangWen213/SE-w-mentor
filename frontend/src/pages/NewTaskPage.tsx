@@ -28,6 +28,7 @@ const text = {
 };
 
 interface NewTaskPageProps {
+  booting?: boolean;
   disabled: boolean;
   error: string | null;
   errorTitle: string | null;
@@ -38,6 +39,7 @@ interface NewTaskPageProps {
 }
 
 export function NewTaskPage({
+  booting = false,
   disabled,
   error,
   errorTitle,
@@ -48,6 +50,7 @@ export function NewTaskPage({
 }: NewTaskPageProps) {
   const [request, setRequest] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerDisabled = disabled || booting;
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -55,7 +58,7 @@ export function NewTaskPage({
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmitComposerRequest(request, pending, disabled)) {
+    if (!canSubmitComposerRequest(request, pending, composerDisabled)) {
       return;
     }
     try {
@@ -76,8 +79,8 @@ export function NewTaskPage({
       </header>
       <div className="empty-workbench">
         <div>
-          <h2>{disabled ? text.disabledTitle : text.readyTitle}</h2>
-          <p>{disabled ? text.disabledBody : text.readyBody}</p>
+          <h2>{booting ? "\u6b63\u5728\u6062\u590d\u5de5\u4f5c\u53f0" : disabled ? text.disabledTitle : text.readyTitle}</h2>
+          <p>{booting ? "\u6b63\u5728\u4ece\u540e\u7aef\u6062\u590d\u5df2\u9009\u9879\u76ee\u548c\u4efb\u52a1\u3002" : disabled ? text.disabledBody : text.readyBody}</p>
           {error ? (
             <div className="action-error" role="alert">
               <div>
@@ -97,7 +100,7 @@ export function NewTaskPage({
           <textarea
             ref={textareaRef}
             aria-label={text.requestLabel}
-            disabled={pending || disabled}
+            disabled={pending || composerDisabled}
             id="new-task-request"
             placeholder={text.placeholder}
             value={request}
@@ -111,7 +114,7 @@ export function NewTaskPage({
           />
           <div className="composer-bottom">
             <span className="ghost">{text.hint}</span>
-            <Button variant="dark" disabled={!request.trim() || pending || disabled} type="submit">
+            <Button variant="dark" disabled={!request.trim() || pending || composerDisabled} type="submit">
               {buttonLabel(stage)}
             </Button>
           </div>

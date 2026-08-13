@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
+from se_mentor.api.execution import set_execution_authority_dependencies
+from se_mentor.api.runtime import get_session_factory
 from se_mentor.main import create_app
 
 
-def test_T096_approval_execution_cancel_and_events_contract(monkeypatch) -> None:
+def test_T096_approval_execution_cancel_and_events_contract(monkeypatch, tmp_path) -> None:
     class ApprovalAuthority:
         def approve(
             self, *, approval_id: str, approved_scope: tuple[str, ...]
@@ -33,24 +38,29 @@ def test_T096_approval_execution_cancel_and_events_contract(monkeypatch) -> None
                 },
             }
 
+        def reject(self, *, approval_id: str) -> dict[str, object]:
+            return {"id": approval_id, "status": "REJECTED"}
+
     class ExecutionAuthority:
-        def execute(self, *, task_id: str, command: str) -> dict[str, object]:
-            from se_mentor.api.execution import BUS
+        def execute_task(self, task_id: str, *, command: str):
+            from se_mentor.api.events import BUS
 
             event = BUS.publish(
                 task_id=task_id,
                 event_type="EXECUTION_STARTED",
                 payload={"taskId": task_id, "state": "EXECUTING", "message": "execution started"},
             )
-            return {
-                "taskId": task_id,
-                "command": command,
-                "status": "EXECUTING",
-                "eventId": event.event_id,
-            }
+            return SimpleResult(
+                {
+                    "taskId": task_id,
+                    "command": command,
+                    "status": "EXECUTING",
+                    "eventId": event.event_id,
+                }
+            )
 
-        def cancel(self, *, task_id: str) -> dict[str, object]:
-            from se_mentor.api.execution import BUS
+        def cancel_task(self, task_id: str):
+            from se_mentor.api.events import BUS
 
             event = BUS.publish(
                 task_id=task_id,
@@ -61,16 +71,21 @@ def test_T096_approval_execution_cancel_and_events_contract(monkeypatch) -> None
                     "message": "cancel requested",
                 },
             )
-            return {"taskId": task_id, "status": "CANCEL_REQUESTED", "eventId": event.event_id}
+            return SimpleResult(
+                {"taskId": task_id, "status": "CANCEL_REQUESTED", "eventId": event.event_id}
+            )
 
     monkeypatch.setattr(
         "se_mentor.api.approvals.get_approval_authority", lambda: ApprovalAuthority()
     )
-    monkeypatch.setattr(
-        "se_mentor.api.execution.get_execution_authority", lambda: ExecutionAuthority()
-    )
     client = TestClient(create_app())
-    project = client.post("/api/projects", json={"rootPath": "C:/repo"}).json()["data"]
+    set_execution_authority_dependencies(
+        session_factory=get_session_factory(),
+        orchestrator=ExecutionAuthority(),
+    )
+    repo = tmp_path / "repo"
+    _git_repo(repo)
+    project = client.post("/api/projects", json={"rootPath": str(repo)}).json()["data"]
     task = client.post(
         "/api/tasks",
         json={"projectId": project["id"], "request": "change auth"},
@@ -98,3 +113,22 @@ def test_T096_approval_execution_cancel_and_events_contract(monkeypatch) -> None
     assert cancelled.json()["data"]["status"] == "CANCEL_REQUESTED"
     assert "event: CANCEL_REQUESTED" in replay.text
     assert "EXECUTION_STARTED" not in replay.text
+
+
+class SimpleResult:
+    def __init__(self, payload: dict[str, object]) -> None:
+        self.status = str(payload.get("status"))
+        self._payload = payload
+
+    def payload(self) -> dict[str, object]:
+        return self._payload
+
+
+def _git_repo(repo: Path) -> None:
+    repo.mkdir()
+    (repo / "app.py").write_text("value = 1\n", encoding="utf-8")
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True)

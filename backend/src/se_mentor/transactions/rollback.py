@@ -50,6 +50,7 @@ class TransactionRollbackService:
         if transaction.state not in {
             TransactionState.PREPARED,
             TransactionState.APPLYING,
+            TransactionState.COMMITTED,
             TransactionState.CONFLICT,
         }:
             raise RollbackError("transaction state cannot be rolled back")

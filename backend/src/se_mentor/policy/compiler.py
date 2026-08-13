@@ -42,6 +42,13 @@ class ExecutionPolicyCompiler:
             executable = False
             write_grants = ()
             command_grants = ()
+        for active in self.session.scalars(
+            select(ExecutionPolicy).where(
+                ExecutionPolicy.task_id == decision.task_id,
+                ExecutionPolicy.status == ExecutionPolicyStatus.ACTIVE,
+            )
+        ):
+            active.status = ExecutionPolicyStatus.SUPERSEDED
         policy = ExecutionPolicy(
             task_id=decision.task_id,
             action_id=decision.action_id,

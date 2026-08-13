@@ -95,6 +95,8 @@ function presentReason(value: string) {
   const trimmed = value.trim();
   const labels: Record<string, string> = {
     "Allowed within finite changed path scope.": "修改范围有限，符合当前批准范围。",
+    "Public or authentication-related changes require user approval.": "公共接口或认证相关修改需要你的确认。",
+    "Sensitive credential or environment files are blocked.": "敏感凭据或环境文件修改已被阻止。",
   };
   return labels[trimmed] ?? presentUnknown(value);
 }

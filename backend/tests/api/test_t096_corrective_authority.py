@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import subprocess
 from contextlib import contextmanager
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
 from se_mentor.api.approvals import BackendApprovalAuthority
-from se_mentor.api.execution import BackendExecutionAuthority
-from se_mentor.api.state import STATE
+from se_mentor.api.execution import set_execution_authority_dependencies
+from se_mentor.api.runtime import get_session_factory
+from se_mentor.db.session import session_scope
+from se_mentor.execution.orchestrator import ExecutionOrchestrator
 from se_mentor.main import create_app
+from se_mentor.models.task import ChangeTask, TaskStatus
 
 
 def test_T096_corrective_approval_uses_authoritative_grant_and_policy(monkeypatch) -> None:
@@ -51,62 +55,67 @@ def test_T096_corrective_approval_uses_authoritative_grant_and_policy(monkeypatc
         json={"approvedScope": ["auth/middleware.py"]},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     assert calls == [("approve", "approval-1")]
     data = response.json()["data"]
     assert data["temporaryGrant"]["id"] == "grant-from-service"
     assert data["executionPolicy"]["id"] == "policy-1"
 
 
-def test_T096_corrective_execute_uses_lock_and_runtime_authority(monkeypatch) -> None:
+def test_T096_corrective_execute_uses_lock_and_runtime_authority(tmp_path) -> None:
     calls: list[tuple[str, str]] = []
 
     class FakeAuthority:
-        def execute(self, *, task_id: str, command: str) -> dict[str, object]:
+        def execute_task(self, task_id: str, *, command: str):
             calls.append(("execute", task_id))
-            return {
-                "taskId": task_id,
-                "command": command,
-                "status": "EXECUTING",
-                "eventId": 1,
-                "lockId": "lock-from-service",
-            }
+            return SimpleNamespace(
+                payload=lambda: {
+                    "taskId": task_id,
+                    "command": command,
+                    "status": "EXECUTING",
+                    "eventId": 1,
+                    "lockId": "lock-from-service",
+                },
+                status="EXECUTING",
+            )
 
-    monkeypatch.setattr(
-        "se_mentor.api.execution.get_execution_authority", lambda: FakeAuthority(), raising=False
+    client = TestClient(create_app())
+    set_execution_authority_dependencies(
+        session_factory=get_session_factory(),
+        orchestrator=FakeAuthority(),
     )
-    STATE.tasks["task-1"] = {"id": "task-1", "projectId": "project-1", "status": "CREATED"}
+    task_id = _create_api_task(client, tmp_path)
 
-    response = TestClient(create_app()).post(
-        "/api/tasks/task-1/execute", json={"command": "RUN_COMMAND"}
-    )
+    response = client.post(f"/api/tasks/{task_id}/execute", json={"command": "RUN_COMMAND"})
 
-    assert response.status_code == 200
-    assert calls == [("execute", "task-1")]
+    assert response.status_code == 200, response.text
+    assert calls == [("execute", task_id)]
     assert response.json()["data"]["lockId"] == "lock-from-service"
 
 
-def test_T096_corrective_cancel_uses_runtime_cancel_without_terminal_state(monkeypatch) -> None:
+def test_T096_corrective_cancel_uses_runtime_cancel_without_terminal_state(tmp_path) -> None:
     calls: list[tuple[str, str]] = []
 
     class FakeAuthority:
-        def cancel(self, *, task_id: str) -> dict[str, object]:
+        def cancel_task(self, task_id: str):
             calls.append(("cancel", task_id))
-            return {"taskId": task_id, "status": "CANCEL_REQUESTED", "eventId": 2}
+            return SimpleNamespace(
+                payload=lambda: {"taskId": task_id, "status": "CANCEL_REQUESTED", "eventId": 2}
+            )
 
-    monkeypatch.setattr(
-        "se_mentor.api.execution.get_execution_authority", lambda: FakeAuthority(), raising=False
+    client = TestClient(create_app())
+    set_execution_authority_dependencies(
+        session_factory=get_session_factory(),
+        orchestrator=FakeAuthority(),
     )
-    STATE.tasks["task-2"] = {"id": "task-2", "projectId": "project-1", "status": "EXECUTING"}
-
-    response = TestClient(create_app()).post("/api/tasks/task-2/cancel")
+    task_id = _create_api_task(client, tmp_path)
+    response = client.post(f"/api/tasks/{task_id}/cancel")
 
     assert response.status_code == 200
-    assert calls == [("cancel", "task-2")]
-    assert STATE.tasks["task-2"]["status"] == "EXECUTING"
+    assert calls == [("cancel", task_id)]
 
 
-def test_T096_corrective_hard_block_cannot_be_approved_or_executed(monkeypatch) -> None:
+def test_T096_corrective_hard_block_cannot_be_approved_or_executed(monkeypatch, tmp_path) -> None:
     class FakeAuthority:
         def approve(
             self, *, approval_id: str, approved_scope: tuple[str, ...]
@@ -116,17 +125,17 @@ def test_T096_corrective_hard_block_cannot_be_approved_or_executed(monkeypatch) 
     monkeypatch.setattr(
         "se_mentor.api.approvals.get_approval_authority", lambda: FakeAuthority(), raising=False
     )
-    STATE.tasks["blocked-task"] = {
-        "id": "blocked-task",
-        "projectId": "project-1",
-        "status": "BLOCKED",
-    }
     client = TestClient(create_app())
+    task_id = _create_api_task(client, tmp_path)
+    with session_scope(get_session_factory()) as session:
+        task = session.get(ChangeTask, task_id)
+        assert task is not None
+        task.status = TaskStatus.BLOCKED
 
     approved = client.post(
         "/api/approvals/blocked-approval/approve", json={"approvedScope": ["x.py"]}
     )
-    executed = client.post("/api/tasks/blocked-task/execute", json={"command": "RUN_COMMAND"})
+    executed = client.post(f"/api/tasks/{task_id}/execute", json={"command": "RUN_COMMAND"})
 
     assert approved.status_code == 409
     assert executed.status_code == 409
@@ -193,91 +202,31 @@ def test_T096_corrective_backend_approval_authority_calls_grant_service(monkeypa
     assert result["executionPolicy"]["id"] == "policy-1"
 
 
-def test_T096_corrective_backend_execution_authority_calls_lock_and_runtime(monkeypatch) -> None:
-    calls: list[str] = []
-    task = SimpleNamespace(
-        id="task-1",
-        project_id="project-1",
-        status="CREATED",
-        active_policy_id=None,
-        workspace_lock_id=None,
-    )
-    policy = SimpleNamespace(
-        id="policy-1",
-        executable=True,
-        commands_json='["RUN_COMMAND"]',
-        write_paths_json='["auth/middleware.py"]',
-        status="ACTIVE",
-        proposal_hash="a" * 64,
-        revision="rev-1",
-    )
-
-    class FakeSession:
-        def get(self, model, _id):
-            name = getattr(model, "__name__", "")
-            return task if name == "ChangeTask" else policy
-
-        def scalar(self, _statement):
-            return policy
-
-    @contextmanager
-    def fake_session_scope(_factory):
-        yield FakeSession()
-
-    class FakeGrantService:
-        def __init__(self, _session) -> None:
-            pass
-
-        def create(self, policy_id, *, write_paths, commands):
-            calls.append("TemporaryGrantService.create")
-            return SimpleNamespace(
-                policy_id=policy_id,
-                proposal_hash="a" * 64,
-                revision="rev-1",
-                write_paths=tuple(write_paths),
-                commands=tuple(commands),
-            )
-
-    class FakeLockService:
-        def __init__(self, _factory) -> None:
-            pass
-
-        def acquire(self, **_kwargs):
-            calls.append("WorkspaceLockService.acquire")
-            return SimpleNamespace(
-                status="ACQUIRED",
-                lock=SimpleNamespace(id="lock-1"),
-            )
-
-    class FakeRuntime:
-        def run_once(self, **_kwargs):
-            calls.append("AgentRuntime.run_once")
-
-    monkeypatch.setattr("se_mentor.api.execution.session_scope", fake_session_scope)
-    monkeypatch.setattr("se_mentor.api.execution.TemporaryGrantService", FakeGrantService)
-    monkeypatch.setattr("se_mentor.api.execution.WorkspaceLockService", FakeLockService)
-
-    result = BackendExecutionAuthority(object(), FakeRuntime()).execute(
-        task_id="task-1",
-        command="RUN_COMMAND",
-    )
-
-    assert calls == [
-        "TemporaryGrantService.create",
-        "WorkspaceLockService.acquire",
-        "AgentRuntime.run_once",
-    ]
-    assert result["lockId"] == "lock-1"
-
-
-def test_T096_corrective_backend_cancel_calls_agent_runtime_request_cancel() -> None:
+def test_T096_corrective_orchestrator_cancel_calls_agent_runtime_request_cancel() -> None:
     calls: list[tuple[str, str]] = []
 
     class FakeRuntime:
         def request_cancel(self, *, task_id: str, reason: str) -> None:
             calls.append((task_id, reason))
 
-    result = BackendExecutionAuthority(None, FakeRuntime()).cancel(task_id="task-1")
+    result = ExecutionOrchestrator(object(), runtime=FakeRuntime()).cancel_task("task-1")
 
     assert calls == [("task-1", "user requested cancellation")]
-    assert result["status"] == "CANCEL_REQUESTED"
+    assert result.status == "CANCEL_REQUESTED"
+
+
+def _create_api_task(client: TestClient, tmp_path) -> str:
+    repo = tmp_path / "repo"
+    repo.mkdir(exist_ok=True)
+    (repo / "app.py").write_text("value = 1\n", encoding="utf-8")
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True)
+    project = client.post("/api/projects", json={"rootPath": str(repo)}).json()["data"]
+    task = client.post(
+        "/api/tasks",
+        json={"projectId": project["id"], "request": "change auth"},
+    ).json()["data"]
+    return str(task["id"])

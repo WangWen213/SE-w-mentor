@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from time import perf_counter
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,6 +21,8 @@ from se_mentor.models.execution import (
 )
 from se_mentor.models.project import Project
 from se_mentor.models.task import ChangeTask
+
+LOGGER = logging.getLogger("se_mentor.transactions.manager")
 
 
 class TransactionPrepareError(RuntimeError):
@@ -47,6 +51,8 @@ class TransactionManager:
         lock_id: str,
         expected_base_revision: str,
     ) -> PreparedTransaction:
+        total_started = perf_counter()
+        lookup_started = perf_counter()
         task = self.session.get(ChangeTask, task_id)
         project = self.session.get(Project, project_id)
         if task is None or project is None or task.project_id != project_id:
@@ -54,7 +60,14 @@ class TransactionManager:
         lock = self._active_write_lock(lock_id, task_id, project_id)
         if task.base_revision != expected_base_revision:
             raise TransactionPrepareError("baseRevision mismatch")
+        LOGGER.info(
+            "[perf] tool.apply_patch.transaction.lookup task_id=%s project_id=%s duration_ms=%s",
+            task_id,
+            project_id,
+            int((perf_counter() - lookup_started) * 1000),
+        )
 
+        existing_started = perf_counter()
         existing = self.session.scalar(
             select(TaskTransaction).where(
                 TaskTransaction.task_id == task_id,
@@ -64,13 +77,50 @@ class TransactionManager:
             )
         )
         if existing is not None and existing.manifest_artifact_ref is not None:
-            return self._from_existing(existing, project)
+            prepared = self._from_existing(existing, project)
+            LOGGER.info(
+                (
+                    "[perf] tool.apply_patch.transaction.existing task_id=%s project_id=%s "
+                    "duration_ms=%s manifest_files=%s"
+                ),
+                task_id,
+                project_id,
+                int((perf_counter() - existing_started) * 1000),
+                len(prepared.file_hashes),
+            )
+            LOGGER.info(
+                (
+                    "[perf] tool.apply_patch.transaction.prepare task_id=%s project_id=%s "
+                    "duration_ms=%s mode=existing manifest_files=%s"
+                ),
+                task_id,
+                project_id,
+                int((perf_counter() - total_started) * 1000),
+                len(prepared.file_hashes),
+            )
+            return prepared
 
         project_root = Path(project.root_path).resolve()
         backup_dir = self._backup_dir(project_root, task_id)
         if backup_dir.resolve().is_relative_to(project_root):
             raise TransactionPrepareError("backup directory cannot be inside repository")
-        file_hashes = _workspace_hashes(project_root)
+        manifest_started = perf_counter()
+        file_hashes, manifest_scanned, manifest_skipped, manifest_bytes = _workspace_hashes(
+            project_root
+        )
+        LOGGER.info(
+            (
+                "[perf] tool.apply_patch.transaction_manifest task_id=%s project_id=%s "
+                "duration_ms=%s manifest_files=%s scanned_files=%s skipped_files=%s bytes_read=%s"
+            ),
+            task_id,
+            project_id,
+            int((perf_counter() - manifest_started) * 1000),
+            len(file_hashes),
+            manifest_scanned,
+            manifest_skipped,
+            manifest_bytes,
+        )
         manifest = {
             "task_id": task_id,
             "project_id": project_id,
@@ -83,11 +133,23 @@ class TransactionManager:
             "backup_dir": str(backup_dir),
         }
 
+        artifact_started = perf_counter()
         backup_dir.mkdir(parents=True, exist_ok=True)
         _restrict_directory(backup_dir)
         manifest_path = backup_dir / "baseline-manifest.json"
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
         _restrict_file(manifest_path)
+        LOGGER.info(
+            (
+                "[perf] tool.apply_patch.transaction_artifacts task_id=%s project_id=%s "
+                "duration_ms=%s manifest_files=%s"
+            ),
+            task_id,
+            project_id,
+            int((perf_counter() - artifact_started) * 1000),
+            len(file_hashes),
+        )
+        persist_started = perf_counter()
         transaction = TaskTransaction(
             task_id=task_id,
             project_id=project_id,
@@ -97,6 +159,26 @@ class TransactionManager:
         )
         self.session.add(transaction)
         self.session.flush()
+        LOGGER.info(
+            "[perf] tool.apply_patch.transaction_persist task_id=%s project_id=%s duration_ms=%s",
+            task_id,
+            project_id,
+            int((perf_counter() - persist_started) * 1000),
+        )
+        LOGGER.info(
+            (
+                "[perf] tool.apply_patch.transaction.prepare task_id=%s project_id=%s "
+                "duration_ms=%s mode=new manifest_files=%s scanned_files=%s skipped_files=%s "
+                "bytes_read=%s"
+            ),
+            task_id,
+            project_id,
+            int((perf_counter() - total_started) * 1000),
+            len(file_hashes),
+            manifest_scanned,
+            manifest_skipped,
+            manifest_bytes,
+        )
         return PreparedTransaction(
             transaction.id,
             transaction.state,
@@ -143,20 +225,27 @@ class TransactionManager:
             transaction.state,
             manifest_path,
             Path(str(data["backup_dir"])),
-            file_hashes or _workspace_hashes(Path(project.root_path).resolve()),
+            file_hashes or _workspace_hashes(Path(project.root_path).resolve())[0],
         )
 
 
-def _workspace_hashes(project_root: Path) -> dict[str, str]:
+def _workspace_hashes(project_root: Path) -> tuple[dict[str, str], int, int, int]:
     if not project_root.exists():
-        return {}
+        return {}, 0, 0, 0
     hashes: dict[str, str] = {}
+    scanned_files = 0
+    skipped_files = 0
+    bytes_read = 0
     for path in sorted(project_root.rglob("*")):
         if not path.is_file() or ".git" in path.parts:
+            skipped_files += 1
             continue
         relative = path.relative_to(project_root).as_posix()
-        hashes[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
-    return hashes
+        content = path.read_bytes()
+        scanned_files += 1
+        bytes_read += len(content)
+        hashes[relative] = hashlib.sha256(content).hexdigest()
+    return hashes, scanned_files, skipped_files, bytes_read
 
 
 def _restrict_directory(path: Path) -> None:

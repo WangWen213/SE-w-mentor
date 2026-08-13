@@ -57,7 +57,13 @@ class TransactionRecoveryService:
         transactions = self.session.scalars(
             select(TaskTransaction).where(
                 TaskTransaction.project_id == project_id,
-                TaskTransaction.state.in_([TransactionState.PREPARED, TransactionState.APPLYING]),
+                TaskTransaction.state.in_(
+                    [
+                        TransactionState.PREPARED,
+                        TransactionState.APPLYING,
+                        TransactionState.CONFLICT,
+                    ]
+                ),
             )
         ).all()
         for transaction in transactions:

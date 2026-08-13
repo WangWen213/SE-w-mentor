@@ -19,3 +19,6 @@ class ToolRegistry:
 
     def get(self, name: str) -> ToolSpec | None:
         return self._tools.get(name)
+
+    def list_specs(self) -> tuple[ToolSpec, ...]:
+        return tuple(self._tools[name] for name in sorted(self._tools))

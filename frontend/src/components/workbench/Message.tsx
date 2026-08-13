@@ -6,10 +6,20 @@ import { formatMessageTime } from "./messageTime";
 const userLabel = "\u4f60";
 
 interface MessageProps {
+  confirmDisabled?: boolean;
+  confirmLabel?: string;
   message: WorkbenchMessage;
+  onAdjustProposal?: () => void;
+  onConfirmProposal?: () => void;
 }
 
-export function Message({ message }: MessageProps) {
+export function Message({
+  confirmDisabled,
+  confirmLabel,
+  message,
+  onAdjustProposal,
+  onConfirmProposal,
+}: MessageProps) {
   const isUser = message.role === "USER";
   const isSystem = message.role === "SYSTEM";
   const showLoadingDots =
@@ -42,7 +52,15 @@ export function Message({ message }: MessageProps) {
               ) : (
                 <MessageText text={message.text} />
               )}
-              {message.proposal ? <ProposalCard proposal={message.proposal} /> : null}
+              {message.proposal ? (
+                <ProposalCard
+                  confirmDisabled={confirmDisabled}
+                  confirmLabel={confirmLabel}
+                  proposal={message.proposal}
+                  onAdjust={onAdjustProposal}
+                  onConfirm={onConfirmProposal}
+                />
+              ) : null}
             </div>
           </div>
         )}

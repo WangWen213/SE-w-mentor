@@ -60,6 +60,7 @@ class BudgetedLLMProvider:
             LLMRequest(
                 prompt_summary=request.prompt_summary,
                 input_text=prompt,
+                response_schema=request.response_schema,
                 timeout_seconds=request.timeout_seconds,
                 cancellation_token=request.cancellation_token,
             )

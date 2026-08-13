@@ -1,146 +1,57 @@
 from __future__ import annotations
 
 import json
-from typing import Protocol
 
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from se_mentor.agent.iteration import SingleTurnAgentRunner
-from se_mentor.agent.runtime import AgentRuntime
-from se_mentor.context.context_builder import ContextBuilder
+from se_mentor.agent.runtime import AgentRuntime, ExecutionPipelineUnavailable
 from se_mentor.api.envelope import error, ok
-from se_mentor.api.events import BUS
-from se_mentor.api.runtime import get_domain_provider
 from se_mentor.db.session import session_scope
+from se_mentor.execution.orchestrator import (
+    ExecutionOrchestrator,
+    ExecutionOrchestratorProtocol,
+    ExecutionRejected,
+)
 from se_mentor.models.approval import ExecutionPolicy, ExecutionPolicyStatus
-from se_mentor.models.execution import WorkspaceLockMode
 from se_mentor.models.task import ChangeTask, TaskStatus
-from se_mentor.policy.grants import TemporaryGrantService
-from se_mentor.tools.registry import ToolRegistry, ToolSpec
-from se_mentor.workspace.lock_service import LockAcquireStatus, WorkspaceLockService
 
 router = APIRouter(prefix="/api/tasks", tags=["execution"])
 _SESSION_FACTORY: sessionmaker[Session] | None = None
 _RUNTIME: AgentRuntime | None = None
+_ORCHESTRATOR: ExecutionOrchestratorProtocol | None = None
 
 
 class ExecuteRequest(BaseModel):
     command: str
 
 
-def _tool_calls(task: dict[str, object]) -> int:
-    value = task.get("toolCalls", 0)
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        return int(value)
-    return 0
-
-
-class ExecutionAuthority(Protocol):
-    def execute(self, *, task_id: str, command: str) -> dict[str, object]: ...
-
-    def cancel(self, *, task_id: str) -> dict[str, object]: ...
-
-
-class BackendExecutionAuthority:
-    def __init__(
-        self,
-        session_factory: sessionmaker[Session] | None,
-        runtime: AgentRuntime | None,
-    ) -> None:
-        self._session_factory = session_factory
-        self._runtime = runtime
-
-    def execute(self, *, task_id: str, command: str) -> dict[str, object]:
-        if self._session_factory is None:
-            raise ValueError("execution authority unavailable")
-        with session_scope(self._session_factory) as session:
-            task = session.get(ChangeTask, task_id)
-            if task is None:
-                raise ValueError("task not found")
-            if task.status == TaskStatus.BLOCKED:
-                raise PermissionError("blocked tasks cannot execute tools")
-            policy = _active_policy(session, task)
-            if policy is None or not policy.executable:
-                raise PermissionError("explicit approval required before execution")
-            commands = _json_tuple(policy.commands_json)
-            if command not in commands:
-                raise PermissionError("command outside execution policy")
-            grant = TemporaryGrantService(session).create(
-                policy.id,
-                write_paths=_json_tuple(policy.write_paths_json),
-                commands=(command,),
-            )
-            lock_result = WorkspaceLockService(self._session_factory).acquire(
-                project_id=task.project_id,
-                task_id=task.id,
-                mode=WorkspaceLockMode.WRITE,
-                owner_instance="api-execution",
-                reason="execute task",
-                session=session,
-            )
-            if lock_result.status != LockAcquireStatus.ACQUIRED or lock_result.lock is None:
-                raise BlockingIOError(lock_result.status)
-            task.workspace_lock_id = lock_result.lock.id
-            task.active_policy_id = policy.id
-            task.status = TaskStatus.EXECUTING
-            runtime = self._runtime or _runtime_for(session, task)
-            runtime.run_once(
-                task_id=task.id,
-                proposal_hash=grant.proposal_hash,
-                revision=grant.revision,
-                goal=command,
-            )
-            event = BUS.publish(
-                task_id=task_id,
-                event_type="EXECUTION_STARTED",
-                payload={
-                    "projectId": task.project_id,
-                    "taskId": task_id,
-                    "state": "EXECUTING",
-                    "message": "execution started",
-                },
-            )
-            return {
-                "taskId": task_id,
-                "command": command,
-                "status": "EXECUTING",
-                "eventId": event.event_id,
-                "lockId": lock_result.lock.id,
-                "policyId": policy.id,
-            }
-
-    def cancel(self, *, task_id: str) -> dict[str, object]:
-        runtime = self._runtime or AgentRuntime()
-        runtime.request_cancel(task_id=task_id, reason="user requested cancellation")
-        event = BUS.publish(
-            task_id=task_id,
-            event_type="CANCEL_REQUESTED",
-            payload={
-                "taskId": task_id,
-                "state": "CANCEL_REQUESTED",
-                "message": "cancel requested",
-            },
-        )
-        return {"taskId": task_id, "status": "CANCEL_REQUESTED", "eventId": event.event_id}
-
-
 def set_execution_authority_dependencies(
     *,
     session_factory: sessionmaker[Session] | None = None,
     runtime: AgentRuntime | None = None,
+    orchestrator: ExecutionOrchestratorProtocol | None = None,
+    reset_orchestrator: bool = False,
 ) -> None:
-    global _SESSION_FACTORY, _RUNTIME
-    _SESSION_FACTORY = session_factory
-    _RUNTIME = runtime
+    global _SESSION_FACTORY, _RUNTIME, _ORCHESTRATOR
+    if session_factory is not None:
+        _SESSION_FACTORY = session_factory
+    if runtime is not None:
+        _RUNTIME = runtime
+    if reset_orchestrator:
+        _ORCHESTRATOR = None
+    if orchestrator is not None:
+        _ORCHESTRATOR = orchestrator
 
 
-def get_execution_authority() -> ExecutionAuthority:
-    return BackendExecutionAuthority(_SESSION_FACTORY, _RUNTIME)
+def get_execution_orchestrator() -> ExecutionOrchestratorProtocol:
+    if _ORCHESTRATOR is not None:
+        return _ORCHESTRATOR
+    if _SESSION_FACTORY is None:
+        raise ExecutionRejected("EXECUTION_UNAVAILABLE", "execution authority unavailable")
+    return ExecutionOrchestrator(_SESSION_FACTORY, runtime=_RUNTIME)
 
 
 @router.post("/{task_id}/execute")
@@ -157,31 +68,49 @@ def execute(task_id: str, payload: ExecuteRequest, response: Response) -> dict[s
             response.status_code = status.HTTP_409_CONFLICT
             return error("TASK_BLOCKED", "blocked tasks cannot execute tools")
     try:
-        result = get_execution_authority().execute(task_id=task_id, command=payload.command)
+        result = get_execution_orchestrator().execute_task(task_id, command=payload.command)
+    except ExecutionRejected as exc:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(exc.code, _safe_error(exc))
     except PermissionError as exc:
         response.status_code = status.HTTP_409_CONFLICT
         return error("EXECUTION_REJECTED", str(exc))
-    except BlockingIOError as exc:
-        response.status_code = status.HTTP_409_CONFLICT
-        return error("LOCK_CONFLICT", str(exc))
-    except ValueError as exc:
-        response.status_code = status.HTTP_409_CONFLICT
-        return error("EXECUTION_UNAVAILABLE", str(exc))
-    return ok(result)
+    except ExecutionPipelineUnavailable as exc:
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return error(exc.code, _safe_error(exc))
+    except Exception as exc:
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return error(getattr(exc, "code", "EXECUTION_FAILED"), _safe_error(exc))
+    if result.status == "FAILED":
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return error(
+            str(result.code or "EXECUTION_FAILED"), str(result.error or "execution failed")
+        )
+    return ok(result.payload())
 
 
 @router.post("/{task_id}/cancel")
 def cancel(task_id: str, response: Response) -> dict[str, object]:
     if _SESSION_FACTORY is not None:
         with session_scope(_SESSION_FACTORY) as session:
-            if session.get(ChangeTask, task_id) is None:
+            task = session.get(ChangeTask, task_id)
+            if task is None:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("TASK_NOT_FOUND", "task not found")
     try:
-        return ok(get_execution_authority().cancel(task_id=task_id))
+        payload = get_execution_orchestrator().cancel_task(task_id).payload()
+    except ExecutionRejected as exc:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(exc.code, _safe_error(exc))
     except ValueError as exc:
         response.status_code = status.HTTP_409_CONFLICT
         return error("CANCEL_REJECTED", str(exc))
+    if _SESSION_FACTORY is not None:
+        with session_scope(_SESSION_FACTORY) as session:
+            task = session.get(ChangeTask, task_id)
+            if task is not None:
+                payload["task"] = _task_payload(task, fallback_status=str(payload["status"]))
+    return ok(payload)
 
 
 @router.get("/{task_id}/policy")
@@ -206,26 +135,8 @@ def policy(task_id: str, response: Response) -> dict[str, object]:
         )
 
 
-def _runtime_for(session: Session, task: ChangeTask) -> AgentRuntime:
-    registry = ToolRegistry()
-    for name in ("READ_FILE", "SEARCH_CODE", "APPLY_PATCH", "CREATE_FILE", "DELETE_FILE", "RUN_COMMAND"):
-        registry.register(ToolSpec(name=name, risk="domain-policy", timeout_seconds=30))
-    runner = SingleTurnAgentRunner(
-        session,
-        project_root=task.project.root_path,
-        context_builder=ContextBuilder(max_chars=16000),
-        provider=get_domain_provider(),
-        registry=registry,
-        tool_handlers={
-            "READ_FILE": lambda action: action,
-            "SEARCH_CODE": lambda action: action,
-            "APPLY_PATCH": lambda action: action,
-            "CREATE_FILE": lambda action: action,
-            "DELETE_FILE": lambda action: action,
-            "RUN_COMMAND": lambda action: action,
-        },
-    )
-    return AgentRuntime(session, runner=runner)
+def _safe_error(exc: Exception) -> str:
+    return " ".join((str(exc) or type(exc).__name__).split())[:360]
 
 
 def _active_policy(session: Session, task: ChangeTask) -> ExecutionPolicy | None:
@@ -245,3 +156,13 @@ def _json_tuple(value: str) -> tuple[str, ...]:
     if not isinstance(data, list):
         return ()
     return tuple(str(item) for item in data)
+
+
+def _task_payload(task: ChangeTask, *, fallback_status: str | None = None) -> dict[str, object]:
+    status_value = fallback_status if fallback_status == "CANCEL_REQUESTED" else str(task.status)
+    return {
+        "id": task.id,
+        "projectId": task.project_id,
+        "request": task.original_request,
+        "status": status_value,
+    }

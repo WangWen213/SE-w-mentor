@@ -28,7 +28,11 @@ def test_T066_read_action_flows_through_context_llm_parser_governance_dispatcher
         script=(
             MockResponse(
                 match="read app",
-                content='{"action_type":"READ_FILE","path":"app.py","reason":"inspect"}',
+                content=(
+                    '{"action_type":"READ_FILE",'
+                    '"parameters":{"path":"app.py","start_line":1,"end_line":20},'
+                    '"reason":"inspect"}'
+                ),
                 input_tokens=12,
                 output_tokens=8,
             ),
@@ -46,7 +50,11 @@ def test_T066_read_action_flows_through_context_llm_parser_governance_dispatcher
             provider=provider,
             registry=registry,
             tool_handlers={
-                "READ_FILE": lambda action: (repo / action.path).read_text(encoding="utf-8")
+                "READ_FILE": lambda action: "".join(
+                    (repo / action.parameters.path).read_text(encoding="utf-8").splitlines(keepends=True)[
+                        action.parameters.start_line - 1 : action.parameters.end_line
+                    ]
+                )
             },
         )
         result = runner.run(

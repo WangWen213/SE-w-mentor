@@ -1,57 +1,96 @@
 import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
 
-import type { GovernanceReport } from "../api/mentorApi";
+import type { GovernanceDecisionKind, GovernanceReport, ProjectGovernanceHistoryItem } from "../api/mentorApi";
 import { governanceDecisionLabel } from "../api/mentorApi";
+import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { GovernanceDecision } from "../components/GovernanceDecision";
 import { ImpactReport } from "../components/ImpactReport";
 
 const text = {
-  blockedAction: "已阻止危险操作",
-  blockedFallback: "后端治理已阻止该操作",
-  blockLog: "阻止记录",
-  errorBody: "当前任务的治理结果读取失败，请重新加载。",
-  errorTitle: "治理结果读取失败",
+  all: "全部",
+  allow: "自动允许",
+  blocked: "已阻止",
+  detail: "查看详情",
+  detailError: "治理详情读取失败",
+  detailLoading: "正在读取详情",
+  emptyBody: "项目中的治理结果会在任务完成影响分析后记录在这里。",
+  emptyTitle: "暂无治理记录",
+  errorBody: "项目治理历史读取失败，请重新加载。",
+  errorTitle: "治理历史读取失败",
+  files: "影响",
   governance: "治理",
-  loadingBody: "Mentor 正在读取当前任务的影响分析和治理决策。",
-  loadingTitle: "正在加载治理结果",
-  noBlockBody: "当前治理结果没有阻止该任务。",
-  noBlockTitle: "暂无阻止记录",
-  noReportBody: "当前任务还没有完成方案确认与影响分析。治理完成后，可在这里查看决策依据。",
-  noReportTitle: "尚未生成治理结果",
-  pending: "治理决策",
+  history: "治理历史记录",
+  loadMore: "加载更多",
+  loadingTitle: "正在读取治理历史",
+  projectBody: "当前项目中的治理记录都会保留在这里。",
+  refreshing: "正在更新",
   reload: "重新加载",
-  unknown: "暂未确定",
+  selectedDetail: "治理详情",
+  warn: "需要确认",
 };
 
 interface AnalysisPageProps {
   approved: boolean;
+  detail: GovernanceReport | null;
+  detailError: string | null;
+  detailLoading: boolean;
   error: string | null;
+  hasMore: boolean;
+  history: ProjectGovernanceHistoryItem[];
   loading: boolean;
+  loadingMore: boolean;
   onAllowOnce: () => Promise<void>;
   onDeny: () => Promise<void>;
+  onLoadMore: () => void;
   onReload: () => void;
+  onSelectDecision: (decision: ProjectGovernanceHistoryItem) => void;
   pendingAction: string | null;
-  report: GovernanceReport | null;
-  state: "LOADING" | "READY" | "NOT_GENERATED" | "ERROR";
+  refreshing: boolean;
+  selectedDecisionId: string | null;
+  state: "UNINITIALIZED" | "LOADING" | "READY" | "ERROR";
 }
 
 export function AnalysisPage({
   approved,
+  detail,
+  detailError,
+  detailLoading,
   error,
+  hasMore,
+  history,
   loading,
+  loadingMore,
   onAllowOnce,
   onDeny,
+  onLoadMore,
   onReload,
+  onSelectDecision,
   pendingAction,
-  report,
+  refreshing,
+  selectedDecisionId,
   state,
 }: AnalysisPageProps) {
-  if (loading || state === "LOADING") {
-    return <GovernanceShell><EmptyState title={text.loadingTitle} body={text.loadingBody} /></GovernanceShell>;
+  const [filter, setFilter] = useState<"ALL" | GovernanceDecisionKind>("ALL");
+  const filteredHistory = useMemo(
+    () => history.filter((item) => filter === "ALL" || item.decision === filter),
+    [filter, history],
+  );
+
+  if ((loading || state === "LOADING") && history.length === 0) {
+    return (
+      <GovernanceShell>
+        <div className="governance-skeleton" aria-label={text.loadingTitle}>
+          <div />
+          <div />
+          <div />
+        </div>
+      </GovernanceShell>
+    );
   }
 
-  if (state === "ERROR" && !report) {
+  if (state === "ERROR" && history.length === 0) {
     return (
       <GovernanceShell>
         <GovernanceError message={error ?? text.errorBody} onReload={onReload} />
@@ -59,41 +98,77 @@ export function AnalysisPage({
     );
   }
 
-  if (state === "NOT_GENERATED" || !report) {
-    return (
-      <GovernanceShell>
-        <EmptyState title={text.noReportTitle} body={text.noReportBody} />
-      </GovernanceShell>
-    );
-  }
-
   return (
     <GovernanceShell>
-      {error ? <GovernanceError message={`${error}。已保留当前可用的治理结果。`} onReload={onReload} /> : null}
-      <div className="section-label">{text.pending}</div>
-      <GovernanceDecision
-        approved={approved}
-        pendingAction={pendingAction}
-        report={report}
-        onAllowOnce={onAllowOnce}
-        onDeny={onDeny}
-      />
-      <ImpactReport report={report} />
-      <PolicyList report={report} />
-      <div className="section-label" style={{ marginTop: 22 }}>
-        {text.blockLog}
+      {error ? <GovernanceError message={`${error}。已保留当前可用的治理历史。`} onReload={onReload} /> : null}
+      <p className="page-subtitle">{text.projectBody}</p>
+      <div className="governance-filter" role="tablist" aria-label="治理筛选">
+        <FilterButton active={filter === "ALL"} label={text.all} onClick={() => setFilter("ALL")} />
+        <FilterButton active={filter === "ALLOW"} label={text.allow} onClick={() => setFilter("ALLOW")} />
+        <FilterButton active={filter === "WARN"} label={text.warn} onClick={() => setFilter("WARN")} />
+        <FilterButton active={filter === "BLOCK"} label={text.blocked} onClick={() => setFilter("BLOCK")} />
+        {refreshing ? <span className="governance-refreshing">{text.refreshing}</span> : null}
       </div>
-      {report.decision === "BLOCK" ? (
-        <div className="block-card">
-          <div className="block-icon">!</div>
-          <div>
-            <div className="block-title">{text.blockedAction}</div>
-            <div className="block-meta">{report.ruleHits[0]?.reason ?? text.blockedFallback}</div>
-          </div>
+      <div className="section-label">{text.history}</div>
+      {history.length === 0 ? <EmptyState title={text.emptyTitle} body={text.emptyBody} /> : null}
+      {history.length > 0 && filteredHistory.length === 0 ? (
+        <EmptyState title={text.emptyTitle} body={text.emptyBody} />
+      ) : null}
+      <div className="governance-history-list">
+        {filteredHistory.map((item) => (
+          <button
+            className={`governance-history-row ${selectedDecisionId === item.governanceDecisionId ? "selected" : ""}`}
+            key={item.governanceDecisionId}
+            type="button"
+            onClick={() => onSelectDecision(item)}
+          >
+            <div className="governance-row-status">
+              <span className={`governance-status-dot ${statusClass(item.decision)}`} />
+              <span>{governanceDecisionLabel(item.decision)}</span>
+            </div>
+            <div className="governance-row-main">
+              <div className="governance-row-title">{item.taskTitle}</div>
+              <div className="governance-row-summary">{item.displaySummary || item.summary}</div>
+              {item.proposalVersion ? (
+                <div className="governance-row-version">Proposal v{item.proposalVersion}</div>
+              ) : null}
+            </div>
+            <div className="governance-row-meta">
+              <span>
+                {text.files} {item.affectedFileCount} 个文件
+              </span>
+              <time dateTime={item.createdAt}>{formatTime(item.createdAt)}</time>
+              <span className="governance-detail-link">{text.detail} →</span>
+            </div>
+          </button>
+        ))}
+      </div>
+      {hasMore ? (
+        <div className="governance-load-more">
+          <Button disabled={loadingMore} onClick={onLoadMore}>
+            {loadingMore ? text.refreshing : text.loadMore}
+          </Button>
         </div>
-      ) : (
-        <EmptyState title={text.noBlockTitle} body={text.noBlockBody} />
-      )}
+      ) : null}
+      {selectedDecisionId ? (
+        <section className="governance-detail-section">
+          <div className="section-label">{text.selectedDetail}</div>
+          {detailLoading ? <EmptyState title={text.detailLoading} body="" /> : null}
+          {detailError ? <GovernanceError message={detailError} onReload={onReload} /> : null}
+          {detail && !detailLoading ? (
+            <>
+              <GovernanceDecision
+                approved={approved}
+                pendingAction={pendingAction}
+                report={detail}
+                onAllowOnce={onAllowOnce}
+                onDeny={onDeny}
+              />
+              <ImpactReport report={detail} />
+            </>
+          ) : null}
+        </section>
+      ) : null}
     </GovernanceShell>
   );
 }
@@ -125,33 +200,35 @@ function GovernanceError({ message, onReload }: { message: string; onReload: () 
   );
 }
 
-function PolicyList({ report }: { report: GovernanceReport }) {
+function FilterButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
   return (
-    <div className="policy-list">
-      {report.ruleHits.map((hit) => (
-        <div className="policy-row" key={`${hit.level}:${hit.reason}`}>
-          <div className="policy-level">
-            <span className={`level-dot ${hit.level === "ALLOW" ? "allow" : hit.level === "WARN" ? "ask" : "block"}`} />
-            {governanceDecisionLabel(hit.level)}
-          </div>
-          <div className="policy-items">
-            <span className="policy-chip">{presentReason(hit.reason)}</span>
-          </div>
-        </div>
-      ))}
-    </div>
+    <button className={`filter ${active ? "active" : ""}`} type="button" onClick={onClick}>
+      {label}
+    </button>
   );
 }
 
-function presentReason(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.toUpperCase() === "UNKNOWN") {
-    return text.unknown;
+function statusClass(decision: GovernanceDecisionKind): string {
+  return decision.toLowerCase();
+}
+
+function formatTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
   }
-  const labels: Record<string, string> = {
-    "Allowed within finite changed path scope.": "修改范围有限，符合当前批准范围。",
-    "Public or authentication-related changes require user approval.": "公共接口或认证相关修改需要你的确认。",
-    "Sensitive credential or environment files are blocked.": "敏感凭据或环境文件修改已被阻止。",
-  };
-  return labels[trimmed] ?? trimmed;
+  return date.toLocaleString("zh-CN", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+  });
 }

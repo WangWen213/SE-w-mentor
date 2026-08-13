@@ -1,17 +1,24 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
   createMentorApi,
   type CompletionGate,
   type CredentialStatus,
   type DiffTrace,
+  type ProjectGovernanceHistoryItem,
   type GovernanceReport,
   type KnowledgeItem,
   type LockStatus,
+  type MentorApi,
+  MentorApiError,
   type Project,
+  type ProjectEvaluationList,
   type Proposal,
   type RecoveryItem,
   type Task,
+  type TaskFileChanges,
+  type TaskTimeline,
+  type TaskTimelineItem,
   type ValidationResult,
   type WorkbenchMessageRecord,
 } from "../api/mentorApi";
@@ -26,25 +33,128 @@ import { RecoveryPage } from "../pages/RecoveryPage";
 import { TaskResultPage } from "../pages/TaskResultPage";
 import { useTaskEvents } from "../hooks/useTaskEvents";
 import { AppShell } from "./AppShell";
-import type { NavKey, ProposalFixture, WorkbenchMessage } from "./fixtures";
+import type { NavKey, ProposalFixture, WorkbenchMessage, WorkbenchTimelineItem } from "./fixtures";
 
 interface AppProps {
-  api?: ReturnType<typeof createMentorApi>;
+  api?: MentorApi;
+}
+
+type ProposalQueryState = "LOADING" | "NOT_CREATED" | "EXISTS";
+export type ProjectHydrationState = "BOOTING" | "READY" | "EMPTY" | "ERROR";
+export type ResourceInitialStatus = "UNINITIALIZED" | "LOADING" | "READY" | "ERROR";
+const BACKGROUND_REFETCH_DELAY_MS = 180;
+const LAST_ACTIVE_VIEW_KEY = "se-mentor:lastActiveView";
+const LAST_SELECTED_PROJECT_ID_KEY = "se-mentor:lastSelectedProjectId";
+
+interface GovernanceReadState {
+  error: string | null;
+  initialStatus: ResourceInitialStatus;
+  refreshing: boolean;
+  report: GovernanceReport | null;
+}
+
+interface ProjectGovernanceHistoryReadState {
+  detail: GovernanceReport | null;
+  detailError: string | null;
+  detailLoading: boolean;
+  error: string | null;
+  hasMore: boolean;
+  initialStatus: ResourceInitialStatus;
+  items: ProjectGovernanceHistoryItem[];
+  loadingMore: boolean;
+  nextOffset: number | null;
+  refreshing: boolean;
+  selectedDecisionId: string | null;
+}
+
+function startFrontendTiming(label: string): () => void {
+  const started = typeof performance === "undefined" ? Date.now() : performance.now();
+  return () => {
+    const now = typeof performance === "undefined" ? Date.now() : performance.now();
+    const totalMs = Math.round(now - started);
+    console.info(`[perf] frontend.${label} total_ms=${totalMs}`);
+  };
+}
+
+function readLastSelectedProjectId(): string | null {
+  try {
+    return window.localStorage.getItem(LAST_SELECTED_PROJECT_ID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function rememberLastSelectedProjectId(projectId: string): void {
+  try {
+    window.localStorage.setItem(LAST_SELECTED_PROJECT_ID_KEY, projectId);
+  } catch {
+    // localStorage is a UI preference only; backend remains the project authority.
+  }
+}
+
+function forgetLastSelectedProjectId(): void {
+  try {
+    window.localStorage.removeItem(LAST_SELECTED_PROJECT_ID_KEY);
+  } catch {
+    // localStorage is a UI preference only; backend remains the project authority.
+  }
+}
+
+export function readLastActiveView(): NavKey {
+  try {
+    const stored = window.localStorage.getItem(LAST_ACTIVE_VIEW_KEY);
+    return isNavKey(stored) ? stored : "workbench";
+  } catch {
+    return "workbench";
+  }
+}
+
+export function rememberLastActiveView(view: NavKey): void {
+  try {
+    window.localStorage.setItem(LAST_ACTIVE_VIEW_KEY, view);
+  } catch {
+    // localStorage only preserves the user's route preference.
+  }
+}
+
+function isNavKey(value: string | null): value is NavKey {
+  return (
+    value === "workbench" ||
+    value === "tasks" ||
+    value === "memory" ||
+    value === "governance" ||
+    value === "evaluation" ||
+    value === "settings"
+  );
+}
+
+export function canConfirmHydratedProposal({
+  pendingAction,
+  proposalId,
+  taskId,
+}: {
+  pendingAction: string | null;
+  proposalId: string | null;
+  taskId: string | null;
+}): boolean {
+  return pendingAction === null && Boolean(taskId) && Boolean(proposalId);
 }
 
 export function App({ api: providedApi }: AppProps = {}) {
   const defaultApi = useMemo(() => createMentorApi(), []);
   const api = providedApi ?? defaultApi;
-  const [activeView, setActiveView] = useState<NavKey>("workbench");
+  const [activeView, setActiveView] = useState<NavKey>(() => readLastActiveView());
   const [project, setProject] = useState<Project | null>(null);
   const [lockStatus, setLockStatus] = useState<LockStatus | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [activeProposal, setActiveProposal] = useState<Proposal | null>(null);
+  const [proposalQueryState, setProposalQueryState] = useState<ProposalQueryState>("NOT_CREATED");
   const [taskListLoading, setTaskListLoading] = useState(false);
   const [taskDetailLoading, setTaskDetailLoading] = useState(false);
   const [projectError, setProjectError] = useState<string | null>(null);
   const [projectOpening, setProjectOpening] = useState(false);
+  const [projectHydrationState, setProjectHydrationState] = useState<ProjectHydrationState>("BOOTING");
   const [taskError, setTaskError] = useState<string | null>(null);
   const [taskErrorTitle, setTaskErrorTitle] = useState<string | null>(null);
   const [persistedWorkbenchMessagesByTask, setPersistedWorkbenchMessagesByTask] = useState<Record<string, WorkbenchMessage[]>>({});
@@ -52,20 +162,24 @@ export function App({ api: providedApi }: AppProps = {}) {
   const [newTaskPending, setNewTaskPending] = useState(false);
   const [newTaskStage, setNewTaskStage] = useState<NewTaskStage>("IDLE");
   const [proposalAction, setProposalAction] = useState<string | null>(null);
-  const [governanceReport, setGovernanceReport] = useState<GovernanceReport | null>(null);
-  const [governanceLoading, setGovernanceLoading] = useState(false);
-  const [governanceError, setGovernanceError] = useState<string | null>(null);
-  const [governanceState, setGovernanceState] = useState<"LOADING" | "READY" | "NOT_GENERATED" | "ERROR">("NOT_GENERATED");
+  const [governanceByTask, setGovernanceByTask] = useState<Record<string, GovernanceReadState>>({});
+  const [governanceHistoryByProject, setGovernanceHistoryByProject] = useState<Record<string, ProjectGovernanceHistoryReadState>>({});
   const [harnessProgress, setHarnessProgress] = useState<string | null>(null);
   const [approvalAction, setApprovalAction] = useState<string | null>(null);
   const [approvalGranted, setApprovalGranted] = useState(false);
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
   const [diffTrace] = useState<DiffTrace | null>(null);
+  const [fileChangesByTask, setFileChangesByTask] = useState<Record<string, DiffTrace[]>>({});
+  const [fileChangesLoadingByTask, setFileChangesLoadingByTask] = useState<Record<string, boolean>>({});
+  const [fileChangesErrorByTask, setFileChangesErrorByTask] = useState<Record<string, string | null>>({});
+  const [timelineByTask, setTimelineByTask] = useState<Record<string, WorkbenchTimelineItem[]>>({});
+  const [timelineErrorByTask, setTimelineErrorByTask] = useState<Record<string, string | null>>({});
   const [validationResults] = useState<ValidationResult[]>([]);
   const [completionGate] = useState<CompletionGate[]>([]);
-  const [taskEvaluation] = useState(null);
-  const [evaluationError] = useState<string | null>(null);
+  const [projectEvaluations, setProjectEvaluations] = useState<ProjectEvaluationList | null>(null);
+  const [evaluationError, setEvaluationError] = useState<string | null>(null);
+  const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [recoveryItems, setRecoveryItems] = useState<RecoveryItem[]>([]);
   const [recoveryPendingTaskId, setRecoveryPendingTaskId] = useState<string | null>(null);
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItem[]>([]);
@@ -75,19 +189,47 @@ export function App({ api: providedApi }: AppProps = {}) {
   const [credentialPending, setCredentialPending] = useState<string | null>(null);
   const [credentialError, setCredentialError] = useState<string | null>(null);
   const taskEvents = useTaskEvents(api, activeTask?.id ?? null);
+  const hydrationRunRef = useRef(0);
+  const executionDispatchRef = useRef<string | null>(null);
+  const processedEventIdsRef = useRef<Set<number>>(new Set());
+  const activeTaskIdRef = useRef<string | null>(null);
+  const taskListRunRef = useRef(0);
+  const governanceRequestRunRef = useRef<Record<string, number>>({});
+  const governanceHistoryRequestRunRef = useRef<Record<string, number>>({});
+  const governanceDetailRequestRunRef = useRef<Record<string, number>>({});
+  const fileChangeRequestRunRef = useRef<Record<string, number>>({});
+  const timelineRequestRunRef = useRef<Record<string, number>>({});
+  const governanceRefreshTimersRef = useRef<Record<string, number>>({});
+  const governanceHistoryRefreshTimersRef = useRef<Record<string, number>>({});
+  const fileChangeRefreshTimersRef = useRef<Record<string, number>>({});
+  const timelineRefreshTimersRef = useRef<Record<string, number>>({});
+
+  const applyTaskSnapshot = useCallback((task: Task) => {
+    setActiveTask((current) => (current?.id === task.id ? task : current));
+    setTasks((current) => upsertTasks(current, [task]));
+  }, []);
+
+  useEffect(() => {
+    activeTaskIdRef.current = activeTask?.id ?? null;
+  }, [activeTask?.id]);
 
   const loadWorkbenchMessages = useCallback(
     async (taskId: string) => {
-      const timeline = await api.getWorkbenchMessages(taskId);
-      const persistedMessages = timeline.items.map(workbenchMessageFromRecord);
-      setPersistedWorkbenchMessagesByTask((current) => ({
-        ...current,
-        [taskId]: persistedMessages,
-      }));
-      setOptimisticWorkbenchMessagesByTask((current) => ({
-        ...current,
-        [taskId]: reconcileOptimisticMessages(current[taskId] ?? [], persistedMessages),
-      }));
+      const finishTiming = startFrontendTiming("task_messages");
+      try {
+        const timeline = await api.getWorkbenchMessages(taskId);
+        const persistedMessages = timeline.items.map(workbenchMessageFromRecord);
+        setPersistedWorkbenchMessagesByTask((current) => ({
+          ...current,
+          [taskId]: persistedMessages,
+        }));
+        setOptimisticWorkbenchMessagesByTask((current) => ({
+          ...current,
+          [taskId]: reconcileOptimisticMessages(current[taskId] ?? [], persistedMessages),
+        }));
+      } finally {
+        finishTiming();
+      }
     },
     [api],
   );
@@ -130,12 +272,77 @@ export function App({ api: providedApi }: AppProps = {}) {
     }
   }, [api]);
 
+  const loadTaskFileChanges = useCallback(
+    async (taskId: string) => {
+      const finishTiming = startFrontendTiming("task_file_changes");
+      const requestId = (fileChangeRequestRunRef.current[taskId] ?? 0) + 1;
+      fileChangeRequestRunRef.current[taskId] = requestId;
+      setFileChangesLoadingByTask((current) => ({ ...current, [taskId]: true }));
+      setFileChangesErrorByTask((current) => ({ ...current, [taskId]: null }));
+      try {
+        const result: TaskFileChanges = await api.getTaskFileChanges(taskId);
+        if (fileChangeRequestRunRef.current[taskId] !== requestId) {
+          return;
+        }
+        setFileChangesByTask((current) => ({ ...current, [taskId]: result.items }));
+      } catch (error) {
+        if (fileChangeRequestRunRef.current[taskId] === requestId) {
+          setFileChangesErrorByTask((current) => ({ ...current, [taskId]: userError(error) }));
+        }
+      } finally {
+        if (fileChangeRequestRunRef.current[taskId] === requestId) {
+          setFileChangesLoadingByTask((current) => ({ ...current, [taskId]: false }));
+        }
+        finishTiming();
+      }
+    },
+    [api],
+  );
+
+  const loadTaskTimeline = useCallback(
+    async (taskId: string) => {
+      const finishTiming = startFrontendTiming("task_timeline");
+      const requestId = (timelineRequestRunRef.current[taskId] ?? 0) + 1;
+      timelineRequestRunRef.current[taskId] = requestId;
+      setTimelineErrorByTask((current) => ({ ...current, [taskId]: null }));
+      try {
+        const result: TaskTimeline = await api.getTaskTimeline(taskId);
+        if (timelineRequestRunRef.current[taskId] !== requestId) {
+          return;
+        }
+        setTimelineByTask((current) => ({
+          ...current,
+          [taskId]: dedupeTimelineItems(result.items.map((item) => timelineItemFromRecord(taskId, item))),
+        }));
+      } catch (error) {
+        if (timelineRequestRunRef.current[taskId] === requestId) {
+          setTimelineErrorByTask((current) => ({ ...current, [taskId]: userError(error) }));
+        }
+      } finally {
+        finishTiming();
+      }
+    },
+    [api],
+  );
+
+  const ensureTaskFileChanges = useCallback(
+    (taskId: string) => {
+      if (fileChangesByTask[taskId] || fileChangesLoadingByTask[taskId]) {
+        return;
+      }
+      void loadTaskFileChanges(taskId);
+    },
+    [fileChangesByTask, fileChangesLoadingByTask, loadTaskFileChanges],
+  );
+
   useEffect(() => {
     void loadCredentialStatus();
   }, [loadCredentialStatus]);
 
   const loadTaskList = useCallback(
     async (projectId: string) => {
+      const runId = taskListRunRef.current + 1;
+      taskListRunRef.current = runId;
       setTaskListLoading(true);
       setProjectError(null);
       try {
@@ -143,60 +350,240 @@ export function App({ api: providedApi }: AppProps = {}) {
           api.getTaskList(projectId),
           api.getProjectLocks(projectId),
         ]);
-        setTasks(list.items);
+        if (taskListRunRef.current !== runId) {
+          return;
+        }
+        setTasks((current) => replaceTasksForProject(current, projectId, list.items));
         setLockStatus(locks);
       } catch (error) {
-        setProjectError(userError(error));
+        if (taskListRunRef.current === runId) {
+          setProjectError(userError(error));
+        }
       } finally {
-        setTaskListLoading(false);
+        if (taskListRunRef.current === runId) {
+          setTaskListLoading(false);
+        }
       }
     },
     [api],
   );
 
+  const fetchProposalForTask = useCallback(
+    async (taskId: string): Promise<Proposal | null> => {
+      try {
+        return await api.getProposal(taskId);
+      } catch (error) {
+        if (isApiErrorCode(error, "PROPOSAL_NOT_FOUND")) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    [api],
+  );
+
+  const hydrateFromRegisteredProjects = useCallback(async () => {
+    const finishTiming = startFrontendTiming("project_hydration");
+    const runId = hydrationRunRef.current + 1;
+    hydrationRunRef.current = runId;
+    const isCurrentRun = () => hydrationRunRef.current === runId;
+    setTaskListLoading(true);
+    setTaskDetailLoading(false);
+    setProjectHydrationState("BOOTING");
+    setProjectError(null);
+    setTaskError(null);
+    try {
+      const registered = await api.getProjects();
+      if (!isCurrentRun()) {
+        return;
+      }
+      const currentProject = registered.items[0] ?? null;
+      if (!currentProject) {
+        forgetLastSelectedProjectId();
+        setProject(null);
+        setTasks([]);
+        setLockStatus(null);
+        setActiveTask(null);
+        setActiveProposal(null);
+        setProposalQueryState("NOT_CREATED");
+        setProjectHydrationState("EMPTY");
+        return;
+      }
+      const selectedProjectId = readLastSelectedProjectId();
+      const selectedProject =
+        registered.items.find((item) => item.id === selectedProjectId) ?? currentProject;
+      if (selectedProjectId && selectedProject.id !== selectedProjectId) {
+        forgetLastSelectedProjectId();
+      }
+      setProject(selectedProject);
+      rememberLastSelectedProjectId(selectedProject.id);
+      const [list, locks] = await Promise.all([
+        api.getTaskList(selectedProject.id),
+        api.getProjectLocks(selectedProject.id),
+      ]);
+      if (!isCurrentRun()) {
+        return;
+      }
+      setTasks((current) => replaceTasksForProject(current, selectedProject.id, list.items));
+      setLockStatus(locks);
+      const currentTask = list.items[0] ?? null;
+      if (!currentTask) {
+        setActiveTask(null);
+        setActiveProposal(null);
+        setProposalQueryState("NOT_CREATED");
+        setProjectHydrationState("READY");
+        return;
+      }
+      setActiveTask((current) => current ?? currentTask);
+      setTaskDetailLoading(false);
+      setProposalQueryState("LOADING");
+      setApprovalGranted(false);
+      setProjectHydrationState("READY");
+      void Promise.allSettled([
+        api.getProjectConfig(selectedProject.id),
+        api.getTask(currentTask.id).then((task) => {
+          if (isCurrentRun()) {
+            applyTaskSnapshot(task);
+          }
+        }),
+        fetchProposalForTask(currentTask.id).then((proposal) => {
+          if (!isCurrentRun()) {
+            return;
+          }
+          setActiveProposal(proposal);
+          setProposalQueryState(proposal ? "EXISTS" : "NOT_CREATED");
+          setNewTaskStage(proposal ? "PROPOSAL_READY" : "IDLE");
+        }),
+        loadWorkbenchMessages(currentTask.id),
+        loadTaskTimeline(currentTask.id),
+      ]);
+    } catch (error) {
+      if (isCurrentRun()) {
+        setProjectError(userError(error));
+        setProposalQueryState("NOT_CREATED");
+        setProjectHydrationState("ERROR");
+      }
+    } finally {
+      if (isCurrentRun()) {
+        setTaskDetailLoading(false);
+        setTaskListLoading(false);
+        finishTiming();
+      }
+    }
+  }, [api, applyTaskSnapshot, fetchProposalForTask, loadTaskTimeline, loadWorkbenchMessages]);
+
+  useEffect(() => {
+    void hydrateFromRegisteredProjects();
+  }, [hydrateFromRegisteredProjects]);
+
+  useEffect(() => {
+    rememberLastActiveView(activeView);
+  }, [activeView]);
+
   const openProject = useCallback(async () => {
     if (projectOpening) {
       return;
     }
+    const finishTiming = startFrontendTiming("project_open");
+    const runId = hydrationRunRef.current + 1;
+    hydrationRunRef.current = runId;
+    const isCurrentRun = () => hydrationRunRef.current === runId;
     setProjectOpening(true);
     setProjectError(null);
     try {
       const opened = await api.chooseLocalProject();
+      if (!isCurrentRun()) {
+        return;
+      }
       setProject(opened);
-      await api.getProjectConfig(opened.id);
-      await loadTaskList(opened.id);
+      rememberLastSelectedProjectId(opened.id);
       setActiveTask(null);
       setActiveProposal(null);
+      setProposalQueryState("NOT_CREATED");
       setActiveView("workbench");
+      setTaskListLoading(true);
+      const [list, locks] = await Promise.all([
+        api.getTaskList(opened.id),
+        api.getProjectLocks(opened.id),
+        api.getProjectConfig(opened.id),
+      ]);
+      if (!isCurrentRun()) {
+        return;
+      }
+      setTasks((current) => replaceTasksForProject(current, opened.id, list.items));
+      setLockStatus(locks);
+      setActiveTask(null);
+      setActiveProposal(null);
+      setProposalQueryState("NOT_CREATED");
     } catch (error) {
-      setProjectError(userError(error));
+      if (isCurrentRun()) {
+        setProjectError(userError(error));
+      }
     } finally {
-      setProjectOpening(false);
+      if (isCurrentRun()) {
+        setTaskListLoading(false);
+        setProjectOpening(false);
+      }
+      finishTiming();
     }
-  }, [api, loadTaskList, projectOpening]);
+  }, [api, projectOpening]);
 
   const openTask = useCallback(
     async (taskId: string) => {
-      setTaskDetailLoading(true);
+      const finishTiming = startFrontendTiming("task_open");
+      const runId = hydrationRunRef.current + 1;
+      hydrationRunRef.current = runId;
+      const isCurrentRun = () => hydrationRunRef.current === runId;
+      const cachedTask = tasks.find((item) => item.id === taskId) ?? null;
+      if (cachedTask) {
+        setActiveTask(cachedTask);
+        setTaskDetailLoading(false);
+      } else {
+        setTaskDetailLoading(true);
+      }
       setTaskError(null);
       setTaskErrorTitle(null);
       setActiveView("workbench");
+      setActiveProposal(null);
+      setProposalQueryState("LOADING");
       try {
-        const [task, proposal] = await Promise.all([
+        void Promise.allSettled([loadWorkbenchMessages(taskId), loadTaskTimeline(taskId)]);
+        const [taskResult, proposalResult] = await Promise.allSettled([
           api.getTask(taskId),
-          api.getProposal(taskId).catch(() => null),
+          fetchProposalForTask(taskId),
         ]);
-        setActiveTask(task);
-        setActiveProposal(proposal);
-        await loadWorkbenchMessages(task.id);
+        if (!isCurrentRun()) {
+          return;
+        }
+        if (taskResult.status === "fulfilled") {
+          applyTaskSnapshot(taskResult.value);
+        } else {
+          throw taskResult.reason;
+        }
+        if (proposalResult.status === "fulfilled") {
+          if (activeTaskIdRef.current === taskId) {
+            setActiveProposal(proposalResult.value);
+            setProposalQueryState(proposalResult.value ? "EXISTS" : "NOT_CREATED");
+          }
+        } else {
+          if (activeTaskIdRef.current === taskId) {
+            setProposalQueryState("NOT_CREATED");
+          }
+          throw proposalResult.reason;
+        }
         setApprovalGranted(false);
       } catch (error) {
-        setTaskError(userError(error));
+        if (isCurrentRun()) {
+          setTaskError(userError(error));
+        }
       } finally {
-        setTaskDetailLoading(false);
+        if (isCurrentRun()) {
+          setTaskDetailLoading(false);
+        }
+        finishTiming();
       }
     },
-    [api, loadWorkbenchMessages],
+    [api, applyTaskSnapshot, fetchProposalForTask, loadTaskTimeline, loadWorkbenchMessages, tasks],
   );
 
   const createTask = useCallback(
@@ -204,6 +591,7 @@ export function App({ api: providedApi }: AppProps = {}) {
       if (!project || newTaskPending) {
         return;
       }
+      hydrationRunRef.current += 1;
       setNewTaskPending(true);
       setTaskError(null);
       setTaskErrorTitle(null);
@@ -212,10 +600,16 @@ export function App({ api: providedApi }: AppProps = {}) {
         const task = await api.createTask(project.id, request);
         setNewTaskStage("PROPOSAL_GENERATING");
         setActiveTask(task);
+        setTasks((current) => [task, ...current.filter((item) => item.id !== task.id)]);
         setActiveProposal(null);
+        setProposalQueryState("LOADING");
+        void loadTaskTimeline(task.id);
         await loadWorkbenchMessages(task.id);
-        setGovernanceReport(null);
-        setGovernanceError(null);
+        setGovernanceByTask((current) => {
+          const next = { ...current };
+          delete next[task.id];
+          return next;
+        });
         setHarnessProgress(null);
         void loadTaskList(project.id);
         const progressId = appendWorkbenchMessage(task.id, {
@@ -224,60 +618,488 @@ export function App({ api: providedApi }: AppProps = {}) {
           status: "PENDING",
           text: "Mentor 正在生成方案",
         });
-        const question = request.includes("?") || request.includes("？")
-          ? "请补充你希望优先处理的目标。"
+        const question = request.includes("?")
+          ? "请补充你最希望优先达成的目标。"
           : undefined;
         const proposal = await api.createProposal(task.id, request, question);
-        setActiveTask(await api.getTask(task.id));
+        applyTaskSnapshot(await api.getTask(task.id));
         setActiveProposal(proposal);
+        setProposalQueryState("EXISTS");
         updateWorkbenchMessage(task.id, progressId, {
           kind: "PROPOSAL",
           proposal: proposalToFixture(proposal, false),
           status: "DONE",
-          text: `这是我的修改方案：Proposal v${proposal.version}`,
+          text: `方案已生成：Proposal v${proposal.version}`,
         });
         setNewTaskStage("PROPOSAL_READY");
         void loadWorkbenchMessages(task.id);
+        void loadTaskTimeline(task.id);
         void loadTaskList(project.id);
       } catch (error) {
-        setTaskErrorTitle("任务已创建，但暂时无法生成修改方案");
+        setTaskErrorTitle("任务已创建，但方案生成失败。");
         setTaskError(userError(error));
         setNewTaskStage("PROPOSAL_FAILED");
+        setProposalQueryState("NOT_CREATED");
         throw error;
       } finally {
         setNewTaskPending(false);
       }
     },
-    [api, appendWorkbenchMessage, loadTaskList, loadWorkbenchMessages, newTaskPending, project, updateWorkbenchMessage],
+    [
+      api,
+      appendWorkbenchMessage,
+      applyTaskSnapshot,
+      loadTaskTimeline,
+      loadTaskList,
+      loadWorkbenchMessages,
+      newTaskPending,
+      project,
+      updateWorkbenchMessage,
+    ],
   );
+
+  const reconcileTaskProjection = useCallback(async (taskId: string) => {
+    const [task, proposal, timeline] = await Promise.all([
+      api.getTask(taskId),
+      fetchProposalForTask(taskId),
+      api.getTaskTimeline(taskId),
+    ]);
+    applyTaskSnapshot(task);
+    if (activeTaskIdRef.current === taskId) {
+      setActiveProposal(proposal);
+      setProposalQueryState(proposal ? "EXISTS" : "NOT_CREATED");
+    }
+    setTimelineByTask((current) => ({
+      ...current,
+      [taskId]: dedupeTimelineItems(timeline.items.map((item) => timelineItemFromRecord(taskId, item))),
+    }));
+    return { proposal, task, timeline };
+  }, [api, applyTaskSnapshot, fetchProposalForTask]);
 
   const refreshActiveTask = useCallback(async () => {
     if (!activeTask) {
       return;
     }
-    const [task, proposal] = await Promise.all([
-      api.getTask(activeTask.id),
-      api.getProposal(activeTask.id).catch(() => null),
-    ]);
-    setActiveTask(task);
-    setActiveProposal(proposal);
-  }, [activeTask, api]);
+    await reconcileTaskProjection(activeTask.id);
+  }, [activeTask, reconcileTaskProjection]);
+
+  const scheduleFileChangesRefresh = useCallback(
+    (taskId: string) => {
+      const currentTimer = fileChangeRefreshTimersRef.current[taskId];
+      if (currentTimer) {
+        window.clearTimeout(currentTimer);
+      }
+      fileChangeRefreshTimersRef.current[taskId] = window.setTimeout(() => {
+        delete fileChangeRefreshTimersRef.current[taskId];
+        void loadTaskFileChanges(taskId);
+      }, BACKGROUND_REFETCH_DELAY_MS);
+    },
+    [loadTaskFileChanges],
+  );
+
+  const scheduleTimelineRefresh = useCallback(
+    (taskId: string) => {
+      const currentTimer = timelineRefreshTimersRef.current[taskId];
+      if (currentTimer) {
+        window.clearTimeout(currentTimer);
+      }
+      timelineRefreshTimersRef.current[taskId] = window.setTimeout(() => {
+        delete timelineRefreshTimersRef.current[taskId];
+        void loadTaskTimeline(taskId);
+      }, BACKGROUND_REFETCH_DELAY_MS);
+    },
+    [loadTaskTimeline],
+  );
+
+  const loadProjectGovernanceHistory = useCallback(async () => {
+    if (!project) {
+      return;
+    }
+    const projectId = project.id;
+    const requestId = (governanceHistoryRequestRunRef.current[projectId] ?? 0) + 1;
+    governanceHistoryRequestRunRef.current[projectId] = requestId;
+    setGovernanceHistoryByProject((current) => {
+      const previous = current[projectId] ?? emptyProjectGovernanceHistoryReadState();
+      return {
+        ...current,
+        [projectId]: {
+          ...previous,
+          error: null,
+          initialStatus: previous.items.length > 0 ? previous.initialStatus : "LOADING",
+          refreshing: previous.items.length > 0,
+        },
+      };
+    });
+    const finishTiming = startFrontendTiming("governance_history");
+    try {
+      const history = await api.getProjectGovernanceHistory(projectId, { limit: 20, offset: 0 });
+      if (governanceHistoryRequestRunRef.current[projectId] !== requestId) {
+        return;
+      }
+      setGovernanceHistoryByProject((current) => {
+        const previous = current[projectId] ?? emptyProjectGovernanceHistoryReadState();
+        const selectedDecisionId = history.items.some(
+          (item) => item.governanceDecisionId === previous.selectedDecisionId,
+        )
+          ? previous.selectedDecisionId
+          : null;
+        return {
+          ...current,
+          [projectId]: {
+            ...previous,
+            error: null,
+            hasMore: history.hasMore,
+            initialStatus: "READY",
+            items: history.items,
+            loadingMore: false,
+            nextOffset: history.nextOffset ?? null,
+            refreshing: false,
+            selectedDecisionId,
+          },
+        };
+      });
+    } catch (error) {
+      if (governanceHistoryRequestRunRef.current[projectId] === requestId) {
+        setGovernanceHistoryByProject((current) => {
+          const previous = current[projectId] ?? emptyProjectGovernanceHistoryReadState();
+          return {
+            ...current,
+            [projectId]: {
+              ...previous,
+              error: userError(error),
+              initialStatus: previous.items.length > 0 ? previous.initialStatus : "ERROR",
+              refreshing: false,
+            },
+          };
+        });
+      }
+    } finally {
+      if (governanceHistoryRequestRunRef.current[projectId] === requestId) {
+        setGovernanceHistoryByProject((current) => {
+          const previous = current[projectId];
+          if (!previous) {
+            return current;
+          }
+          return {
+            ...current,
+            [projectId]: {
+              ...previous,
+              refreshing: false,
+            },
+          };
+        });
+      }
+      finishTiming();
+    }
+  }, [api, project]);
+
+  const loadMoreProjectGovernanceHistory = useCallback(async () => {
+    if (!project) {
+      return;
+    }
+    const projectId = project.id;
+    const previous = governanceHistoryByProject[projectId] ?? emptyProjectGovernanceHistoryReadState();
+    if (previous.loadingMore || !previous.hasMore || previous.nextOffset === null) {
+      return;
+    }
+    setGovernanceHistoryByProject((current) => ({
+      ...current,
+      [projectId]: {
+        ...(current[projectId] ?? emptyProjectGovernanceHistoryReadState()),
+        loadingMore: true,
+      },
+    }));
+    try {
+      const history = await api.getProjectGovernanceHistory(projectId, {
+        limit: 20,
+        offset: previous.nextOffset,
+      });
+      setGovernanceHistoryByProject((current) => {
+        const currentHistory = current[projectId] ?? emptyProjectGovernanceHistoryReadState();
+        return {
+          ...current,
+          [projectId]: {
+            ...currentHistory,
+            error: null,
+            hasMore: history.hasMore,
+            initialStatus: "READY",
+            items: dedupeGovernanceHistory([...currentHistory.items, ...history.items]),
+            loadingMore: false,
+            nextOffset: history.nextOffset ?? null,
+          },
+        };
+      });
+    } catch (error) {
+      setGovernanceHistoryByProject((current) => {
+        const currentHistory = current[projectId] ?? emptyProjectGovernanceHistoryReadState();
+        return {
+          ...current,
+          [projectId]: {
+            ...currentHistory,
+            error: userError(error),
+            loadingMore: false,
+          },
+        };
+      });
+    }
+  }, [api, governanceHistoryByProject, project]);
+
+  const loadGovernanceDecisionDetail = useCallback(async (decision: ProjectGovernanceHistoryItem) => {
+    if (!project) {
+      return;
+    }
+    const projectId = project.id;
+    const requestId = (governanceDetailRequestRunRef.current[projectId] ?? 0) + 1;
+    governanceDetailRequestRunRef.current[projectId] = requestId;
+    setGovernanceHistoryByProject((current) => {
+      const previous = current[projectId] ?? emptyProjectGovernanceHistoryReadState();
+      return {
+        ...current,
+        [projectId]: {
+          ...previous,
+          detailError: null,
+          detailLoading: true,
+          selectedDecisionId: decision.governanceDecisionId,
+        },
+      };
+    });
+    const finishTiming = startFrontendTiming("governance_detail");
+    try {
+      const detail = await api.getGovernanceDecision(projectId, decision.governanceDecisionId);
+      if (governanceDetailRequestRunRef.current[projectId] !== requestId) {
+        return;
+      }
+      setGovernanceHistoryByProject((current) => {
+        const previous = current[projectId] ?? emptyProjectGovernanceHistoryReadState();
+        return {
+          ...current,
+          [projectId]: {
+            ...previous,
+            detail,
+            detailError: null,
+            detailLoading: false,
+          },
+        };
+      });
+    } catch (error) {
+      if (governanceDetailRequestRunRef.current[projectId] === requestId) {
+        setGovernanceHistoryByProject((current) => {
+          const previous = current[projectId] ?? emptyProjectGovernanceHistoryReadState();
+          return {
+            ...current,
+            [projectId]: {
+              ...previous,
+              detailError: userError(error),
+              detailLoading: false,
+            },
+          };
+        });
+      }
+    } finally {
+      finishTiming();
+    }
+  }, [api, project]);
+
+  const loadGovernance = useCallback(async (proposalOverride?: Proposal) => {
+    const proposal = proposalOverride ?? activeProposal;
+    if (!proposal || proposal.status !== "CONFIRMED") {
+      return;
+    }
+    const taskId = proposal.taskId;
+    const requestId = (governanceRequestRunRef.current[taskId] ?? 0) + 1;
+    governanceRequestRunRef.current[taskId] = requestId;
+    setGovernanceByTask((current) => {
+      const previous = current[taskId] ?? emptyGovernanceReadState();
+      return {
+        ...current,
+        [taskId]: {
+          ...previous,
+          error: null,
+          initialStatus: previous.report ? previous.initialStatus : "LOADING",
+          refreshing: Boolean(previous.report),
+        },
+      };
+    });
+    const finishTiming = startFrontendTiming("governance_load");
+    try {
+      const report = await api.getGovernance(proposal.id);
+      if (governanceRequestRunRef.current[taskId] !== requestId) {
+        return;
+      }
+      setGovernanceByTask((current) => ({
+        ...current,
+        [taskId]: {
+          error: null,
+          initialStatus: "READY",
+          refreshing: false,
+          report,
+        },
+      }));
+      void loadTaskTimeline(proposal.taskId);
+    } catch (error) {
+      if (governanceRequestRunRef.current[taskId] === requestId) {
+        setGovernanceByTask((current) => {
+          const previous = current[taskId] ?? emptyGovernanceReadState();
+          return {
+            ...current,
+            [taskId]: {
+              ...previous,
+              error: userError(error),
+              initialStatus: previous.report ? previous.initialStatus : "ERROR",
+              refreshing: false,
+            },
+          };
+        });
+      }
+    } finally {
+      if (governanceRequestRunRef.current[taskId] === requestId) {
+        setGovernanceByTask((current) => {
+          const previous = current[taskId];
+          if (!previous) {
+            return current;
+          }
+          return {
+            ...current,
+            [taskId]: {
+              ...previous,
+              refreshing: false,
+            },
+          };
+        });
+      }
+      finishTiming();
+    }
+  }, [activeProposal, api, loadTaskTimeline]);
+
+  const runGovernance = useCallback(async (proposal: Proposal) => {
+    const taskId = proposal.taskId;
+    const requestId = (governanceRequestRunRef.current[taskId] ?? 0) + 1;
+    governanceRequestRunRef.current[taskId] = requestId;
+    setGovernanceByTask((current) => {
+      const previous = current[taskId] ?? emptyGovernanceReadState();
+      return {
+        ...current,
+        [taskId]: {
+          ...previous,
+          error: null,
+          initialStatus: previous.report ? previous.initialStatus : "LOADING",
+          refreshing: Boolean(previous.report),
+        },
+      };
+    });
+    const finishTiming = startFrontendTiming("governance_run");
+    try {
+      const report = await api.runGovernance(proposal.id, proposal.items);
+      const task = await api.getTask(proposal.taskId);
+      if (governanceRequestRunRef.current[taskId] !== requestId) {
+        return;
+      }
+      setGovernanceByTask((current) => ({
+        ...current,
+        [taskId]: {
+          error: null,
+          initialStatus: "READY",
+          refreshing: false,
+          report,
+        },
+      }));
+      applyTaskSnapshot(task);
+      void loadTaskTimeline(proposal.taskId);
+    } catch (error) {
+      if (governanceRequestRunRef.current[taskId] === requestId) {
+        setGovernanceByTask((current) => {
+          const previous = current[taskId] ?? emptyGovernanceReadState();
+          return {
+            ...current,
+            [taskId]: {
+              ...previous,
+              error: userError(error),
+              initialStatus: previous.report ? previous.initialStatus : "ERROR",
+              refreshing: false,
+            },
+          };
+        });
+      }
+    } finally {
+      if (governanceRequestRunRef.current[taskId] === requestId) {
+        setGovernanceByTask((current) => {
+          const previous = current[taskId];
+          if (!previous) {
+            return current;
+          }
+          return {
+            ...current,
+            [taskId]: {
+              ...previous,
+              refreshing: false,
+            },
+          };
+        });
+      }
+      finishTiming();
+    }
+  }, [api, applyTaskSnapshot, loadTaskTimeline]);
+
+  const scheduleGovernanceRefresh = useCallback(
+    (proposal: Proposal) => {
+      const currentTimer = governanceRefreshTimersRef.current[proposal.taskId];
+      if (currentTimer) {
+        window.clearTimeout(currentTimer);
+      }
+      governanceRefreshTimersRef.current[proposal.taskId] = window.setTimeout(() => {
+        delete governanceRefreshTimersRef.current[proposal.taskId];
+        void loadGovernance(proposal);
+      }, BACKGROUND_REFETCH_DELAY_MS);
+    },
+    [loadGovernance],
+  );
+
+  const scheduleProjectGovernanceHistoryRefresh = useCallback(
+    (projectId: string) => {
+      const currentTimer = governanceHistoryRefreshTimersRef.current[projectId];
+      if (currentTimer) {
+        window.clearTimeout(currentTimer);
+      }
+      governanceHistoryRefreshTimersRef.current[projectId] = window.setTimeout(() => {
+        delete governanceHistoryRefreshTimersRef.current[projectId];
+        void loadProjectGovernanceHistory();
+      }, BACKGROUND_REFETCH_DELAY_MS);
+    },
+    [loadProjectGovernanceHistory],
+  );
 
   const confirmProposal = useCallback(async () => {
-    if (!activeTask || !activeProposal || proposalAction !== null) {
+    if (proposalAction !== null) {
+      return;
+    }
+    const taskId = activeTask?.id ?? null;
+    const proposalId = activeProposal?.id ?? null;
+    if (!taskId || !proposalId) {
+      setTaskError(
+        !taskId
+          ? "Cannot confirm before the task has been restored."
+          : proposalQueryState === "LOADING"
+            ? "Cannot confirm while the proposal is still loading."
+            : "Cannot confirm because no persisted proposal is available.",
+      );
+      return;
+    }
+    if (!canConfirmHydratedProposal({ pendingAction: proposalAction, proposalId, taskId })) {
       return;
     }
     setProposalAction("confirm");
     try {
-      await api.confirmProposal(activeTask.id, activeProposal.id);
-      await refreshActiveTask();
-      setHarnessProgress("正在分析影响");
+      const confirmed = await api.confirmProposal(taskId, proposalId);
+      setActiveProposal(confirmed);
+      await reconcileTaskProjection(taskId);
+      void loadGovernance(confirmed);
+      setHarnessProgress("正在分析影响范围");
     } catch (error) {
       setTaskError(userError(error));
     } finally {
       setProposalAction(null);
     }
-  }, [activeProposal, activeTask, api, proposalAction, refreshActiveTask]);
+  }, [activeProposal, activeTask, api, loadGovernance, proposalAction, proposalQueryState, reconcileTaskProjection]);
 
   const submitMentorTurn = useCallback(
     async (text: string) => {
@@ -294,7 +1116,7 @@ export function App({ api: providedApi }: AppProps = {}) {
         kind: "PROGRESS",
         role: "MENTOR",
         status: "PENDING",
-        text: "Mentor 正在分析",
+        text: "Mentor is analyzing",
       });
       try {
         const result = await api.createMentorTurn(activeTask.id, text);
@@ -303,7 +1125,7 @@ export function App({ api: providedApi }: AppProps = {}) {
         }
         updateWorkbenchMessage(activeTask.id, progressId, result.message
           ? workbenchMessageFromRecord(result.message)
-          : { kind: "TEXT", role: "MENTOR", status: "DONE", text: "已完成。" });
+          : { kind: "TEXT", role: "MENTOR", status: "DONE", text: "Done." });
         void loadWorkbenchMessages(activeTask.id);
       } catch (error) {
         updateWorkbenchMessage(activeTask.id, progressId, {
@@ -327,19 +1149,21 @@ export function App({ api: providedApi }: AppProps = {}) {
       kind: "PROGRESS",
       role: "MENTOR",
       status: "PENDING",
-      text: "Mentor 正在重新生成方案",
+      text: "Mentor is regenerating a proposal",
     });
     try {
       const proposal = await api.createProposal(activeTask.id, activeTask.request);
       setActiveProposal(proposal);
+      setProposalQueryState("EXISTS");
       updateWorkbenchMessage(activeTask.id, progressId, {
         kind: "PROPOSAL",
         proposal: proposalToFixture(proposal, false),
         status: "DONE",
-        text: `这是我的修改方案：Proposal v${proposal.version}`,
+        text: `闁哄鏅滈悷锕€危閹间礁绠ｉ柟瀵稿У閻ｅ崬菐閸ヨ泛鏋熼柡浣搞偢瀵剛鎲撮崟鍨暤闂佹寧绋掗悺宄硂posal v${proposal.version}`,
       });
       setNewTaskStage("PROPOSAL_READY");
       void loadWorkbenchMessages(activeTask.id);
+      void loadTaskTimeline(activeTask.id);
     } catch (error) {
       updateWorkbenchMessage(activeTask.id, progressId, {
         kind: "ERROR",
@@ -348,82 +1172,207 @@ export function App({ api: providedApi }: AppProps = {}) {
         text: userError(error),
       });
       setNewTaskStage("PROPOSAL_FAILED");
+      setProposalQueryState("NOT_CREATED");
     } finally {
       setNewTaskPending(false);
     }
-  }, [activeTask, api, appendWorkbenchMessage, loadWorkbenchMessages, updateWorkbenchMessage]);
-
-  const loadGovernance = useCallback(async () => {
-    if (!activeProposal || activeProposal.status !== "CONFIRMED") {
-      setGovernanceReport(null);
-      setGovernanceState("NOT_GENERATED");
-      return;
-    }
-    setGovernanceLoading(true);
-    setGovernanceState("LOADING");
-    setGovernanceError(null);
-    try {
-      const report = await api.runGovernance(activeProposal.id, activeProposal.items);
-      setGovernanceReport(report);
-      setGovernanceState("READY");
-    } catch (error) {
-      setGovernanceError(userError(error));
-      setGovernanceState("ERROR");
-    } finally {
-      setGovernanceLoading(false);
-    }
-  }, [activeProposal, api]);
+  }, [
+    activeTask,
+    api,
+    appendWorkbenchMessage,
+    loadTaskTimeline,
+    loadWorkbenchMessages,
+    updateWorkbenchMessage,
+  ]);
 
   useEffect(() => {
     if (activeView === "governance") {
-      void loadGovernance();
+      void loadProjectGovernanceHistory();
     }
-  }, [activeView, loadGovernance]);
+  }, [activeView, loadProjectGovernanceHistory]);
+
+  useEffect(() => {
+    if (!activeTask) {
+      return;
+    }
+    const newEvents = taskEvents.events.filter((event) => {
+      if (processedEventIdsRef.current.has(event.eventId)) {
+        return false;
+      }
+      processedEventIdsRef.current.add(event.eventId);
+      return true;
+    });
+    if (newEvents.length === 0) {
+      return;
+    }
+    const fileChangeRefresh = newEvents.some((event) =>
+      ["FILE_CHANGED", "TOOL_COMPLETED", "TASK_COMPLETED"].includes(event.eventType),
+    );
+    const timelineRefresh = newEvents.some((event) =>
+      [
+        "ACTION_GOVERNED",
+        "GOVERNANCE_DECIDED",
+        "TOOL_COMPLETED",
+        "FILE_CHANGED",
+        "VALIDATION_COMPLETED",
+        "TASK_COMPLETED",
+        "TASK_FAILED",
+        "EXECUTION_COMPLETED",
+        "EXECUTION_FAILED",
+      ].includes(event.eventType),
+    );
+    const governanceRefresh = newEvents.some((event) =>
+      ["ACTION_GOVERNED", "GOVERNANCE_DECIDED"].includes(event.eventType),
+    );
+    const cancelRequested = newEvents.some((event) => event.eventType === "CANCEL_REQUESTED");
+    const taskRefresh = newEvents.some((event) =>
+      [
+        "TASK_CANCELLED",
+        "TASK_COMPLETED",
+        "TASK_FAILED",
+        "EXECUTION_COMPLETED",
+        "EXECUTION_FAILED",
+      ].includes(event.eventType),
+    );
+    if (fileChangeRefresh) {
+      scheduleFileChangesRefresh(activeTask.id);
+    }
+    if (timelineRefresh) {
+      scheduleTimelineRefresh(activeTask.id);
+    }
+    if (governanceRefresh && activeProposal?.status === "CONFIRMED") {
+      scheduleGovernanceRefresh(activeProposal);
+    }
+    if (governanceRefresh && project) {
+      scheduleProjectGovernanceHistoryRefresh(project.id);
+    }
+    if (cancelRequested) {
+      applyTaskSnapshot({ ...activeTask, status: "CANCEL_REQUESTED" });
+    }
+    if (taskRefresh) {
+      void reconcileTaskProjection(activeTask.id);
+    }
+  }, [
+    activeTask,
+    activeProposal,
+    applyTaskSnapshot,
+    project,
+    reconcileTaskProjection,
+    scheduleFileChangesRefresh,
+    scheduleGovernanceRefresh,
+    scheduleProjectGovernanceHistoryRefresh,
+    scheduleTimelineRefresh,
+    taskEvents.events,
+  ]);
+
+  useEffect(() => {
+    if (activeTask && taskEvents.reconnectCount > 0) {
+      void reconcileTaskProjection(activeTask.id);
+      scheduleFileChangesRefresh(activeTask.id);
+    }
+  }, [activeTask, reconcileTaskProjection, scheduleFileChangesRefresh, taskEvents.reconnectCount]);
+
+  useEffect(() => {
+    processedEventIdsRef.current = new Set();
+  }, [activeTask?.id]);
+
+  const activeGovernance = activeTask ? governanceByTask[activeTask.id] ?? emptyGovernanceReadState() : emptyGovernanceReadState();
+  const activeGovernanceReport = activeGovernance.report;
+  const activeGovernanceError = activeGovernance.error;
+  const activeProjectGovernanceHistory = project
+    ? governanceHistoryByProject[project.id] ?? emptyProjectGovernanceHistoryReadState()
+    : emptyProjectGovernanceHistoryReadState();
+
+  useEffect(() => {
+    if (
+      !activeTask ||
+      !activeGovernanceReport ||
+      activeGovernanceReport.decision !== "ALLOW" ||
+      activeTask.status !== "ACTION_PENDING" ||
+      executionDispatchRef.current === activeTask.id
+    ) {
+      return;
+    }
+    executionDispatchRef.current = activeTask.id;
+    setHarnessProgress("正在执行改动");
+    void api.executeTask(activeTask.id, "RUN_COMMAND")
+      .then(async (result) => {
+        if (result.task) {
+          applyTaskSnapshot(result.task);
+        }
+        await reconcileTaskProjection(activeTask.id);
+        scheduleFileChangesRefresh(activeTask.id);
+        setHarnessProgress(null);
+      })
+      .catch((error) => {
+        setExecutionError(userError(error));
+        setHarnessProgress(null);
+        void reconcileTaskProjection(activeTask.id);
+      });
+  }, [activeGovernanceReport, activeTask, api, applyTaskSnapshot, reconcileTaskProjection, scheduleFileChangesRefresh]);
 
   const approveGovernance = useCallback(async () => {
-    if (!governanceReport?.approvalRequestId) {
+    if (!activeGovernanceReport?.approvalRequestId) {
       return;
     }
     setApprovalAction("allow");
     try {
-      await api.approveRequest(governanceReport.approvalRequestId, governanceReport.impactScope.files);
+      await api.approveRequest(activeGovernanceReport.approvalRequestId, activeGovernanceReport.impactScope.files);
       setApprovalGranted(true);
     } catch (error) {
       setExecutionError(userError(error));
     } finally {
       setApprovalAction(null);
     }
-  }, [api, governanceReport]);
+  }, [activeGovernanceReport, api]);
 
   const denyGovernance = useCallback(async () => {
-    if (!governanceReport?.approvalRequestId) {
+    if (!activeGovernanceReport?.approvalRequestId) {
       return;
     }
+    const taskId = activeTask?.id ?? null;
+    const setActiveGovernanceError = (message: string) => {
+      if (!taskId) {
+        return;
+      }
+      setGovernanceByTask((current) => ({
+        ...current,
+        [taskId]: {
+          ...(current[taskId] ?? emptyGovernanceReadState()),
+          error: message,
+        },
+      }));
+    };
     setApprovalAction("deny");
     try {
-      await api.rejectApproval(governanceReport.approvalRequestId);
-      setGovernanceError("本次授权没有通过");
+      await api.rejectApproval(activeGovernanceReport.approvalRequestId);
+      setActiveGovernanceError("本次授权没有通过");
     } catch (error) {
-      setGovernanceError(userError(error));
+      setActiveGovernanceError(userError(error));
     } finally {
       setApprovalAction(null);
     }
-  }, [api, governanceReport]);
-
+  }, [activeGovernanceReport, activeTask?.id, api]);
   const cancelExecution = useCallback(async () => {
     if (!activeTask || cancelPending) {
       return;
     }
     setCancelPending(true);
+    const taskId = activeTask.id;
     try {
-      await api.cancelTask(activeTask.id);
-      await refreshActiveTask();
+      const result = await api.cancelTask(taskId);
+      if (result.task) {
+        applyTaskSnapshot(result.task);
+      } else {
+        applyTaskSnapshot({ ...activeTask, status: result.status === "CANCEL_REQUESTED" ? "CANCEL_REQUESTED" : activeTask.status });
+      }
+      void reconcileTaskProjection(taskId);
     } catch (error) {
       setExecutionError(userError(error));
     } finally {
       setCancelPending(false);
     }
-  }, [activeTask, api, cancelPending, refreshActiveTask]);
+  }, [activeTask, api, applyTaskSnapshot, cancelPending, reconcileTaskProjection]);
 
   const resolveRecovery = useCallback(
     async (taskId: string, action: "keep" | "rollback") => {
@@ -465,14 +1414,43 @@ export function App({ api: providedApi }: AppProps = {}) {
     }
   }, [activeView, loadKnowledge]);
 
+  const loadProjectEvaluations = useCallback(async () => {
+    if (!project) {
+      setProjectEvaluations(null);
+      setEvaluationError(null);
+      return;
+    }
+    setEvaluationLoading(true);
+    setEvaluationError(null);
+    try {
+      setProjectEvaluations(await api.getProjectEvaluations(project.id));
+    } catch (error) {
+      setEvaluationError(userError(error));
+    } finally {
+      setEvaluationLoading(false);
+    }
+  }, [api, project]);
+
+  useEffect(() => {
+    if (activeView === "evaluation") {
+      void loadProjectEvaluations();
+    }
+  }, [activeView, loadProjectEvaluations]);
+
   const saveCredential = useCallback(
-    async (key: string, baseUrl: string, model: string) => {
+    async (key: string | null, baseUrl: string, model: string) => {
       setCredentialPending("save");
       setCredentialError(null);
       try {
         const status = credentialStatus?.configured
           ? await api.updateCredential("openai-compatible", key, baseUrl, model)
-          : await api.setCredential("openai-compatible", key, baseUrl, model);
+          : key
+            ? await api.setCredential("openai-compatible", key, baseUrl, model)
+            : credentialStatus;
+        if (!status) {
+          setCredentialError("API Key is required before saving a new model service.");
+          return;
+        }
         setCredentialStatus(status);
       } catch (error) {
         setCredentialError(userError(error));
@@ -502,7 +1480,11 @@ export function App({ api: providedApi }: AppProps = {}) {
         optimisticWorkbenchMessagesByTask,
       )
     : [];
+  const activeTimelineItems = activeTask
+    ? timelineItemsForTask(activeTask.id, timelineByTask, timelineErrorByTask)
+    : [];
   const startNewTask = () => {
+    hydrationRunRef.current += 1;
     setTaskError(null);
     setTaskErrorTitle(null);
     setActiveTask(null);
@@ -516,6 +1498,7 @@ export function App({ api: providedApi }: AppProps = {}) {
       project={project}
       projectBootstrap={project?.bootstrap ?? null}
       projectError={projectError}
+      projectHydrationState={projectHydrationState}
       projectOpening={projectOpening}
       taskCount={tasks.length}
       onNewTask={startNewTask}
@@ -537,27 +1520,35 @@ export function App({ api: providedApi }: AppProps = {}) {
           <ProposalReviewPage
             approvalAction={approvalAction}
             approvalGranted={approvalGranted}
+            changes={fileChangesByTask[activeTask.id] ?? []}
+            changesError={fileChangesErrorByTask[activeTask.id] ?? null}
+            changesHasLoaded={Object.prototype.hasOwnProperty.call(fileChangesByTask, activeTask.id)}
+            changesLoading={fileChangesLoadingByTask[activeTask.id] ?? false}
             conversationMessages={conversationMessages}
             error={taskError}
-            governanceError={governanceError}
-            governanceReport={governanceReport}
+            governanceError={activeGovernanceError}
+            governanceReport={activeGovernanceReport}
             harnessProgress={harnessProgress}
             loading={taskDetailLoading}
             pendingAction={proposalAction}
             proposal={activeProposal}
+            proposalState={proposalQueryState}
             stage={newTaskStage}
             task={activeTask}
+            timelineItems={activeTimelineItems}
             onAllowGovernance={approveGovernance}
             onCancel={async () => undefined}
             onConfirm={confirmProposal}
             onDenyGovernance={denyGovernance}
+            onOpenChanges={() => ensureTaskFileChanges(activeTask.id)}
             onOpenGovernance={() => setActiveView("governance")}
             onRetryProposal={retryProposal}
             onSubmitTurn={submitMentorTurn}
           />
         ) : (
           <NewTaskPage
-            disabled={!project}
+            booting={projectHydrationState === "BOOTING"}
+            disabled={!project || projectHydrationState === "BOOTING"}
             error={taskError}
             errorTitle={taskErrorTitle}
             pending={newTaskPending}
@@ -584,14 +1575,23 @@ export function App({ api: providedApi }: AppProps = {}) {
       {activeView === "governance" ? (
         <AnalysisPage
           approved={approvalGranted}
-          error={executionError ?? governanceError}
-          loading={governanceLoading}
+          detail={activeProjectGovernanceHistory.detail}
+          detailError={activeProjectGovernanceHistory.detailError}
+          detailLoading={activeProjectGovernanceHistory.detailLoading}
+          error={activeProjectGovernanceHistory.error}
+          hasMore={activeProjectGovernanceHistory.hasMore}
+          history={activeProjectGovernanceHistory.items}
+          loading={activeProjectGovernanceHistory.initialStatus === "LOADING" && activeProjectGovernanceHistory.items.length === 0}
+          loadingMore={activeProjectGovernanceHistory.loadingMore}
           pendingAction={approvalAction}
-          report={governanceReport}
-          state={governanceState}
+          refreshing={activeProjectGovernanceHistory.refreshing}
+          selectedDecisionId={activeProjectGovernanceHistory.selectedDecisionId}
+          state={activeProjectGovernanceHistory.initialStatus}
           onAllowOnce={approveGovernance}
           onDeny={denyGovernance}
-          onReload={() => void loadGovernance()}
+          onLoadMore={() => void loadMoreProjectGovernanceHistory()}
+          onReload={() => void loadProjectGovernanceHistory()}
+          onSelectDecision={(decision) => void loadGovernanceDecisionDetail(decision)}
         />
       ) : null}
       {activeView === "evaluation" ? (
@@ -607,7 +1607,8 @@ export function App({ api: providedApi }: AppProps = {}) {
             completionGate={completionGate}
             diffTrace={diffTrace}
             error={evaluationError}
-            evaluation={taskEvaluation}
+            evaluations={projectEvaluations?.items ?? []}
+            loading={evaluationLoading}
             task={activeTask}
             validationResults={validationResults}
           />
@@ -639,7 +1640,7 @@ function MemoryView({
   if (loading) {
     return (
       <Page title="记忆">
-        <EmptyState title="正在读取真实记忆" body="正在从后端 knowledge repository 查询。" />
+        <EmptyState title="正在读取记忆" body="Mentor 正在读取后端知识库。" />
       </Page>
     );
   }
@@ -647,16 +1648,13 @@ function MemoryView({
     <Page title="记忆">
       {error ? <EmptyState title="记忆读取失败" body={error} /> : null}
       {!error && items.length === 0 ? (
-        <EmptyState
-          title="还没有工程记忆"
-          body="项目索引与项目认知会在打开仓库时建立；这里只显示后端 knowledge repository 中的真实记录。"
-        />
+        <EmptyState title="还没有已复核的记忆" body="Mentor 捕获并复核项目知识后，会显示在这里。" />
       ) : null}
       {!error && items.length > 0 ? (
         <div className="memory-list">
           {items.map((item) =>
-            item.presentation?.kind === "project-understanding" ? (
-              <ProjectUnderstandingMemory item={item} key={item.id} />
+            item.presentation ? (
+              <PresentedMemory item={item} key={item.id} />
             ) : (
               <article className="memory-item" key={item.id}>
                 <div className="memory-status">{knowledgeStatusLabel(item.status)}</div>
@@ -664,7 +1662,7 @@ function MemoryView({
                 <p>{item.summary}</p>
                 <div className="memory-meta">
                   <span>{item.type}</span>
-                  <span>{item.scope.join(", ") || "scope unavailable"}</span>
+                  <span>{item.scope.join(", ") || "范围暂不可用"}</span>
                 </div>
               </article>
             ),
@@ -675,7 +1673,7 @@ function MemoryView({
   );
 }
 
-function ProjectUnderstandingMemory({ item }: { item: KnowledgeItem }) {
+function PresentedMemory({ item }: { item: KnowledgeItem }) {
   const presentation = item.presentation;
   if (!presentation) {
     return null;
@@ -685,14 +1683,15 @@ function ProjectUnderstandingMemory({ item }: { item: KnowledgeItem }) {
       <div className="memory-status">{presentation.statusLabel}</div>
       <h2>{presentation.title}</h2>
       <p>{presentation.summary}</p>
-      <MemorySection title="Project type" values={presentation.projectType ? [presentation.projectType] : []} />
+      <MemorySection title="项目类型" values={presentation.projectType ? [presentation.projectType] : []} />
       <MemorySection title="技术栈" values={presentation.techStack} />
       <MemorySection title="项目规模" values={presentation.scale} />
       <MemorySection title="关键模块" values={presentation.modules} />
       <MemorySection title="关键路径" values={presentation.keyPaths} />
-      <MemorySection title="约束 / 风险 / 未解析项" values={presentation.risks} />
+      <MemorySection title="治理决策" values={presentation.decision ? [presentation.decision] : []} />
+      <MemorySection title="风险与约束" values={presentation.risks} />
       <details className="memory-details">
-        <summary>技术详情 / 查看依据</summary>
+        <summary>技术详情</summary>
         <pre>{JSON.stringify(presentation.details, null, 2)}</pre>
       </details>
     </article>
@@ -727,10 +1726,10 @@ function SettingsView({
   credentialPending: string | null;
   credentialStatus: CredentialStatus | null;
   onClearCredential: () => Promise<void>;
-  onSaveCredential: (key: string, baseUrl: string, model: string) => Promise<void>;
+  onSaveCredential: (key: string | null, baseUrl: string, model: string) => Promise<void>;
   project: Project | null;
 }) {
-  const projectPath = project?.rootPath ?? "尚未打开本地项目";
+  const projectPath = project?.rootPath ?? "尚未选择项目";
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
@@ -744,17 +1743,17 @@ function SettingsView({
     const key = apiKey.trim();
     const trimmedBaseUrl = baseUrl.trim();
     const trimmedModel = model.trim();
-    if (!key || !trimmedBaseUrl || !trimmedModel || credentialPending !== null) {
+    if ((!configured && !key) || !trimmedBaseUrl || !trimmedModel || credentialPending !== null) {
       return;
     }
-    await onSaveCredential(key, trimmedBaseUrl, trimmedModel);
+    await onSaveCredential(key || null, trimmedBaseUrl, trimmedModel);
     setApiKey("");
   };
 
   return (
     <Page title="设置">
       <div className="settings-grid">
-        <EmptyState title="本地项目" body={`当前目录：${projectPath}`} />
+        <EmptyState title="项目" body={`当前项目：${projectPath}`} />
         <section className="setting-card">
           <div className="setting-head">
             <div className="setting-title">模型服务</div>
@@ -766,10 +1765,10 @@ function SettingsView({
             <div className="setting-label">OpenAI 兼容接口</div>
             <div className="setting-value">
               {configured
-                ? "LLM 已配置。页面不会显示已保存的 API Key。"
-                : "尚未配置 LLM API Key。配置后 Mentor 才能生成结构化方案和分析。"}
+                ? "LLM 已配置。留空 API Key 会继续使用已保存的密钥。"
+                : "配置 LLM API Key 后，Mentor 才能生成方案和分析改动。"}
               <span className="setting-sub">
-                来源：{credentialStatus?.source ?? "未读取"}
+                来源：{credentialStatus?.source ?? "未配置"}
               </span>
               <label className="setting-field" htmlFor="llm-base-url">
                 API Base URL
@@ -802,7 +1801,7 @@ function SettingsView({
                 autoComplete="off"
                 className="credential-input"
                 id="llm-api-key"
-                placeholder={configured ? "粘贴新的 API Key 以更新" : "粘贴 API Key"}
+                placeholder={configured ? "保留已保存的 API Key" : "输入 API Key"}
                 type="password"
                 value={apiKey}
                 onChange={(event) => setApiKey(event.currentTarget.value)}
@@ -815,7 +1814,7 @@ function SettingsView({
             </div>
             <div className="page-actions">
               <Button
-                disabled={!apiKey.trim() || !baseUrl.trim() || !model.trim() || credentialPending !== null}
+                disabled={(!configured && !apiKey.trim()) || !baseUrl.trim() || !model.trim() || credentialPending !== null}
                 size="small"
                 type="submit"
               >
@@ -841,7 +1840,6 @@ function SettingsView({
     </Page>
   );
 }
-
 function proposalToFixture(proposal: Proposal, superseded: boolean): ProposalFixture {
   return {
     acceptanceCriteria: proposal.acceptanceCriteria,
@@ -852,6 +1850,7 @@ function proposalToFixture(proposal: Proposal, superseded: boolean): ProposalFix
     expectedBehavior: proposal.expectedBehavior,
     files: proposal.impact,
     goal: proposal.goal,
+    id: proposal.id,
     items: proposal.items,
     nonGoals: proposal.nonGoals,
     risk: proposal.risk,
@@ -877,12 +1876,127 @@ function workbenchMessageFromRecord(record: WorkbenchMessageRecord): WorkbenchMe
   };
 }
 
+function timelineItemFromRecord(taskId: string, record: TaskTimelineItem): WorkbenchTimelineItem {
+  return {
+    action: record.action,
+    body: record.body,
+    createdAt: record.createdAt,
+    id: record.id,
+    status: record.status,
+    taskId,
+    title: record.title,
+  };
+}
+
+function timelineItemsForTask(
+  taskId: string,
+  persisted: Record<string, WorkbenchTimelineItem[]>,
+  errors: Record<string, string | null>,
+): WorkbenchTimelineItem[] {
+  const items = persisted[taskId] ?? [];
+  const error = errors[taskId];
+  if (!error) {
+    return items;
+  }
+  return [
+    ...items,
+    {
+      body: error,
+      createdAt: "now",
+      id: `${taskId}:timeline-error`,
+      status: "FAILED",
+      taskId,
+      title: "\u8fc7\u7a0b\u8bb0\u5f55\u8bfb\u53d6\u5931\u8d25",
+    },
+  ];
+}
+
+export function shouldRenderProjectEmpty(state: ProjectHydrationState, projectsLoaded: boolean): boolean {
+  return state === "EMPTY" && projectsLoaded;
+}
+
+export function upsertTasks(current: Task[], updates: Task[]): Task[] {
+  const byId = new Map(current.map((task) => [task.id, task]));
+  for (const task of updates) {
+    byId.set(task.id, task);
+  }
+  return Array.from(byId.values());
+}
+
+export function replaceTasksForProject(current: Task[], projectId: string, next: Task[]): Task[] {
+  const retained = current.filter((task) => task.projectId !== projectId);
+  return [...retained, ...dedupeBy(next, (task) => task.id)];
+}
+
+export function dedupeTimelineItems(items: WorkbenchTimelineItem[]): WorkbenchTimelineItem[] {
+  return dedupeBy(items, (item) => item.id);
+}
+
+export function dedupeGovernanceHistory(items: ProjectGovernanceHistoryItem[]): ProjectGovernanceHistoryItem[] {
+  return dedupeBy(items, (item) => item.governanceDecisionId);
+}
+
+function emptyGovernanceReadState(): GovernanceReadState {
+  return {
+    error: null,
+    initialStatus: "UNINITIALIZED",
+    refreshing: false,
+    report: null,
+  };
+}
+
+function emptyProjectGovernanceHistoryReadState(): ProjectGovernanceHistoryReadState {
+  return {
+    detail: null,
+    detailError: null,
+    detailLoading: false,
+    error: null,
+    hasMore: false,
+    initialStatus: "UNINITIALIZED",
+    items: [],
+    loadingMore: false,
+    nextOffset: null,
+    refreshing: false,
+    selectedDecisionId: null,
+  };
+}
+
+export function shouldRenderGovernanceInitialLoading(
+  governance: Pick<GovernanceReadState, "initialStatus" | "report" | "refreshing">,
+): boolean {
+  return !governance.report && governance.initialStatus === "LOADING";
+}
+
+export function shouldRenderChangesInitialLoading({
+  hasLoaded,
+  itemCount,
+  loading,
+}: {
+  hasLoaded: boolean;
+  itemCount: number;
+  loading: boolean;
+}): boolean {
+  return loading && !hasLoaded && itemCount === 0;
+}
+
+export function shouldRenderChangesEmpty({
+  hasLoaded,
+  itemCount,
+  loading,
+}: {
+  hasLoaded: boolean;
+  itemCount: number;
+  loading: boolean;
+}): boolean {
+  return hasLoaded && itemCount === 0 && !loading;
+}
+
 function conversationMessagesForTask(
   taskId: string,
   persisted: Record<string, WorkbenchMessage[]>,
   optimistic: Record<string, WorkbenchMessage[]>,
 ): WorkbenchMessage[] {
-  return [...(persisted[taskId] ?? []), ...(optimistic[taskId] ?? [])];
+  return dedupeWorkbenchMessages([...(persisted[taskId] ?? []), ...(optimistic[taskId] ?? [])]);
 }
 
 function reconcileOptimisticMessages(
@@ -893,12 +2007,52 @@ function reconcileOptimisticMessages(
 }
 
 function sameWorkbenchMessage(a: WorkbenchMessage, b: WorkbenchMessage): boolean {
+  const aProposalKey = proposalMessageKey(a);
+  const bProposalKey = proposalMessageKey(b);
+  if (aProposalKey && bProposalKey) {
+    return aProposalKey === bProposalKey;
+  }
   return a.role === b.role && a.kind === b.kind && a.status === b.status && a.text === b.text;
+}
+
+export function dedupeWorkbenchMessages(messages: WorkbenchMessage[]): WorkbenchMessage[] {
+  const seen = new Set<string>();
+  const result: WorkbenchMessage[] = [];
+  for (const message of messages) {
+    const key = proposalMessageKey(message) ?? `message:${message.id}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(message);
+  }
+  return result;
+}
+
+function proposalMessageKey(message: WorkbenchMessage): string | null {
+  if (!message.proposal) {
+    return null;
+  }
+  return `proposal:${message.taskId}:${message.proposal.id ?? "unknown"}:${message.proposal.version ?? "unknown"}`;
+}
+
+function dedupeBy<T>(items: T[], keyOf: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const item of items) {
+    const key = keyOf(item);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
 }
 
 function knowledgeStatusLabel(status: string): string {
   const labels: Record<string, string> = {
-    CANDIDATE: "需复核",
+    CANDIDATE: "待复核",
     FAILED_EXPERIENCE: "失败经验",
     REVIEWED: "已复核",
     STALE: "已过期",
@@ -906,12 +2060,14 @@ function knowledgeStatusLabel(status: string): string {
   };
   return labels[status] ?? status;
 }
-
 function userError(error: unknown): string {
   if (error instanceof Error && error.message) {
     return error.message;
   }
-  return "请求没有完成";
+  return "请求未完成。";
+}
+function isApiErrorCode(error: unknown, code: string): boolean {
+  return error instanceof MentorApiError && error.code === code;
 }
 
 function Page({

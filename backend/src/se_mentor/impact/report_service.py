@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import asdict
+from time import perf_counter
 from typing import Any
 
 from sqlalchemy import select
@@ -13,6 +15,8 @@ from se_mentor.impact.indirect import IndirectImpact
 from se_mentor.llm.base import LLMProvider, LLMRequest
 from se_mentor.llm.prompts.impact import IMPACT_REPORT_PROMPT_SUMMARY
 from se_mentor.models.governance import ImpactReport, ImpactReportStatus
+
+LOGGER = logging.getLogger("se_mentor.impact.report_service")
 
 
 class ImpactReportGenerationError(ValueError):
@@ -35,14 +39,31 @@ class ImpactReportService:
         indirect_impacts: tuple[IndirectImpact, ...],
         unknowns: tuple[str, ...],
     ) -> ImpactReport:
+        total_started = perf_counter()
         allowed_refs = {item.evidence_id for item in evidence_bundle.items}
         llm_payload = self._llm_payload(evidence_bundle, direct_impacts, indirect_impacts, unknowns)
+        input_text = json.dumps(llm_payload, sort_keys=True)
+        provider_started = perf_counter()
         response = self.provider.complete(
             LLMRequest(
                 prompt_summary=IMPACT_REPORT_PROMPT_SUMMARY,
-                input_text=json.dumps(llm_payload, sort_keys=True),
+                input_text=input_text,
             )
         )
+        provider_ms = int((perf_counter() - provider_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] impact.provider task_id=%s proposal_id=%s duration_ms=%s "
+                "prompt_chars=%s input_tokens=%s output_tokens=%s"
+            ),
+            task_id,
+            proposal_id,
+            provider_ms,
+            len(input_text),
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+        )
+        parse_started = perf_counter()
         narrative = _parse_response(response.content)
         fact_refs = tuple(str(ref) for ref in narrative.get("fact_refs", ()))
         hallucinated = tuple(ref for ref in fact_refs if ref not in allowed_refs)
@@ -50,7 +71,9 @@ class ImpactReportService:
             raise ImpactReportGenerationError(
                 f"hallucinated evidence refs: {', '.join(hallucinated)}"
             )
+        parse_ms = int((perf_counter() - parse_started) * 1000)
 
+        persist_started = perf_counter()
         self._stale_current_reports(task_id, proposal_id)
         report = ImpactReport(
             task_id=task_id,
@@ -80,6 +103,48 @@ class ImpactReportService:
         )
         self.session.add(report)
         self.session.flush()
+        persist_ms = int((perf_counter() - persist_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] impact.persist task_id=%s proposal_id=%s duration_ms=%s "
+                "evidence_count=%s fact_ref_count=%s"
+            ),
+            task_id,
+            proposal_id,
+            persist_ms,
+            len(evidence_bundle.items),
+            len(fact_refs),
+        )
+        LOGGER.info(
+            (
+                "[perf] impact.total task_id=%s proposal_id=%s duration_ms=%s "
+                "provider_ms=%s parse_ms=%s persist_ms=%s"
+            ),
+            task_id,
+            proposal_id,
+            int((perf_counter() - total_started) * 1000),
+            provider_ms,
+            parse_ms,
+            persist_ms,
+        )
+        LOGGER.info(
+            (
+                "[perf] impact-report task_id=%s proposal_id=%s total_ms=%s "
+                "provider_ms=%s parse_ms=%s persist_ms=%s evidence_count=%s "
+                "direct_count=%s indirect_count=%s unknown_count=%s fact_ref_count=%s"
+            ),
+            task_id,
+            proposal_id,
+            int((perf_counter() - total_started) * 1000),
+            provider_ms,
+            parse_ms,
+            persist_ms,
+            len(evidence_bundle.items),
+            len(direct_impacts),
+            len(indirect_impacts),
+            len(unknowns),
+            len(fact_refs),
+        )
         return report
 
     def _llm_payload(

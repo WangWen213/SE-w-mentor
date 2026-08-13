@@ -10,15 +10,15 @@ def test_T056_free_text_shell_unknown_action_and_extra_fields_are_rejected() -> 
     valid = parser.parse(
         {
             "action_type": "READ_FILE",
-            "path": "src/app.py",
+            "parameters": {"path": "src/app.py", "start_line": 1, "end_line": 20},
             "reason": "inspect",
         }
     )
-    unknown = parser.parse({"action_type": "FLY_TO_MOON", "reason": "bad"})
+    unknown = parser.parse({"action_type": "FLY_TO_MOON", "parameters": {}, "reason": "bad"})
     extra = parser.parse(
         {
             "action_type": "READ_FILE",
-            "path": "src/app.py",
+            "parameters": {"path": "src/app.py", "start_line": 1, "end_line": 20},
             "reason": "inspect",
             "extra": "nope",
         }
@@ -26,23 +26,21 @@ def test_T056_free_text_shell_unknown_action_and_extra_fields_are_rejected() -> 
     free_shell = parser.parse(
         {
             "action_type": "RUN_COMMAND",
-            "program": "bash",
-            "args": ["-lc", "rm -rf src"],
+            "parameters": {"program": "bash", "args": ["-lc", "rm -rf src"]},
             "reason": "bad",
         }
     )
     invalid_path = parser.parse(
         {
             "action_type": "DELETE_FILE",
-            "path": "../outside.py",
+            "parameters": {"path": "../outside.py"},
             "reason": "bad",
         }
     )
     nested = parser.parse(
         {
             "action_type": "CREATE_FILE",
-            "path": "src/app.py",
-            "content": "ok",
+            "parameters": {"path": "src/app.py", "content": "ok"},
             "reason": "bad",
             "metadata": {"action_type": "RUN_COMMAND"},
         }

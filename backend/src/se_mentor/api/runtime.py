@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import socket
+from dataclasses import dataclass
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Any
@@ -11,20 +12,27 @@ from urllib import error as urlerror
 from urllib import parse as urlparse
 from urllib import request as urlrequest
 
-from dataclasses import dataclass
+from sqlalchemy import text
 from sqlalchemy.orm import Session, sessionmaker
 
-from se_mentor.credentials.store import CredentialStatus, CredentialStore, InMemoryKeyring, KeyringUnavailable, SystemKeyring
+import se_mentor.models  # noqa: F401
+from se_mentor.credentials.store import (
+    CredentialStatus,
+    CredentialStore,
+    InMemoryKeyring,
+    KeyringUnavailable,
+    SystemKeyring,
+    WindowsCredentialManagerKeyring,
+)
 from se_mentor.db.base import Base
 from se_mentor.db.session import create_session_factory, create_sqlite_engine
-import se_mentor.models  # noqa: F401
 from se_mentor.llm.base import (
     LLMProvider,
     ProviderAuthError,
     ProviderConfigError,
     ProviderError,
-    ProviderRequestError,
     ProviderRequestBuildError,
+    ProviderRequestError,
     ProviderTimeout,
 )
 from se_mentor.llm.openai_provider import OpenAIProviderConfig, OpenAIResponsesProvider
@@ -32,19 +40,55 @@ from se_mentor.security.secrets import Secret
 
 _ENGINE = create_sqlite_engine(f"sqlite:///{Path(gettempdir()) / 'se_mentor_api.sqlite3'}")
 Base.metadata.create_all(_ENGINE)
-SESSION_FACTORY = create_session_factory(_ENGINE)
+Base.metadata.create_all(_ENGINE, tables=[Base.metadata.tables["task_evaluations"]])
+
 
 def _build_credential_store() -> CredentialStore:
-    try:
-        return CredentialStore(profile_id="default", keyring=SystemKeyring())
-    except KeyringUnavailable:
-        return CredentialStore(profile_id="default", keyring=InMemoryKeyring(fail_operations=True))
+    for keyring_factory in (WindowsCredentialManagerKeyring, SystemKeyring):
+        try:
+            store = CredentialStore(profile_id="default", keyring=keyring_factory())
+            store.require_persistent_credentials()
+            return store
+        except KeyringUnavailable:
+            continue
+    return CredentialStore(profile_id="default", keyring=InMemoryKeyring(fail_operations=True))
 
 
 _CREDENTIAL_STORE = _build_credential_store()
 LOGGER = logging.getLogger("se_mentor.provider")
 _DEFAULT_OPENAI_TIMEOUT_SECONDS = 120
 _MAX_OPENAI_TIMEOUT_SECONDS = 180
+
+
+def _ensure_runtime_schema_compatibility() -> None:
+    with _ENGINE.begin() as connection:
+        ddl = connection.execute(
+            text(
+                "SELECT sql FROM sqlite_master "
+                "WHERE type='table' AND name='knowledge_sources'"
+            )
+        ).scalar_one_or_none()
+    if ddl is None or "GOVERNANCE_AUDIT" in str(ddl):
+        return
+    legacy = "knowledge_sources_legacy_runtime_compat"
+    with _ENGINE.begin() as connection:
+        connection.execute(text(f"DROP TABLE IF EXISTS {legacy}"))
+        connection.execute(text(f"ALTER TABLE knowledge_sources RENAME TO {legacy}"))
+    Base.metadata.create_all(_ENGINE, tables=[Base.metadata.tables["knowledge_sources"]])
+    with _ENGINE.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO knowledge_sources "
+                "(id, knowledge_id, source_type, source_ref, evidence_json, created_at) "
+                f"SELECT id, knowledge_id, source_type, source_ref, evidence_json, created_at "
+                f"FROM {legacy}"
+            )
+        )
+        connection.execute(text(f"DROP TABLE {legacy}"))
+
+
+_ensure_runtime_schema_compatibility()
+SESSION_FACTORY = create_session_factory(_ENGINE)
 
 
 @dataclass
@@ -54,6 +98,41 @@ class ProviderRuntimeConfig:
 
 
 _PROVIDER_CONFIG = ProviderRuntimeConfig()
+
+
+class ProviderFactory:
+    def __init__(self, credential_store: CredentialStore) -> None:
+        self.credential_store = credential_store
+
+    def create(self) -> LLMProvider:
+        profile = os.environ.get("SE_MENTOR_LLM_PROFILE", "LOCAL_FULL").upper()
+        if profile == "MOCK":
+            raise ProviderAuthError(
+                "MOCK provider is only available through explicit test injection"
+            )
+        try:
+            secret = self.credential_store.provider().get_secret("openai")
+            credential_source = "settings"
+        except KeyError as exc:
+            api_key = os.environ.get("SE_MENTOR_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+            if not api_key:
+                raise ProviderAuthError("PROVIDER_UNAVAILABLE") from exc
+            secret = Secret(api_key)
+            credential_source = "env"
+        config = _resolved_provider_config(self.credential_store)
+        if not config.base_url:
+            raise ProviderConfigError("OpenAI-compatible base_url is not configured")
+        _validate_base_url(config.base_url)
+        if not config.model:
+            raise ProviderConfigError("OpenAI-compatible model is not configured")
+        LOGGER.info(
+            "[provider] resolved provider=openai-compatible credential_source=%s "
+            "base_url_host=%s model=%s",
+            credential_source,
+            _host(config.base_url),
+            config.model,
+        )
+        return build_openai_provider(secret, config=config, credential_source=credential_source)
 
 
 def get_session_factory() -> sessionmaker[Session]:
@@ -80,47 +159,27 @@ def clear_provider_config() -> None:
 
 
 def get_provider_config() -> ProviderRuntimeConfig:
-    return ProviderRuntimeConfig(base_url=_PROVIDER_CONFIG.base_url, model=_PROVIDER_CONFIG.model)
+    return _resolved_provider_config()
 
 
 def credential_status_payload(status: CredentialStatus) -> dict[str, object]:
-    env_configured = bool(os.environ.get("SE_MENTOR_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY"))
+    env_configured = bool(
+        os.environ.get("SE_MENTOR_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    )
     config = _resolved_provider_config()
     return {
         "configured": status.has_key or env_configured,
         "provider": "OpenAI",
-        "source": _source_label(status) if status.has_key else _environment_source_label(env_configured),
+        "source": _source_label(status)
+        if status.has_key
+        else _environment_source_label(env_configured),
         "baseUrl": config.base_url,
         "model": config.model,
     }
 
 
 def get_domain_provider() -> LLMProvider:
-    profile = os.environ.get("SE_MENTOR_LLM_PROFILE", "LOCAL_FULL").upper()
-    if profile == "MOCK":
-        raise ProviderAuthError("MOCK provider is only available through explicit test injection")
-    try:
-        secret = get_credential_store().provider().get_secret("openai")
-        credential_source = "settings"
-    except KeyError as exc:
-        api_key = os.environ.get("SE_MENTOR_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise ProviderAuthError("PROVIDER_UNAVAILABLE") from exc
-        secret = Secret(api_key)
-        credential_source = "env"
-    config = _resolved_provider_config()
-    if not config.base_url:
-        raise ProviderConfigError("OpenAI-compatible base_url is not configured")
-    _validate_base_url(config.base_url)
-    if not config.model:
-        raise ProviderConfigError("OpenAI-compatible model is not configured")
-    LOGGER.info(
-        "[provider] resolved provider=openai-compatible credential_source=%s base_url_host=%s model=%s",
-        credential_source,
-        _host(config.base_url),
-        config.model,
-    )
-    return build_openai_provider(secret, config=config, credential_source=credential_source)
+    return ProviderFactory(get_credential_store()).create()
 
 
 def build_openai_provider(
@@ -136,7 +195,9 @@ def build_openai_provider(
     if not resolved.model:
         raise ProviderConfigError("OpenAI-compatible model is not configured")
     return OpenAIResponsesProvider(
-        client=_OpenAIHTTPClient(secret, base_url=resolved.base_url, credential_source=credential_source),
+        client=_OpenAIHTTPClient(
+            secret, base_url=resolved.base_url, credential_source=credential_source
+        ),
         config=OpenAIProviderConfig(
             model=resolved.model,
             request_timeout_seconds=_openai_timeout_seconds(),
@@ -158,7 +219,9 @@ def _environment_source_label(configured: bool) -> str:
 
 class _OpenAIHTTPClient:
     def __init__(self, secret: Secret, *, base_url: str, credential_source: str) -> None:
-        self.responses = _OpenAIHTTPResponses(secret, base_url=base_url, credential_source=credential_source)
+        self.responses = _OpenAIHTTPResponses(
+            secret, base_url=base_url, credential_source=credential_source
+        )
 
 
 class _OpenAIHTTPResponses:
@@ -168,7 +231,10 @@ class _OpenAIHTTPResponses:
         self._credential_source = credential_source
 
     def create(self, **kwargs: object) -> object:
-        LOGGER.info("[provider] request BUILD START contract=chat_completions base_url_host=%s", _host(self._base_url))
+        LOGGER.info(
+            "[provider] request BUILD START contract=chat_completions base_url_host=%s",
+            _host(self._base_url),
+        )
         try:
             api_key = self._secret.reveal()
             body = _chat_completion_body(kwargs)
@@ -196,7 +262,8 @@ class _OpenAIHTTPResponses:
                 f"provider request build failed: {type(exc).__name__}: {safe_message}"
             ) from exc
         LOGGER.info(
-            "[provider] request SEND START provider=openai-compatible credential_source=%s base_url_host=%s model=%s",
+            "[provider] request SEND START provider=openai-compatible credential_source=%s "
+            "base_url_host=%s model=%s",
             self._credential_source,
             _host(self._base_url),
             kwargs.get("model"),
@@ -204,7 +271,9 @@ class _OpenAIHTTPResponses:
         try:
             with urlrequest.urlopen(request, timeout=timeout) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-                LOGGER.info("[provider] response RECEIVED status=%s type=chat_completions", response.status)
+                LOGGER.info(
+                    "[provider] response RECEIVED status=%s type=chat_completions", response.status
+                )
         except urlerror.HTTPError as exc:
             LOGGER.warning(
                 "[provider] request FAILED error_type=HTTPError status=%s error=%s",
@@ -212,7 +281,7 @@ class _OpenAIHTTPResponses:
                 _sanitize(str(exc)),
             )
             raise _HTTPProviderError(exc.code) from exc
-        except (TimeoutError, socket.timeout) as exc:
+        except TimeoutError as exc:
             LOGGER.warning(
                 "[provider] request FAILED error_type=TimeoutError timeout_seconds=%s error=%s",
                 timeout,
@@ -295,8 +364,9 @@ def _chat_completion_body(kwargs: dict[str, object]) -> dict[str, object]:
                 "content": (
                     "You are SE-Mentor's proposal generator. Return only valid JSON matching the "
                     "schema described in the user message. Do not wrap it in markdown. "
-                    "All user-facing natural-language values in the JSON MUST be Simplified Chinese "
-                    "(zh-CN). Keep JSON property names and enum values unchanged."
+                    "All user-facing natural-language values in the JSON MUST be "
+                    "Simplified Chinese (zh-CN). Keep JSON property names and enum "
+                    "values unchanged."
                 ),
             },
             {"role": "user", "content": input_text},
@@ -307,20 +377,37 @@ def _chat_completion_body(kwargs: dict[str, object]) -> dict[str, object]:
         body["response_format"] = {
             "type": "json_schema",
             "json_schema": {
-                "name": "se_mentor_proposal",
+                "name": "se_mentor_structured_response",
                 "schema": response_schema,
                 "strict": True,
             },
         }
+    else:
+        text = kwargs.get("text")
+        if isinstance(text, dict):
+            text_format = text.get("format")
+            if isinstance(text_format, dict) and text_format.get("type") == "json_schema":
+                schema = text_format.get("schema")
+                if isinstance(schema, dict):
+                    body["response_format"] = {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": str(text_format.get("name") or "se_mentor_structured_response"),
+                            "schema": schema,
+                            "strict": bool(text_format.get("strict", True)),
+                        },
+                    }
     return body
 
 
-def _resolved_provider_config() -> ProviderRuntimeConfig:
-    metadata = get_credential_store().provider_metadata()
+def _resolved_provider_config(store: CredentialStore | None = None) -> ProviderRuntimeConfig:
+    metadata = (store or get_credential_store()).provider_metadata()
     return ProviderRuntimeConfig(
         base_url=_PROVIDER_CONFIG.base_url
         or _normalize_base_url(metadata.get("base_url"))
-        or _normalize_base_url(os.environ.get("SE_MENTOR_OPENAI_BASE_URL") or os.environ.get("OPENAI_BASE_URL")),
+        or _normalize_base_url(
+            os.environ.get("SE_MENTOR_OPENAI_BASE_URL") or os.environ.get("OPENAI_BASE_URL")
+        ),
         model=_PROVIDER_CONFIG.model
         or metadata.get("model")
         or os.environ.get("SE_MENTOR_OPENAI_MODEL")
@@ -335,7 +422,9 @@ def _openai_timeout_seconds() -> int:
     try:
         value = int(raw)
     except ValueError as exc:
-        raise ProviderConfigError("SE_MENTOR_OPENAI_TIMEOUT must be an integer number of seconds") from exc
+        raise ProviderConfigError(
+            "SE_MENTOR_OPENAI_TIMEOUT must be an integer number of seconds"
+        ) from exc
     if value <= 0:
         raise ProviderConfigError("SE_MENTOR_OPENAI_TIMEOUT must be positive")
     return min(value, _MAX_OPENAI_TIMEOUT_SECONDS)
@@ -353,7 +442,9 @@ def _usage(usage: dict[str, Any]) -> dict[str, int]:
     output_tokens = usage.get("output_tokens", usage.get("completion_tokens"))
     return {
         "input_tokens": input_tokens if isinstance(input_tokens, int) and input_tokens >= 0 else 0,
-        "output_tokens": output_tokens if isinstance(output_tokens, int) and output_tokens >= 0 else 0,
+        "output_tokens": output_tokens
+        if isinstance(output_tokens, int) and output_tokens >= 0
+        else 0,
     }
 
 

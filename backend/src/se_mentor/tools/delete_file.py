@@ -16,7 +16,7 @@ from se_mentor.models.execution import (
     ToolExecutionStatus,
     TransactionState,
 )
-from se_mentor.policy.grants import TemporaryGrant
+from se_mentor.policy.grants import ExecutionAuthorization, TemporaryGrant
 
 
 class DeleteFileError(RuntimeError):
@@ -29,6 +29,7 @@ class DeleteFileResult:
     deleted: bool
     before_sha256: str | None
     backup_ref: str | None
+    tool_execution_id: str
 
 
 class DeleteFileTool:
@@ -42,7 +43,7 @@ class DeleteFileTool:
         task_id: str,
         action_id: str,
         transaction_id: str,
-        grant: TemporaryGrant,
+        grant: TemporaryGrant | ExecutionAuthorization,
         relative_path: str,
         revision: str,
     ) -> DeleteFileResult:
@@ -54,8 +55,7 @@ class DeleteFileTool:
         if not target.is_relative_to(self.project_root) or target == self.project_root:
             raise DeleteFileError("target path invalid")
         if not target.exists():
-            self._record_execution(task_id, action_id, transaction.id, normalized, "not_found")
-            return DeleteFileResult(normalized, False, None, None)
+            raise DeleteFileError("target path not found")
         if target.is_dir():
             raise DeleteFileError("recursive delete is not supported")
 
@@ -93,7 +93,7 @@ class DeleteFileTool:
             )
         )
         self.session.flush()
-        return DeleteFileResult(normalized, True, before_hash, str(backup_path))
+        return DeleteFileResult(normalized, True, before_hash, str(backup_path), tool_execution.id)
 
     def _prepared_transaction(self, transaction_id: str, task_id: str) -> TaskTransaction:
         transaction = self.session.get(TaskTransaction, transaction_id)

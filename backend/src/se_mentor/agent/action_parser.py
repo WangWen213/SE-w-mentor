@@ -29,6 +29,7 @@ class ActionParseResult:
     outcome: ParseOutcome
     action: AgentAction | None
     feedback: FeedbackSignal | None
+    error_detail: str | None = None
 
 
 class AgentActionParser:
@@ -39,25 +40,32 @@ class AgentActionParser:
         try:
             action = AgentActionAdapter.validate_python(payload)
         except ValidationError as exc:
-            return _rejected(f"invalid agent action: {exc.errors()[0]['type']}")
+            first_error = exc.errors()[0]
+            location = ".".join(str(part) for part in first_error.get("loc", ())) or "<root>"
+            return _rejected(
+                f"invalid agent action: {first_error['type']} at {location}",
+                error_detail=str(first_error)[:512],
+            )
         if _has_invalid_path(action):
             return _rejected("invalid path")
         if getattr(action, "action_type", None) and action.__class__.__name__ == "RunCommandAction":
-            program = str(getattr(action, "program", "")).lower()
-            args = [str(arg).lower() for arg in getattr(action, "args", [])]
+            parameters = getattr(action, "parameters", None)
+            program = str(getattr(parameters, "program", "")).lower()
+            args = [str(arg).lower() for arg in getattr(parameters, "args", [])]
             if program in _SHELL_PROGRAMS or any(arg in {"-lc", "/c"} for arg in args):
                 return _rejected("free-text shell is not accepted")
         return ActionParseResult(ParseOutcome.ACCEPTED, action, None)
 
 
 def _has_invalid_path(action: AgentAction) -> bool:
-    if isinstance(action, ReadFileAction | DeleteFileAction) or hasattr(action, "path"):
-        path = Path(str(action.path))
+    parameters = getattr(action, "parameters", None)
+    if isinstance(action, ReadFileAction | DeleteFileAction) or hasattr(parameters, "path"):
+        path = Path(str(parameters.path))
         return path.is_absolute() or ".." in path.parts
     return False
 
 
-def _rejected(message: str) -> ActionParseResult:
+def _rejected(message: str, *, error_detail: str | None = None) -> ActionParseResult:
     return ActionParseResult(
         ParseOutcome.REJECTED,
         None,
@@ -66,4 +74,5 @@ def _rejected(message: str) -> ActionParseResult:
             severity=FeedbackSeverity.ERROR,
             message=message,
         ),
+        error_detail,
     )

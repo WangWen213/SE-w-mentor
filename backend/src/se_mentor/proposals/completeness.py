@@ -41,7 +41,11 @@ class ProposalCompletenessService:
             task = proposal.task
             task.status = TaskStatus.DECIDING
             task.failure_code = "NEEDS_MORE_TECHNICAL_ANALYSIS"
-            task.failure_message = _message("Proposal needs more Mentor technical analysis", missing, technical_unknowns)
+            task.failure_message = _message(
+                "Proposal needs more Mentor technical analysis",
+                missing,
+                technical_unknowns,
+            )
             self.session.flush()
             return CompletenessResult(
                 CompletenessDecision.NEEDS_MORE_TECHNICAL_ANALYSIS,
@@ -140,7 +144,9 @@ def _non_empty_json_list(value: str) -> bool:
     return bool(_valid_json_list(value))
 
 
-def _valid_json_list(value: str) -> list[object]:
+def _valid_json_list(value: str | None) -> list[object]:
+    if not value:
+        return []
     try:
         data = json.loads(value)
     except json.JSONDecodeError:

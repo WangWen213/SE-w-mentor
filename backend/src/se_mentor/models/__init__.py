@@ -23,6 +23,7 @@ from se_mentor.models.code_index import (
     CodeSymbolRelation,
     CodeSymbolRelationType,
 )
+from se_mentor.models.evaluation import TaskEvaluation, TaskEvaluationStatus
 from se_mentor.models.execution import (
     BackupEntry,
     FileChange,
@@ -151,6 +152,8 @@ __all__ = [
     "ProposalCreatedByType",
     "ProposalStatus",
     "RiskLevel",
+    "TaskEvaluation",
+    "TaskEvaluationStatus",
     "TaskTransaction",
     "TaskIteration",
     "TaskIterationPhase",

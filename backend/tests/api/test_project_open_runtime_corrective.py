@@ -35,6 +35,20 @@ def test_registered_project_can_reopen(monkeypatch, tmp_path: Path) -> None:
     assert second.json()["data"]["id"] == first.json()["data"]["id"]
 
 
+def test_registered_projects_can_hydrate_after_refresh(monkeypatch, tmp_path: Path) -> None:
+    repo = _git_repo(tmp_path)
+    monkeypatch.setattr(projects_api, "_choose_directory", lambda: repo)
+    client = TestClient(create_app())
+
+    opened = client.post("/api/projects/choose-local").json()["data"]
+    response = client.get("/api/projects")
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["items"][0]["id"] == opened["id"]
+    assert data["items"][0]["rootPath"] == str(repo)
+
+
 def test_bootstrap_failure_returns_terminal_error(monkeypatch, tmp_path: Path) -> None:
     repo = _git_repo(tmp_path)
     monkeypatch.setattr(projects_api, "_choose_directory", lambda: repo)

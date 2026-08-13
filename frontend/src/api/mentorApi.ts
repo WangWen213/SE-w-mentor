@@ -28,8 +28,23 @@ export type TaskStatus =
 export type ProposalStatus = "DRAFT" | "CONFIRMED" | "REJECTED" | "SUPERSEDED";
 export type GovernanceDecisionKind = "ALLOW" | "WARN" | "BLOCK";
 export type ApprovalStatus = "APPROVED" | "REJECTED";
-export type ExecutionStatus = "EXECUTING" | "CANCEL_REQUESTED";
-export type TaskEventType = "EXECUTION_STARTED" | "CANCEL_REQUESTED" | "status";
+export type ExecutionStatus = "COMPLETED" | "EXECUTING" | "CANCEL_REQUESTED" | "CANCELLED" | "FAILED";
+export type TaskEventType =
+  | "ACTION_COMPLETED"
+  | "ACTION_STARTED"
+  | "ACTION_GOVERNED"
+  | "EXECUTION_COMPLETED"
+  | "EXECUTION_FAILED"
+  | "EXECUTION_STARTED"
+  | "FILE_CHANGED"
+  | "GOVERNANCE_DECIDED"
+  | "TASK_COMPLETED"
+  | "TASK_CANCELLED"
+  | "TASK_FAILED"
+  | "TOOL_COMPLETED"
+  | "VALIDATION_COMPLETED"
+  | "CANCEL_REQUESTED"
+  | "status";
 export type ValidationStatus = "PASS" | "FAIL" | "SKIPPED";
 export type CompletionGateStatus = "PASS" | "FAIL" | "PENDING";
 
@@ -71,6 +86,10 @@ export interface ProjectBootstrap {
 export interface ProjectConfig {
   projectId: string;
   secrets: string;
+}
+
+export interface ProjectList {
+  items: Project[];
 }
 
 export interface LockStatus {
@@ -180,6 +199,53 @@ export interface WorkbenchMessageList {
   taskId: string;
 }
 
+export type TaskTimelineKind =
+  | "PROPOSAL_READY"
+  | "PROPOSAL_CONFIRMED"
+  | "IMPACT_READY"
+  | "GOVERNANCE_ALLOW"
+  | "GOVERNANCE_APPROVAL_REQUIRED"
+  | "GOVERNANCE_BLOCK"
+  | "LOCATING"
+  | "TARGET_LOCATED"
+  | "EXECUTION_STARTED"
+  | "FILE_CHANGED"
+  | "VALIDATION_STARTED"
+  | "VALIDATION_COMPLETED"
+  | "TASK_COMPLETED"
+  | "TASK_CANCELLED"
+  | "TASK_FAILED"
+  | "TASK_STATUS";
+
+export type TaskTimelineStatus = "SUCCESS" | "RUNNING" | "WAITING" | "FAILED";
+export type TaskTimelineTarget = "changes" | "checks" | "governance";
+
+export interface TaskTimelineAction {
+  label: string;
+  target: TaskTimelineTarget;
+}
+
+export interface TaskTimelineItem {
+  action?: TaskTimelineAction;
+  body: string;
+  createdAt: string;
+  id: string;
+  kind: TaskTimelineKind;
+  sequence: number;
+  source: {
+    id: string;
+    type: string;
+  };
+  status: TaskTimelineStatus;
+  title: string;
+}
+
+export interface TaskTimeline {
+  count: number;
+  items: TaskTimelineItem[];
+  taskId: string;
+}
+
 export interface MentorTurnResult {
   message: WorkbenchMessageRecord | null;
   proposal: Proposal | null;
@@ -219,6 +285,8 @@ export interface RuleHit {
 }
 
 export interface GovernanceReport {
+  governanceDecisionId?: string;
+  taskId?: string;
   approvalRequestId?: string | null;
   approvalStatus?: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED" | null;
   changedPaths: string[];
@@ -232,6 +300,31 @@ export interface GovernanceReport {
   proposalId: string;
   ruleHits: RuleHit[];
   unknowns: string[];
+}
+
+export interface ProjectGovernanceHistoryItem {
+  affectedFileCount: number;
+  blocked: boolean;
+  createdAt: string;
+  decision: GovernanceDecisionKind;
+  displaySummary: string;
+  governanceDecisionId: string;
+  proposalId?: string | null;
+  proposalVersion?: number | null;
+  reasonCode: string;
+  requiresApproval: boolean;
+  summary: string;
+  taskId: string;
+  taskTitle: string;
+}
+
+export interface ProjectGovernanceHistory {
+  hasMore: boolean;
+  items: ProjectGovernanceHistoryItem[];
+  limit: number;
+  nextOffset?: number | null;
+  offset: number;
+  projectId: string;
 }
 
 export interface AnalysisIndexResult {
@@ -251,6 +344,7 @@ export interface KnowledgeItem {
 }
 
 export interface KnowledgePresentation {
+  decision?: string | null;
   details: Record<string, unknown>;
   gitBaseline?: string[];
   keyPaths: string[];
@@ -269,6 +363,11 @@ export interface KnowledgePresentation {
 
 export interface KnowledgeList {
   items: KnowledgeItem[];
+  projectId: string;
+}
+
+export interface ProjectEvaluationList {
+  items: TaskEvaluation[];
   projectId: string;
 }
 
@@ -297,6 +396,7 @@ export interface ExecutionResult {
   command?: string;
   eventId: number;
   status: ExecutionStatus;
+  task?: Task;
   taskId: string;
 }
 
@@ -307,13 +407,32 @@ export interface DiffLine {
   type: "added" | "removed" | "context";
 }
 
+export type FileChangeOperation = "CREATE" | "MODIFY" | "DELETE";
+
 export interface DiffTrace {
+  actionId?: string | null;
+  afterHash?: string | null;
   backedUp: boolean;
+  beforeHash?: string | null;
   changeId: string;
+  diff: string;
+  evidence?: Record<string, unknown>;
   filePath: string;
   lines: DiffLine[];
   modified: boolean;
+  operation?: FileChangeOperation;
+  projectId?: string;
+  relativePath?: string;
   rolledBack: boolean;
+  taskId?: string;
+  toolExecutionId?: string | null;
+  transactionId?: string | null;
+}
+
+export interface TaskFileChanges {
+  count: number;
+  items: DiffTrace[];
+  taskId: string;
 }
 
 export interface ValidationResult {
@@ -347,11 +466,17 @@ export interface RecoveryResolution {
 
 export interface TaskEvaluation {
   changeQuality: EvaluationChangeQuality;
+  createdAt?: string;
   evidence: EvaluationEvidence;
+  evaluationId?: string;
+  execution?: Record<string, unknown>;
   governance: EvaluationGovernance;
   hasEvaluation: boolean;
+  memoryCandidates?: Array<Record<string, unknown>>;
   overall: EvaluationOverall;
+  projectId?: string;
   requirementCoverage: EvaluationRequirementCoverage;
+  taskTitle?: string;
   taskId: string;
   validation: EvaluationValidation;
 }
@@ -441,16 +566,25 @@ export interface MentorApi {
   createProposal(taskId: string, goal: string, question?: string): Promise<Proposal>;
   createTask(projectId: string, request: string): Promise<Task>;
   getDiffTrace(changeId: string): Promise<DiffTrace>;
+  getTaskFileChanges(taskId: string): Promise<TaskFileChanges>;
   getProjectBootstrap(projectId: string): Promise<ProjectBootstrap>;
   getProjectConfig(projectId: string): Promise<ProjectConfig>;
   getProjectLocks(projectId: string): Promise<LockStatus>;
+  getProjects(): Promise<ProjectList>;
   getProposal(taskId: string): Promise<Proposal>;
   getProposalHistory(taskId: string): Promise<ProposalHistory>;
   getWorkbenchMessages(taskId: string): Promise<WorkbenchMessageList>;
   getGovernance(proposalId: string): Promise<GovernanceReport>;
+  getGovernanceDecision(projectId: string, decisionId: string): Promise<GovernanceReport>;
+  getProjectGovernanceHistory(
+    projectId: string,
+    options?: { limit?: number; offset?: number; taskId?: string | null },
+  ): Promise<ProjectGovernanceHistory>;
+  getProjectEvaluations(projectId: string): Promise<ProjectEvaluationList>;
   getTask(taskId: string): Promise<Task>;
   getTaskEvaluation(taskId: string): Promise<TaskEvaluation>;
   getTaskEvents(taskId: string, lastEventId: number | null): Promise<TaskEvent[]>;
+  getTaskTimeline(taskId: string): Promise<TaskTimeline>;
   getTaskList(projectId: string): Promise<TaskList>;
   getCredentialStatus(): Promise<CredentialStatus>;
   indexAnalysis(): Promise<AnalysisIndexResult>;
@@ -464,7 +598,7 @@ export interface MentorApi {
   resolveRecovery(taskId: string, action: "keep" | "rollback"): Promise<RecoveryResolution>;
   runGovernance(proposalId: string, changedPaths: string[]): Promise<GovernanceReport>;
   setCredential(provider: string, key: string, baseUrl: string, model: string): Promise<CredentialStatus>;
-  updateCredential(provider: string, key: string, baseUrl: string, model: string): Promise<CredentialStatus>;
+  updateCredential(provider: string, key: string | null, baseUrl: string, model: string): Promise<CredentialStatus>;
 }
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -560,16 +694,38 @@ export function createMentorApi(fetcher: FetchLike = fetch): MentorApi {
         method: "POST",
       }),
     getDiffTrace: (changeId) => request<DiffTrace>(`/api/diffs/${changeId}/trace`),
+    getTaskFileChanges: (taskId) => request<TaskFileChanges>(`/api/diffs/tasks/${taskId}/changes`),
     getProjectBootstrap: (projectId) =>
       request<ProjectBootstrap>(`/api/projects/${projectId}/bootstrap`),
     getProjectConfig: (projectId) =>
       request<ProjectConfig>(`/api/projects/${projectId}/config`),
     getProjectLocks: (projectId) =>
       request<LockStatus>(`/api/projects/${projectId}/locks`),
+    getProjects: () => request<ProjectList>("/api/projects"),
     getProposal: (taskId) => request<Proposal>(`/api/tasks/${taskId}/proposals`),
     getProposalHistory: (taskId) => request<ProposalHistory>(`/api/tasks/${taskId}/proposals/history`),
     getWorkbenchMessages: (taskId) => request<WorkbenchMessageList>(`/api/tasks/${taskId}/messages`),
     getGovernance: (proposalId) => request<GovernanceReport>(`/api/proposals/${proposalId}/governance`),
+    getGovernanceDecision: (projectId, decisionId) =>
+      request<GovernanceReport>(`/api/projects/${projectId}/governance-history/${decisionId}`),
+    getProjectGovernanceHistory: (projectId, options = {}) => {
+      const params = new URLSearchParams();
+      if (options.limit !== undefined) {
+        params.set("limit", String(options.limit));
+      }
+      if (options.offset !== undefined) {
+        params.set("offset", String(options.offset));
+      }
+      if (options.taskId) {
+        params.set("taskId", options.taskId);
+      }
+      const query = params.toString();
+      return request<ProjectGovernanceHistory>(
+        `/api/projects/${projectId}/governance-history${query ? `?${query}` : ""}`,
+      );
+    },
+    getProjectEvaluations: (projectId) =>
+      request<ProjectEvaluationList>(`/api/projects/${projectId}/evaluations`),
     getTask: (taskId) => request<Task>(`/api/tasks/${taskId}`),
     getTaskEvaluation: (taskId) => request<TaskEvaluation>(`/api/tasks/${taskId}/evaluation`),
     getTaskEvents: async (taskId, lastEventId) => {
@@ -584,6 +740,7 @@ export function createMentorApi(fetcher: FetchLike = fetch): MentorApi {
       }
       return parseTaskEvents(taskId, await response.text());
     },
+    getTaskTimeline: (taskId) => request<TaskTimeline>(`/api/tasks/${taskId}/timeline`),
     getTaskList: (projectId) => request<TaskList>(`/api/projects/${projectId}/tasks`),
     getCredentialStatus: () => request<CredentialStatus>("/api/credentials/llm/status"),
     indexAnalysis: () => request<AnalysisIndexResult>("/api/analysis/index", { method: "POST" }),
@@ -673,9 +830,21 @@ export function taskStateLabel(status: TaskStatus): string {
 
 export function taskEventLabel(eventType: TaskEventType): string {
   const labels: Record<TaskEventType, string> = {
-    CANCEL_REQUESTED: "Stopping",
-    EXECUTION_STARTED: "Changing files",
-    status: "Status updated",
+    ACTION_COMPLETED: "动作已完成",
+    ACTION_GOVERNED: "动作已通过治理",
+    ACTION_STARTED: "动作已开始",
+    CANCEL_REQUESTED: "正在停止",
+    TASK_CANCELLED: "任务已取消",
+    EXECUTION_COMPLETED: "执行已完成",
+    EXECUTION_FAILED: "执行失败",
+    EXECUTION_STARTED: "正在修改文件",
+    FILE_CHANGED: "文件已变更",
+    GOVERNANCE_DECIDED: "治理已完成",
+    TASK_COMPLETED: "任务已完成",
+    TASK_FAILED: "任务失败",
+    TOOL_COMPLETED: "工具已完成",
+    VALIDATION_COMPLETED: "验证已完成",
+    status: "状态已更新",
   };
   return labels[eventType];
 }

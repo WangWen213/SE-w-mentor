@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import time
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from se_mentor.main import create_app
 from se_mentor.llm.base import LLMRequest, LLMResponse, LLMUsage
+from se_mentor.main import create_app
 
 
 class RecordingProvider:
@@ -16,35 +17,53 @@ class RecordingProvider:
 
     def complete(self, request: LLMRequest) -> LLMResponse:
         if "impact" in request.prompt_summary.lower():
-            return LLMResponse(
-                content=(
-                    '{"fact_refs":["proposal-scope:0"],'
-                    '"narrative":"治理结果来自后端影响分析。",'
-                    '"risks":["UNKNOWN"]}'
-                ),
-                usage=LLMUsage(10, 10),
-                model=self.model,
-                provider=self.provider_name,
+            data = json.loads(request.input_text)
+            content = json.dumps(
+                {
+                    "fact_refs": data["evidence_ids"],
+                    "narrative": "治理结果来自后端影响分析。",
+                    "risks": data["unknowns"],
+                },
+                sort_keys=True,
+            )
+        else:
+            content = json.dumps(
+                {
+                    "goal": "调整认证逻辑",
+                    "understanding": "用户希望更新认证中间件。",
+                    "expected_behavior": "认证中间件按需求更新。",
+                    "scope": ["auth/middleware.py"],
+                    "changes": [
+                        {
+                            "path": "auth/middleware.py",
+                            "symbol": None,
+                            "action": "调整认证逻辑。",
+                            "reason": "auth/middleware.py 是仓库中的真实路径。",
+                        }
+                    ],
+                    "steps": ["读取认证中间件", "应用认证逻辑调整"],
+                    "non_goals": [],
+                    "constraints": [],
+                    "acceptance": ["认证相关测试通过"],
+                    "validation": ["运行认证相关测试"],
+                    "user_facts": ["用户要求调整认证逻辑。"],
+                    "inferences": ["认证中间件是变更目标。"],
+                    "risks": ["Authentication behavior may require careful review."],
+                },
+                sort_keys=True,
             )
         return LLMResponse(
-            content=(
-                '{"goal":"调整认证逻辑",'
-                '"expected_behavior":"认证中间件按需求更新。",'
-                '"scope":["auth/middleware.py"],'
-                '"non_goals":[],'
-                '"constraints":[],'
-                '"acceptance":["认证相关测试通过"],'
-                '"user_facts":[],'
-                '"inferences":[],'
-                '"risks":["UNKNOWN"]}'
-            ),
+            content=content,
             usage=LLMUsage(10, 10),
             model=self.model,
             provider=self.provider_name,
         )
 
 
-def test_T095_governance_exposes_facts_inference_unknowns_and_three_decisions(tmp_path: Path, monkeypatch) -> None:
+def test_T095_governance_exposes_facts_inference_unknowns_and_three_decisions(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
     provider = RecordingProvider()
     monkeypatch.setattr("se_mentor.api.proposals.get_domain_provider", lambda: provider)
     monkeypatch.setattr("se_mentor.api.governance.get_domain_provider", lambda: provider)

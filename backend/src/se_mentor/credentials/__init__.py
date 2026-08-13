@@ -5,6 +5,7 @@ from se_mentor.credentials.store import (
     CredentialStore,
     InMemoryKeyring,
     KeyringUnavailable,
+    WindowsCredentialManagerKeyring,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "CredentialStore",
     "InMemoryKeyring",
     "KeyringUnavailable",
+    "WindowsCredentialManagerKeyring",
 ]

@@ -24,10 +24,20 @@ const label = {
 };
 
 interface ProposalCardProps {
+  confirmDisabled?: boolean;
+  confirmLabel?: string;
+  onAdjust?: () => void;
+  onConfirm?: () => void;
   proposal: ProposalFixture;
 }
 
-export function ProposalCard({ proposal }: ProposalCardProps) {
+export function ProposalCard({
+  confirmDisabled = false,
+  confirmLabel,
+  onAdjust,
+  onConfirm,
+  proposal,
+}: ProposalCardProps) {
   const display = proposal.display;
   const completeness = proposal.completeness;
   const preparedChanges = display?.preparedChanges ?? proposal.changes ?? [];
@@ -35,6 +45,7 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
   const validation = display?.validation ?? proposal.validation ?? [];
   const userDecisions = display?.needsUserDecision ?? ["暂无需要你决定的问题。"];
   const expectedImpact = display?.expectedImpact ?? [proposal.files];
+  const canShowActions = !proposal.superseded && proposal.status !== "CONFIRMED" && proposal.status !== "SUPERSEDED";
   return (
     <section className="proposal" data-testid="proposal-card" aria-label={label.proposal}>
       <div className="proposal-head">
@@ -61,6 +72,16 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
       <ProposalSection title={label.userDecision} values={userDecisions} />
       <div className="proposal-foot">
         <span className="hint">{label.foot}</span>
+        {canShowActions && onAdjust ? (
+          <button className="btn small" type="button" onClick={onAdjust}>
+            方案调整
+          </button>
+        ) : null}
+        {canShowActions && onConfirm ? (
+          <button className="btn small dark" disabled={confirmDisabled} type="button" onClick={onConfirm}>
+            {confirmLabel ?? "确认此范围"}
+          </button>
+        ) : null}
       </div>
     </section>
   );

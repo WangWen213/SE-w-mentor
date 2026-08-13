@@ -54,25 +54,29 @@ class RecordingProvider:
             )
         return LLMResponse(
             content=json.dumps(
-                    {
-                        "goal": "Update the real README behavior",
-                        "understanding": "User wants the README updated using the real repository path.",
-                        "expected_behavior": "README describes the requested behavior for this repository.",
-                        "scope": ["README.md"],
-                        "changes": [
-                            {
-                                "path": "README.md",
-                                "symbol": None,
-                                "action": "Update README content for the requested behavior.",
-                                "reason": "README.md exists in the indexed repository.",
-                            }
-                        ],
-                        "steps": ["Read README.md", "Apply the requested documentation change"],
-                        "non_goals": ["No unrelated files are changed."],
-                        "constraints": ["Use evidenced paths from context."],
-                        "acceptance": ["README.md is reviewed after the change."],
-                        "validation": ["README.md is reviewed after the change."],
-                        "user_facts": ["User asked to update README."],
+                {
+                    "goal": "Update the real README behavior",
+                    "understanding": (
+                        "User wants the README updated using the real repository path."
+                    ),
+                    "expected_behavior": (
+                        "README describes the requested behavior for this repository."
+                    ),
+                    "scope": ["README.md"],
+                    "changes": [
+                        {
+                            "path": "README.md",
+                            "symbol": None,
+                            "action": "Update README content for the requested behavior.",
+                            "reason": "README.md exists in the indexed repository.",
+                        }
+                    ],
+                    "steps": ["Read README.md", "Apply the requested documentation change"],
+                    "non_goals": ["No unrelated files are changed."],
+                    "constraints": ["Use evidenced paths from context."],
+                    "acceptance": ["README.md is reviewed after the change."],
+                    "validation": ["README.md is reviewed after the change."],
+                    "user_facts": ["User asked to update README."],
                     "inferences": ["README.md exists in the indexed repository."],
                     "risks": ["No code behavior is changed."],
                 },
@@ -91,7 +95,7 @@ def test_configured_provider_selects_openai_provider_without_template() -> None:
     assert provider.__class__.__name__ == "OpenAIResponsesProvider"
 
 
-def test_project_bootstrap_and_proposal_use_repository_context(tmp_path: Path) -> None:
+def test_project_bootstrap_and_proposal_use_repository_context(tmp_path: Path, monkeypatch) -> None:
     repo = _git_repo(tmp_path)
     engine = create_schema(tmp_path / "wiring.sqlite3")
     session_factory = create_session_factory(engine)
@@ -110,10 +114,18 @@ def test_project_bootstrap_and_proposal_use_repository_context(tmp_path: Path) -
         )
         session.add(task)
         session.flush()
+
+        def fail_walk(*_args, **_kwargs):
+            raise AssertionError("proposal context must use indexed paths, not repository walks")
+
+        monkeypatch.setattr("se_mentor.proposals.context.os.walk", fail_walk)
         context = ProposalContextBuilder(session).build_for_task(task.id, "Update README")
         proposal = ProposalGenerator(session, provider).generate(
             task_id=task.id,
-            request=LLMRequest(prompt_summary="structured change proposal", input_text="Update README"),
+            request=LLMRequest(
+                prompt_summary="structured change proposal",
+                input_text="Update README",
+            ),
             context_package=context.context_package,
             evidenced_paths=context.evidenced_paths,
         )

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import ctypes
+import ctypes.wintypes as wintypes
 import json
+import sys
 from dataclasses import dataclass
 from importlib import import_module
 from typing import Protocol
@@ -86,6 +89,83 @@ class SystemKeyring:
             self._keyring.delete_password(service_name, username)
         except Exception as exc:
             raise KeyringUnavailable("keyring delete failed") from exc
+
+
+class WindowsCredentialManagerKeyring:
+    CRED_TYPE_GENERIC = 1
+    CRED_PERSIST_LOCAL_MACHINE = 2
+
+    def __init__(self) -> None:
+        if sys.platform != "win32":
+            raise KeyringUnavailable("Windows Credential Manager is unavailable on this platform")
+        self._advapi32 = ctypes.WinDLL("Advapi32", use_last_error=True)
+        self._kernel32 = ctypes.WinDLL("Kernel32", use_last_error=True)
+
+    def set_password(self, service_name: str, username: str, password: str) -> None:
+        target = _target_name(service_name, username)
+        encoded = password.encode("utf-16-le")
+        credential = _CREDENTIALW()
+        credential.Type = self.CRED_TYPE_GENERIC
+        credential.TargetName = target
+        credential.CredentialBlobSize = len(encoded)
+        credential.CredentialBlob = ctypes.cast(
+            ctypes.create_string_buffer(encoded),
+            ctypes.POINTER(ctypes.c_byte),
+        )
+        credential.Persist = self.CRED_PERSIST_LOCAL_MACHINE
+        credential.UserName = username
+        if not self._advapi32.CredWriteW(ctypes.byref(credential), 0):
+            raise KeyringUnavailable(_last_windows_error("CredWriteW"))
+
+    def get_password(self, service_name: str, username: str) -> str | None:
+        credential_ptr = ctypes.POINTER(_CREDENTIALW)()
+        target = _target_name(service_name, username)
+        if not self._advapi32.CredReadW(
+            target,
+            self.CRED_TYPE_GENERIC,
+            0,
+            ctypes.byref(credential_ptr),
+        ):
+            error_code = ctypes.get_last_error()
+            if error_code == 1168:
+                return None
+            raise KeyringUnavailable(_windows_error("CredReadW", error_code))
+        try:
+            credential = credential_ptr.contents
+            blob_size = int(credential.CredentialBlobSize)
+            if blob_size <= 0:
+                return None
+            raw = ctypes.string_at(credential.CredentialBlob, blob_size)
+            return raw.decode("utf-16-le")
+        finally:
+            self._advapi32.CredFree(credential_ptr)
+
+    def delete_password(self, service_name: str, username: str) -> None:
+        if not self._advapi32.CredDeleteW(
+            _target_name(service_name, username),
+            self.CRED_TYPE_GENERIC,
+            0,
+        ):
+            error_code = ctypes.get_last_error()
+            if error_code != 1168:
+                raise KeyringUnavailable(_windows_error("CredDeleteW", error_code))
+
+
+class _CREDENTIALW(ctypes.Structure):
+    _fields_ = [
+        ("Flags", wintypes.DWORD),
+        ("Type", wintypes.DWORD),
+        ("TargetName", wintypes.LPWSTR),
+        ("Comment", wintypes.LPWSTR),
+        ("LastWritten", wintypes.FILETIME),
+        ("CredentialBlobSize", wintypes.DWORD),
+        ("CredentialBlob", ctypes.POINTER(ctypes.c_byte)),
+        ("Persist", wintypes.DWORD),
+        ("AttributeCount", wintypes.DWORD),
+        ("Attributes", wintypes.LPVOID),
+        ("TargetAlias", wintypes.LPWSTR),
+        ("UserName", wintypes.LPWSTR),
+    ]
 
 
 class CredentialStore:
@@ -200,3 +280,15 @@ class CredentialStore:
         except KeyringUnavailable:
             self._persistence = "session"
             return None
+
+
+def _target_name(service_name: str, username: str) -> str:
+    return f"{service_name}:{username}"
+
+
+def _last_windows_error(api_name: str) -> str:
+    return _windows_error(api_name, ctypes.get_last_error())
+
+
+def _windows_error(api_name: str, error_code: int) -> str:
+    return f"{api_name} failed with Windows error {error_code}"

@@ -92,11 +92,6 @@ function decisionBody(report: GovernanceReport): string {
   return presentReason(report.inferences[0] ?? text.sourceFallback);
 }
 
-function presentUnknown(value: string) {
-  const trimmed = value.trim();
-  return !trimmed || trimmed.toUpperCase() === "UNKNOWN" ? text.unknown : value;
-}
-
 function presentReason(value: string) {
   const trimmed = value.trim();
   if (!trimmed || trimmed.toUpperCase() === "UNKNOWN") {

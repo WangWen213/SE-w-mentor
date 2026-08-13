@@ -31,8 +31,8 @@ def test_T004_unknown_action_and_extra_field_are_rejected() -> None:
         AgentActionAdapter.validate_python(
             {
                 "action_type": "READ_FILE",
+                "parameters": {"path": "README.md", "start_line": 1, "end_line": 20},
                 "reason": "inspect",
-                "path": "README.md",
                 "skip_governance": True,
             }
         )
@@ -70,12 +70,28 @@ def test_T004_schema_snapshots_match() -> None:
 
 def test_T004_all_action_variants_validate() -> None:
     actions = [
-        {"action_type": "READ_FILE", "reason": "inspect", "path": "README.md"},
-        {"action_type": "SEARCH_CODE", "reason": "find", "query": "create_app"},
-        {"action_type": "APPLY_PATCH", "reason": "edit", "patch": "*** Begin Patch\n*** End Patch"},
-        {"action_type": "CREATE_FILE", "reason": "add", "path": "x.txt", "content": "x"},
-        {"action_type": "DELETE_FILE", "reason": "remove", "path": "x.txt"},
-        {"action_type": "RUN_COMMAND", "reason": "verify", "program": "pytest", "args": ["-q"]},
+        {
+            "action_type": "READ_FILE",
+            "parameters": {"path": "README.md", "start_line": 1, "end_line": 20},
+            "reason": "inspect",
+        },
+        {"action_type": "SEARCH_CODE", "parameters": {"query": "create_app"}, "reason": "find"},
+        {
+            "action_type": "APPLY_PATCH",
+            "parameters": {"relative_path": "x.txt", "replacements": [{"old": "x", "new": "y"}]},
+            "reason": "edit",
+        },
+        {
+            "action_type": "CREATE_FILE",
+            "parameters": {"path": "x.txt", "content": "x"},
+            "reason": "add",
+        },
+        {"action_type": "DELETE_FILE", "parameters": {"path": "x.txt"}, "reason": "remove"},
+        {
+            "action_type": "RUN_COMMAND",
+            "parameters": {"program": "pytest", "args": ["-q"]},
+            "reason": "verify",
+        },
     ]
 
     for action in actions:

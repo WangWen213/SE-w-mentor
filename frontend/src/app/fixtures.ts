@@ -26,6 +26,21 @@ export interface WorkbenchMessage {
   text: string;
 }
 
+export type WorkbenchTimelineTarget = "changes" | "checks" | "governance";
+
+export interface WorkbenchTimelineItem {
+  action?: {
+    label: string;
+    target: WorkbenchTimelineTarget;
+  };
+  body: string;
+  createdAt: string;
+  id: string;
+  status: "SUCCESS" | "RUNNING" | "WAITING" | "FAILED";
+  taskId: string;
+  title: string;
+}
+
 export interface ProposalFixture {
   acceptanceCriteria?: string[];
   changes?: ProposalChange[];
@@ -33,6 +48,7 @@ export interface ProposalFixture {
   display?: ProposalDisplay;
   executionBoundary?: string[];
   expectedBehavior?: string;
+  id?: string;
   goal: string;
   items: string[];
   files: string;
@@ -50,6 +66,7 @@ export interface TaskFixture {
   title: string;
   status: string;
   messages: WorkbenchMessage[];
+  timeline?: WorkbenchTimelineItem[];
   changes: Array<{
     file: string;
     state: string;

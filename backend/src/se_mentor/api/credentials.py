@@ -21,6 +21,13 @@ class CredentialSetRequest(BaseModel):
     model: str = Field(min_length=1)
 
 
+class CredentialUpdateRequest(BaseModel):
+    provider: str = "OpenAI"
+    key: str | None = None
+    base_url: str = Field(min_length=1, alias="baseUrl")
+    model: str = Field(min_length=1)
+
+
 @router.get("/status")
 def status_credential() -> dict[str, object]:
     return ok(credential_status_payload(get_credential_store().status()))
@@ -28,7 +35,7 @@ def status_credential() -> dict[str, object]:
 
 @router.post("")
 def set_credential(payload: CredentialSetRequest, response: Response) -> dict[str, object]:
-    if payload.provider.lower() != "openai":
+    if not _is_supported_provider(payload.provider):
         response.status_code = status.HTTP_400_BAD_REQUEST
         return error("PROVIDER_UNSUPPORTED", "only OpenAI provider is supported")
     set_provider_config(base_url=payload.base_url, model=payload.model)
@@ -37,12 +44,13 @@ def set_credential(payload: CredentialSetRequest, response: Response) -> dict[st
 
 
 @router.put("")
-def update_credential(payload: CredentialSetRequest, response: Response) -> dict[str, object]:
-    if payload.provider.lower() != "openai":
+def update_credential(payload: CredentialUpdateRequest, response: Response) -> dict[str, object]:
+    if not _is_supported_provider(payload.provider):
         response.status_code = status.HTTP_400_BAD_REQUEST
         return error("PROVIDER_UNSUPPORTED", "only OpenAI provider is supported")
     set_provider_config(base_url=payload.base_url, model=payload.model)
-    status_result = get_credential_store().update_api_key(payload.key)
+    key = payload.key.strip() if payload.key else ""
+    status_result = get_credential_store().update_api_key(key) if key else get_credential_store().status()
     return ok(credential_status_payload(status_result))
 
 
@@ -50,3 +58,7 @@ def update_credential(payload: CredentialSetRequest, response: Response) -> dict
 def clear_credential() -> dict[str, object]:
     clear_provider_config()
     return ok(credential_status_payload(get_credential_store().clear_api_key()))
+
+
+def _is_supported_provider(provider: str) -> bool:
+    return provider.strip().lower() in {"openai", "openai-compatible"}

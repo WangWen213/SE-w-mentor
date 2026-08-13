@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from dataclasses import dataclass
+from time import perf_counter
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -37,6 +39,8 @@ from se_mentor.models.task import (
 from se_mentor.policy.compiler import ExecutionPolicyCompiler
 from se_mentor.proposals.review_service import ProposalReviewService
 
+LOGGER = logging.getLogger("se_mentor.orchestration.change_flow")
+
 
 @dataclass(frozen=True)
 class ConfirmFlowResult:
@@ -52,11 +56,20 @@ class ChangeFlowOrchestrator:
         self.provider = provider
 
     def confirm_and_analyze(self, proposal_id: str, *, actor_id: str) -> ConfirmFlowResult:
+        total_started = perf_counter()
         proposal = self.session.get(ChangeProposal, proposal_id)
         if proposal is None:
             raise ValueError("proposal not found")
+        confirm_started = perf_counter()
         ProposalReviewService(self.session).confirm_new_version(proposal_id, actor_id=actor_id)
         self.session.refresh(proposal)
+        confirm_ms = int((perf_counter() - confirm_started) * 1000)
+        LOGGER.info(
+            "[perf] confirm.persist task_id=%s proposal_id=%s duration_ms=%s",
+            proposal.task_id,
+            proposal.id,
+            confirm_ms,
+        )
         task = proposal.task
         task.status = TaskStatus.GOVERNING
         scope = _json_tuple(proposal.initial_scope_json)
@@ -66,6 +79,7 @@ class ChangeFlowOrchestrator:
         if project is None:
             raise ValueError("project not found")
         revision = task.base_revision or GitService(project.root_path).base_revision()
+        direct_started = perf_counter()
         diff_text = GitService(project.root_path).scoped_diff(list(scope))
         direct = DirectImpactAnalyzer(self.session).analyze(
             project_id=project.id,
@@ -73,11 +87,38 @@ class ChangeFlowOrchestrator:
             proposal_scope=scope,
             diff_text=diff_text,
         )
+        direct_ms = int((perf_counter() - direct_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] impact.code_index task_id=%s project_id=%s duration_ms=%s "
+                "scope_count=%s direct_count=%s"
+            ),
+            task.id,
+            project.id,
+            direct_ms,
+            len(scope),
+            len(direct.impacts),
+        )
+        indirect_started = perf_counter()
         indirect = IndirectImpactAnalyzer(self.session).expand(
             project_id=project.id,
             revision=revision,
             direct_impacts=direct.impacts,
         )
+        indirect_ms = int((perf_counter() - indirect_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] impact.dependencies task_id=%s project_id=%s duration_ms=%s "
+                "direct_count=%s indirect_count=%s unknown_count=%s"
+            ),
+            task.id,
+            project.id,
+            indirect_ms,
+            len(direct.impacts),
+            len(indirect.impacts),
+            len(indirect.unknowns),
+        )
+        evidence_started = perf_counter()
         evidence_items = _evidence_items(
             revision=revision,
             direct_impacts=direct.impacts,
@@ -92,6 +133,19 @@ class ChangeFlowOrchestrator:
             required_refs=evidence_refs,
             unresolved_assumptions=(*direct.unknowns, *indirect.unknowns),
         )
+        evidence_ms = int((perf_counter() - evidence_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] impact.context task_id=%s project_id=%s duration_ms=%s "
+                "evidence_count=%s unresolved_count=%s"
+            ),
+            task.id,
+            project.id,
+            evidence_ms,
+            len(evidence_items),
+            len(direct.unknowns) + len(indirect.unknowns),
+        )
+        report_started = perf_counter()
         impact_report = ImpactReportService(self.session, self.provider).generate(
             task_id=task.id,
             proposal_id=proposal.id,
@@ -101,7 +155,20 @@ class ChangeFlowOrchestrator:
             indirect_impacts=indirect.impacts,
             unknowns=(*direct.unknowns, *indirect.unknowns),
         )
+        report_ms = int((perf_counter() - report_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] impact.analysis task_id=%s proposal_id=%s duration_ms=%s "
+                "direct_count=%s indirect_count=%s"
+            ),
+            task.id,
+            proposal.id,
+            report_ms,
+            len(direct.impacts),
+            len(indirect.impacts),
+        )
         action = _ensure_proposal_action(self.session, task, proposal, scope)
+        governance_started = perf_counter()
         decision = GovernanceDecisionService(self.session).evaluate(
             task_id=task.id,
             action_id=action.id,
@@ -112,7 +179,20 @@ class ChangeFlowOrchestrator:
             llm_verdict=GovernanceVerdict.ALLOW,
             user_verdict=None,
         )
+        governance_ms = int((perf_counter() - governance_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] governance.decision_call task_id=%s proposal_id=%s duration_ms=%s "
+                "scope_count=%s decision=%s"
+            ),
+            task.id,
+            proposal.id,
+            governance_ms,
+            len(scope),
+            decision.decision,
+        )
         decision.impact_report_id = impact_report.id
+        approval_started = perf_counter()
         approval = ApprovalRequestService(self.session).create_for_decision(
             decision.id,
             requested_scope=scope,
@@ -134,6 +214,76 @@ class ChangeFlowOrchestrator:
         else:
             task.status = TaskStatus.BLOCKED
         self.session.flush()
+        approval_policy_ms = int((perf_counter() - approval_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] governance.policy_load task_id=%s proposal_id=%s duration_ms=%s "
+                "approval_request=%s decision=%s"
+            ),
+            task.id,
+            proposal.id,
+            approval_policy_ms,
+            approval is not None,
+            decision.decision,
+        )
+        LOGGER.info(
+            (
+                "[perf] impact.total task_id=%s proposal_id=%s duration_ms=%s "
+                "direct_ms=%s indirect_ms=%s context_ms=%s analysis_ms=%s"
+            ),
+            task.id,
+            proposal.id,
+            direct_ms + indirect_ms + evidence_ms + report_ms,
+            direct_ms,
+            indirect_ms,
+            evidence_ms,
+            report_ms,
+        )
+        LOGGER.info(
+            (
+                "[perf] governance.total task_id=%s proposal_id=%s duration_ms=%s "
+                "decision_ms=%s persist_ms=%s"
+            ),
+            task.id,
+            proposal.id,
+            governance_ms + approval_policy_ms,
+            governance_ms,
+            approval_policy_ms,
+        )
+        LOGGER.info(
+            (
+                "[perf] confirm.total task_id=%s proposal_id=%s duration_ms=%s "
+                "confirm_ms=%s impact_ms=%s governance_ms=%s"
+            ),
+            task.id,
+            proposal.id,
+            int((perf_counter() - total_started) * 1000),
+            confirm_ms,
+            direct_ms + indirect_ms + evidence_ms + report_ms,
+            governance_ms + approval_policy_ms,
+        )
+        LOGGER.info(
+            (
+                "[perf] confirm-flow proposal_id=%s task_id=%s total_ms=%s "
+                "confirm_ms=%s direct_ms=%s indirect_ms=%s evidence_ms=%s "
+                "impact_report_ms=%s governance_ms=%s approval_policy_ms=%s "
+                "scope_count=%s direct_count=%s indirect_count=%s decision=%s"
+            ),
+            proposal.id,
+            task.id,
+            int((perf_counter() - total_started) * 1000),
+            confirm_ms,
+            direct_ms,
+            indirect_ms,
+            evidence_ms,
+            report_ms,
+            governance_ms,
+            approval_policy_ms,
+            len(scope),
+            len(direct.impacts),
+            len(indirect.impacts),
+            decision.decision,
+        )
         return ConfirmFlowResult(proposal, impact_report, decision, approval)
 
 

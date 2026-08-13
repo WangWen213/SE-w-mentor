@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-from time import perf_counter
 from json import JSONDecodeError
+from time import perf_counter
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select
@@ -99,10 +99,35 @@ class ProposalGenerator:
         task = self.session.get(ChangeTask, task_id)
         if task is None:
             raise ProposalGenerationError("task not found")
+        total_started = perf_counter()
+        prompt_started = perf_counter()
         provider_request = _with_context(request, context_package, evidenced_paths)
+        prompt_build_ms = int((perf_counter() - prompt_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] proposal.prompt_build task_id=%s duration_ms=%s "
+                "prompt_chars=%s context_chars=%s selected_files_count=%s"
+            ),
+            task_id,
+            prompt_build_ms,
+            len(provider_request.input_text),
+            context_package.char_count if context_package is not None else 0,
+            len(evidenced_paths),
+        )
         provider_started = perf_counter()
         response = self.provider.complete(provider_request)
         provider_ms = int((perf_counter() - provider_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] proposal.provider task_id=%s duration_ms=%s "
+                "input_tokens=%s output_tokens=%s response_chars=%s"
+            ),
+            task_id,
+            provider_ms,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            len(response.content),
+        )
         content = response.content.strip()
         if not content:
             raise ProposalResponseEmpty("provider returned empty assistant content")
@@ -118,7 +143,10 @@ class ProposalGenerator:
             actual_keys = _actual_keys(payload)
             expected_keys = _expected_keys()
             LOGGER.warning(
-                "PROPOSAL_SCHEMA_VALIDATION_FAILED task_id=%s errors=%s actual_keys=%s expected_keys=%s",
+                (
+                    "PROPOSAL_SCHEMA_VALIDATION_FAILED task_id=%s errors=%s "
+                    "actual_keys=%s expected_keys=%s"
+                ),
                 task_id,
                 validation_errors,
                 actual_keys,
@@ -177,13 +205,40 @@ class ProposalGenerator:
             )
             self.session.add(proposal)
             self.session.flush()
+            completeness_started = perf_counter()
             ProposalCompletenessService(self.session).evaluate(proposal.id)
+            completeness_ms = int((perf_counter() - completeness_started) * 1000)
         except Exception as exc:
             raise ProposalPersistenceError("proposal persistence failed") from exc
         LOGGER.info(
-            "proposal.provider_ms=%s proposal.parse_ms=%s proposal.persist_ms=%s task_id=%s proposal_id=%s",
+            (
+                "[perf] proposal.persist task_id=%s proposal_id=%s duration_ms=%s "
+                "proposal_version=%s"
+            ),
+            task_id,
+            proposal.id,
+            int((perf_counter() - persist_started) * 1000),
+            proposal.version,
+        )
+        LOGGER.info(
+            (
+                "[perf] proposal.total task_id=%s proposal_id=%s duration_ms=%s "
+                "prompt_chars=%s context_chars=%s"
+            ),
+            task_id,
+            proposal.id,
+            int((perf_counter() - total_started) * 1000),
+            len(provider_request.input_text),
+            context_package.char_count if context_package is not None else 0,
+        )
+        LOGGER.info(
+            (
+                "[perf] proposal-generate provider_ms=%s parse_ms=%s completeness_ms=%s "
+                "proposal.persist_ms=%s task_id=%s proposal_id=%s"
+            ),
             provider_ms,
             parse_ms,
+            completeness_ms,
             int((perf_counter() - persist_started) * 1000),
             task_id,
             proposal.id,
@@ -274,7 +329,10 @@ def _proposal_prompt(
         "canonical_contract": "ProposalDraft",
         "json_schema": schema,
         "required_json_fields": _expected_keys(),
-        "path_rule": "scope entries must be selected from evidenced_existing_paths only",
+        "path_rule": (
+            "scope entries must be selected from evidenced_existing_paths only; "
+            "choose the smallest executable frontend/source scope that can satisfy the user request"
+        ),
         "evidenced_existing_paths": list(evidenced_paths),
     }
     sections = [
@@ -282,18 +340,46 @@ def _proposal_prompt(
         "Return only one JSON object that matches the canonical ProposalDraft schema.",
         "Do not add markdown fences, explanations, comments, or extra properties.",
         "All user-facing natural-language proposal content MUST be Simplified Chinese (zh-CN).",
+        "Keep user-facing zh-CN values concise: short phrases or one compact sentence per item.",
+        "Keep arrays small and only include implementation-relevant evidence.",
         "Keep JSON property names and enum values unchanged. Do not translate schema keys.",
         "Use snake_case property names exactly as shown in the schema.",
-        "Code identifiers, file paths, API names, library names, and proper technical nouns may remain English.",
+        (
+            "Code identifiers, file paths, API names, library names, and proper "
+            "technical nouns may remain English."
+        ),
         "The proposal is a scope contract for later impact analysis, governance, and execution.",
         "understanding must state how Mentor interprets the user's desired change.",
-        "changes must name existing repository paths from evidenced_existing_paths whenever a path is certain.",
+        (
+            "changes must name existing repository paths from evidenced_existing_paths whenever "
+            "a path is certain."
+        ),
+        (
+            "For simple UI text changes, prefer the direct frontend source file that contains "
+            "the requested text over broad app shells, docs, tests, or backend files."
+        ),
+        (
+            "When repository context includes semantic_context, prefer paths whose semantic "
+            "role matches the user's location or component wording, such as sidebar, "
+            "navigation, menu-item, button, or page-heading."
+        ),
         "Each change must explain the intended modification and why it belongs in scope.",
         "steps must be concrete implementation steps, not one-line generic workflow filler.",
         "risks must name likely impact/risk areas from the repository context.",
         "validation must state concrete checks the finished change should pass.",
-        "If a required list has no positive items, return an empty array rather than omitting the property.",
-        "Do not invent files. If exact files are uncertain, use a real existing candidate directory or module and say it needs execution-phase localization.",
+        (
+            "If a required list has no positive items, return an empty array rather than "
+            "omitting the property."
+        ),
+        (
+            "Do not invent files. If exact files are uncertain, choose the nearest real "
+            "candidate source path and let execution-phase SEARCH_CODE/READ_FILE localize "
+            "the exact line."
+        ),
+        (
+            "Do not include UNKNOWN/TBD/TODO placeholder risks when evidenced_existing_paths "
+            "contains a plausible real source candidate."
+        ),
         f"User request: {user_request}",
         f"Schema contract: {json.dumps(schema_instruction, ensure_ascii=False, sort_keys=True)}",
     ]
@@ -364,7 +450,7 @@ def _user_decisions(draft: ProposalDraft) -> list[str]:
 
 def _actual_keys(payload: object) -> list[str]:
     if isinstance(payload, dict):
-        return sorted(str(key) for key in payload.keys())
+        return sorted(str(key) for key in payload)
     return []
 
 

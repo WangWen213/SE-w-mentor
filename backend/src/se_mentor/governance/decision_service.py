@@ -3,6 +3,8 @@ from __future__ import annotations
 import fnmatch
 import hashlib
 import json
+import logging
+from time import perf_counter
 
 from sqlalchemy.orm import Session
 
@@ -14,6 +16,8 @@ from se_mentor.models.governance import (
     GovernanceVerdict,
 )
 from se_mentor.models.llm import RiskLevel
+
+LOGGER = logging.getLogger("se_mentor.governance.decision_service")
 
 
 class GovernanceDecisionService:
@@ -32,7 +36,11 @@ class GovernanceDecisionService:
         llm_verdict: GovernanceVerdict,
         user_verdict: GovernanceVerdict | None,
     ) -> GovernanceDecision:
+        total_started = perf_counter()
+        rules_started = perf_counter()
         matched = tuple(_matched_rules(rules, changed_paths))
+        rules_ms = int((perf_counter() - rules_started) * 1000)
+        decision_started = perf_counter()
         deny = tuple(rule for rule in matched if rule.effect == GovernanceRuleEffect.DENY_HARD)
         approval = tuple(
             rule for rule in matched if rule.effect == GovernanceRuleEffect.REQUIRE_APPROVAL
@@ -65,6 +73,7 @@ class GovernanceDecisionService:
             reason = "Allowed within finite changed path scope."
             allowed_scope = changed_paths
             denied_scope = ()
+        decision_ms = int((perf_counter() - decision_started) * 1000)
 
         evidence = {
             "matched_rules": [rule.key for rule in matched],
@@ -87,8 +96,52 @@ class GovernanceDecisionService:
             rule_set_version=_rule_version(matched),
             evidence_json=json.dumps(evidence, sort_keys=True, default=str),
         )
+        persist_started = perf_counter()
         self.session.add(governance_decision)
         self.session.flush()
+        persist_ms = int((perf_counter() - persist_started) * 1000)
+        LOGGER.info(
+            (
+                "[perf] governance.rules_load task_id=%s duration_ms=%s "
+                "rules_count=%s matched_rules=%s changed_paths=%s"
+            ),
+            task_id,
+            rules_ms,
+            len(rules),
+            len(matched),
+            len(changed_paths),
+        )
+        LOGGER.info(
+            (
+                "[perf] governance.decision task_id=%s duration_ms=%s "
+                "decision=%s risk=%s approval_required=%s"
+            ),
+            task_id,
+            decision_ms,
+            decision,
+            risk,
+            approval_required,
+        )
+        LOGGER.info(
+            (
+                "[perf] governance.persist task_id=%s duration_ms=%s "
+                "decision_id=%s"
+            ),
+            task_id,
+            persist_ms,
+            governance_decision.id,
+        )
+        LOGGER.info(
+            (
+                "[perf] governance.total task_id=%s duration_ms=%s "
+                "rules_ms=%s decision_ms=%s persist_ms=%s"
+            ),
+            task_id,
+            int((perf_counter() - total_started) * 1000),
+            rules_ms,
+            decision_ms,
+            persist_ms,
+        )
         return governance_decision
 
 

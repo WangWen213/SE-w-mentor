@@ -15,7 +15,7 @@ from se_mentor.models.execution import (
     ToolExecutionStatus,
     TransactionState,
 )
-from se_mentor.policy.grants import TemporaryGrant
+from se_mentor.policy.grants import ExecutionAuthorization, TemporaryGrant
 
 
 class CreateFileError(RuntimeError):
@@ -27,6 +27,7 @@ class CreateFileResult:
     relative_path: str
     after_sha256: str
     rollback_delete_path: str
+    tool_execution_id: str
 
 
 class CreateFileTool:
@@ -40,7 +41,7 @@ class CreateFileTool:
         task_id: str,
         action_id: str,
         transaction_id: str,
-        grant: TemporaryGrant,
+        grant: TemporaryGrant | ExecutionAuthorization,
         relative_path: str,
         content: str,
         revision: str,
@@ -91,7 +92,7 @@ class CreateFileTool:
             )
         )
         self.session.flush()
-        return CreateFileResult(normalized, after_hash, normalized)
+        return CreateFileResult(normalized, after_hash, normalized, tool_execution.id)
 
     def _prepared_transaction(self, transaction_id: str, task_id: str) -> TaskTransaction:
         transaction = self.session.get(TaskTransaction, transaction_id)

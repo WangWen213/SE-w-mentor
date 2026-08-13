@@ -11,18 +11,26 @@ from sqlalchemy import func, select
 from se_mentor.api.envelope import error, ok
 from se_mentor.api.projects import get_project_bootstrap_state, is_project_context_ready
 from se_mentor.api.runtime import get_domain_provider, get_session_factory
+from se_mentor.api.workbench_presentation import workbench_message_text
 from se_mentor.db.session import session_scope
 from se_mentor.llm.base import LLMRequest, ProviderError
-from se_mentor.models.task import ChangeProposal, ChangeTask, ProposalStatus, TaskStatus
+from se_mentor.models.task import (
+    ChangeProposal,
+    ChangeTask,
+    ProposalCompleteness,
+    ProposalStatus,
+    TaskStatus,
+)
 from se_mentor.models.workbench import WorkbenchMessage
+from se_mentor.orchestration.change_flow import ChangeFlowOrchestrator
 from se_mentor.proposals.context import ProposalContextBuilder
 from se_mentor.proposals.generator import ProposalGenerationError, ProposalGenerator
 from se_mentor.proposals.review_service import ProposalReviewService
-from se_mentor.api.workbench_presentation import workbench_message_text
 
 router = APIRouter(prefix="/api/tasks/{task_id}/proposals", tags=["proposals"])
 _SESSION_FACTORY = get_session_factory()
 LOGGER = logging.getLogger("se_mentor.api.proposals")
+_CONTEXT_NOT_READY_MESSAGE = "Project analysis is not ready; proposal context is not available yet."
 
 
 class ProposalCreate(BaseModel):
@@ -56,16 +64,21 @@ def create_proposal(task_id: str, payload: ProposalCreate, response: Response) -
         bootstrap_state = {"status": "READY"}
         if bootstrap_state.get("status") in {"REGISTERED", "BOOTSTRAPPING"}:
             response.status_code = status.HTTP_409_CONFLICT
-            return error("CONTEXT_BUILD_FAILED", "Project analysis is not ready; proposal context is not available yet.")
+            return error("CONTEXT_BUILD_FAILED", _CONTEXT_NOT_READY_MESSAGE)
         if bootstrap_state.get("status") == "BOOTSTRAP_FAILED":
             response.status_code = status.HTTP_409_CONFLICT
-            return error("CONTEXT_BUILD_FAILED", "Project analysis is not ready; proposal context is not available yet.")
+            return error("CONTEXT_BUILD_FAILED", _CONTEXT_NOT_READY_MESSAGE)
         try:
+            started = perf_counter()
             context_started = perf_counter()
             context = ProposalContextBuilder(session).build_for_task(task_id, payload.goal.strip())
+            context_ms = int((perf_counter() - context_started) * 1000)
             LOGGER.info(
-                "proposal.context_ms=%s task_id=%s context_chars=%s context_items=%s",
-                int((perf_counter() - context_started) * 1000),
+                (
+                    "[perf] proposal-context-api context_ms=%s task_id=%s "
+                    "context_chars=%s context_items=%s"
+                ),
+                context_ms,
                 task_id,
                 context.context_package.char_count,
                 len(context.context_package.items),
@@ -73,9 +86,14 @@ def create_proposal(task_id: str, payload: ProposalCreate, response: Response) -
         except Exception as exc:
             LOGGER.exception("PROPOSAL_CONTEXT failed task_id=%s", task_id)
             response.status_code = status.HTTP_409_CONFLICT
-            return error("CONTEXT_BUILD_FAILED", _safe_message(exc, "Unable to build proposal context"))
+            return error(
+                "CONTEXT_BUILD_FAILED",
+                _safe_message(exc, "Unable to build proposal context"),
+            )
         try:
-            proposal = ProposalGenerator(session, get_domain_provider()).generate(
+            provider = get_domain_provider()
+            generator = ProposalGenerator(session, provider)
+            proposal = generator.generate(
                 task_id=task_id,
                 request=LLMRequest(
                     prompt_summary="structured change proposal",
@@ -83,6 +101,34 @@ def create_proposal(task_id: str, payload: ProposalCreate, response: Response) -
                 ),
                 context_package=context.context_package,
                 evidenced_paths=context.evidenced_paths,
+            )
+            supplement_ms = 0
+            supplement_count = 0
+            if proposal.completeness == ProposalCompleteness.INCOMPLETE:
+                supplement_started = perf_counter()
+                proposal = _run_bounded_technical_supplement(
+                    session,
+                    generator,
+                    task,
+                    proposal,
+                    context,
+                )
+                supplement_ms = int((perf_counter() - supplement_started) * 1000)
+                supplement_count = 1
+            LOGGER.info(
+                (
+                    "[perf] proposal-api pipeline_ms=%s context_ms=%s preimpact_ms=0 "
+                    "proposal.completeness_ms=0 proposal.supplement_ms=%s "
+                    "proposal.provider_call_count=%s proposal.context_build_count=1 "
+                    "proposal.completeness_iteration_count=%s task_id=%s proposal_id=%s"
+                ),
+                int((perf_counter() - started) * 1000),
+                context_ms,
+                supplement_ms,
+                1 + supplement_count,
+                1 + supplement_count,
+                task_id,
+                proposal.id,
             )
         except ProviderError as exc:
             _add_workbench_message(
@@ -109,7 +155,10 @@ def create_proposal(task_id: str, payload: ProposalCreate, response: Response) -
         except Exception as exc:
             LOGGER.exception("PROPOSAL_PERSIST failed task_id=%s", task_id)
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return error("PROPOSAL_PERSIST_FAILED", _safe_message(exc, "Proposal persistence failed"))
+            return error(
+                "PROPOSAL_PERSIST_FAILED",
+                _safe_message(exc, "Proposal persistence failed"),
+            )
         proposal_payload = _proposal_payload(proposal)
         _add_workbench_message(
             session,
@@ -133,7 +182,11 @@ def current_proposal(task_id: str, response: Response) -> dict[str, object]:
         proposal = None
         if task.active_proposal_id:
             active = session.get(ChangeProposal, task.active_proposal_id)
-            if active is not None and active.task_id == task_id and active.status != ProposalStatus.SUPERSEDED:
+            if (
+                active is not None
+                and active.task_id == task_id
+                and active.status != ProposalStatus.SUPERSEDED
+            ):
                 proposal = active
         if proposal is None:
             proposal = session.scalars(
@@ -176,14 +229,48 @@ def confirm_proposal(task_id: str, proposal_id: str, response: Response) -> dict
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROPOSAL_NOT_FOUND", "proposal not found")
         try:
-            ProposalReviewService(session).confirm_new_version(proposal_id, actor_id="webui-user")
+            started = perf_counter()
+            result = ChangeFlowOrchestrator(session, get_domain_provider()).confirm_and_analyze(
+                proposal_id,
+                actor_id="webui-user",
+            )
+            proposal = result.proposal
+            LOGGER.info(
+                (
+                    "[perf] proposal-confirm-api task_id=%s proposal_id=%s total_ms=%s "
+                    "decision=%s approval_request=%s"
+                ),
+                task_id,
+                proposal_id,
+                int((perf_counter() - started) * 1000),
+                result.governance_decision.decision,
+                result.approval_request is not None,
+            )
         except ValueError as exc:
             response.status_code = status.HTTP_409_CONFLICT
             return error("PROPOSAL_CONFIRM_FAILED", str(exc))
+        except ProviderError as exc:
+            _add_workbench_message(
+                session,
+                task_id=task_id,
+                role="MENTOR",
+                kind="ERROR",
+                status="ERROR",
+                text=f"确认后影响分析失败：{_provider_message(exc)}",
+            )
+            response.status_code = status.HTTP_409_CONFLICT
+            return error(_provider_error_code(exc), _provider_message(exc))
         except Exception as exc:
-            LOGGER.exception("PROPOSAL_CONFIRM failed task_id=%s proposal_id=%s", task_id, proposal_id)
+            LOGGER.exception(
+                "PROPOSAL_CONFIRM failed task_id=%s proposal_id=%s",
+                task_id,
+                proposal_id,
+            )
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return error("PROPOSAL_CONFIRM_FAILED", _safe_message(exc, "Proposal confirmation failed"))
+            return error(
+                "PROPOSAL_CONFIRM_FAILED",
+                _safe_message(exc, "Proposal confirmation failed"),
+            )
         session.refresh(proposal)
         proposal_payload = _proposal_payload(proposal)
     return ok(proposal_payload)
@@ -245,10 +332,10 @@ def adjust_proposal(
         bootstrap_state = {"status": "READY"}
         if bootstrap_state.get("status") in {"REGISTERED", "BOOTSTRAPPING"}:
             response.status_code = status.HTTP_409_CONFLICT
-            return error("CONTEXT_BUILD_FAILED", "Project analysis is not ready; proposal context is not available yet.")
+            return error("CONTEXT_BUILD_FAILED", _CONTEXT_NOT_READY_MESSAGE)
         if bootstrap_state.get("status") == "BOOTSTRAP_FAILED":
             response.status_code = status.HTTP_409_CONFLICT
-            return error("CONTEXT_BUILD_FAILED", "Project analysis is not ready; proposal context is not available yet.")
+            return error("CONTEXT_BUILD_FAILED", _CONTEXT_NOT_READY_MESSAGE)
         try:
             context_started = perf_counter()
             context = ProposalContextBuilder(session).build_for_revision(
@@ -257,7 +344,10 @@ def adjust_proposal(
                 current_proposal=previous,
             )
             LOGGER.info(
-                "proposal.context_ms=%s task_id=%s context_chars=%s context_items=%s",
+                (
+                    "[perf] proposal-context-api context_ms=%s task_id=%s "
+                    "context_chars=%s context_items=%s"
+                ),
                 int((perf_counter() - context_started) * 1000),
                 task_id,
                 context.context_package.char_count,
@@ -266,7 +356,10 @@ def adjust_proposal(
         except Exception as exc:
             LOGGER.exception("PROPOSAL_CONTEXT adjust failed task_id=%s", task_id)
             response.status_code = status.HTTP_409_CONFLICT
-            return error("CONTEXT_BUILD_FAILED", _safe_message(exc, "Unable to build proposal context"))
+            return error(
+                "CONTEXT_BUILD_FAILED",
+                _safe_message(exc, "Unable to build proposal context"),
+            )
         try:
             adjusted = ProposalGenerator(session, get_domain_provider()).generate(
                 task_id=task_id,
@@ -302,7 +395,10 @@ def adjust_proposal(
         except Exception as exc:
             LOGGER.exception("PROPOSAL_PERSIST adjust failed task_id=%s", task_id)
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return error("PROPOSAL_PERSIST_FAILED", _safe_message(exc, "Proposal persistence failed"))
+            return error(
+                "PROPOSAL_PERSIST_FAILED",
+                _safe_message(exc, "Proposal persistence failed"),
+            )
         previous.status = ProposalStatus.SUPERSEDED
         adjusted.supersedes_id = previous.id
         task = session.get(ChangeTask, task_id)
@@ -330,6 +426,48 @@ def _proposal_message_text(proposal: ChangeProposal) -> str:
     if proposal.completeness == "PARTIALLY_COMPLETE":
         return f"Proposal v{proposal.version} 需要你补充一个产品决策后才能确认范围。"
     return f"Proposal v{proposal.version} 还需要 Mentor 补全技术分析，暂不能确认范围。"
+
+
+def _run_bounded_technical_supplement(
+    session,
+    generator: ProposalGenerator,
+    task: ChangeTask,
+    proposal: ChangeProposal,
+    context,
+) -> ChangeProposal:
+    reason = task.failure_message or "Proposal needs one bounded technical supplement."
+    supplemented = generator.generate(
+        task_id=task.id,
+        request=LLMRequest(
+            prompt_summary="structured technical proposal supplement",
+            input_text="\n".join(
+                [
+                    "Bounded technical supplement for the existing proposal.",
+                    f"Original request: {task.original_request}",
+                    f"Current proposal version: {proposal.version}",
+                    f"Missing technical analysis: {reason}",
+                    "Reuse the existing selected context and fill only missing technical details.",
+                ]
+            ),
+        ),
+        context_package=context.context_package,
+        evidenced_paths=context.evidenced_paths,
+    )
+    proposal.status = ProposalStatus.SUPERSEDED
+    supplemented.supersedes_id = proposal.id
+    if supplemented.completeness == ProposalCompleteness.COMPLETE:
+        task.failure_code = None
+        task.failure_message = None
+    elif supplemented.completeness == ProposalCompleteness.PARTIALLY_COMPLETE:
+        task.status = TaskStatus.NEEDS_INFORMATION
+    else:
+        task.status = TaskStatus.FAILED
+        task.failure_code = "PROPOSAL_INCOMPLETE_AFTER_SUPPLEMENT"
+        task.failure_message = (
+            "Proposal technical supplement completed but did not produce a confirmable proposal."
+        )
+    session.flush()
+    return supplemented
 
 
 def _proposal_payload(proposal: ChangeProposal) -> dict[str, object]:
@@ -412,7 +550,10 @@ def _proposal_completeness_payload(
     }
 
 
-def _proposal_technical_unknowns(proposal: ChangeProposal, constraints: dict[str, object]) -> list[str]:
+def _proposal_technical_unknowns(
+    proposal: ChangeProposal,
+    constraints: dict[str, object],
+) -> list[str]:
     values = [
         proposal.goal,
         proposal.expected_behavior,
@@ -424,7 +565,8 @@ def _proposal_technical_unknowns(proposal: ChangeProposal, constraints: dict[str
     unknowns: list[str] = []
     for value in values:
         lowered = str(value).lower()
-        if any(marker in lowered for marker in ("unknown", "tbd", "todo", "待补充", "待分析", "暂未确定", "不确定")):
+        markers = ("unknown", "tbd", "todo", "待补充", "待分析", "暂未确定", "不确定")
+        if any(marker in lowered for marker in markers):
             unknowns.append(str(value)[:180])
     return list(dict.fromkeys(unknowns))
 
@@ -579,23 +721,38 @@ def _provider_error_code(exc: ProviderError) -> str:
 def _provider_message(exc: ProviderError) -> str:
     code = _provider_error_code(exc)
     if str(exc) == "PROVIDER_UNAVAILABLE":
-        return "LLM provider is not configured. Configure credentials in Settings and regenerate the proposal."
+        return (
+            "LLM provider is not configured. Configure credentials in Settings and "
+            "regenerate the proposal."
+        )
     if code == "PROVIDER_CONFIG_INVALID":
         return "LLM provider configuration is incomplete. Check Provider, Base URL, and Model."
     if code == "PROVIDER_REQUEST_BUILD_FAILED":
         return f"LLM provider request could not be built: {_provider_detail(exc)}"
     if code in {"PROVIDER_HTTP_401", "PROVIDER_HTTP_403"}:
-        return f"LLM provider authentication failed ({code.removeprefix('PROVIDER_')}): {_provider_detail(exc)}"
+        return (
+            f"LLM provider authentication failed ({code.removeprefix('PROVIDER_')}): "
+            f"{_provider_detail(exc)}"
+        )
     if code == "PROVIDER_HTTP_429":
-        return f"LLM provider rate limit ({code.removeprefix('PROVIDER_')}): {_provider_detail(exc)}"
+        return (
+            f"LLM provider rate limit ({code.removeprefix('PROVIDER_')}): "
+            f"{_provider_detail(exc)}"
+        )
     if code.startswith("PROVIDER_HTTP_"):
-        return f"LLM provider request failed ({code.removeprefix('PROVIDER_')}): {_provider_detail(exc)}"
+        return (
+            f"LLM provider request failed ({code.removeprefix('PROVIDER_')}): "
+            f"{_provider_detail(exc)}"
+        )
     if code == "PROVIDER_CONNECTION_ERROR":
         return f"LLM provider connection failed: {_provider_detail(exc)}"
     if code == "PROVIDER_REQUEST_FAILED":
         return f"LLM provider request failed: {_provider_detail(exc)}"
     if code == "PROVIDER_TIMEOUT":
-        return "LLM provider timed out. The task was created, but the proposal could not be generated."
+        return (
+            "LLM provider timed out. The task was created, but the proposal could not be "
+            "generated."
+        )
     if code == "PROVIDER_INVALID_RESPONSE":
         return f"LLM provider returned an invalid response: {_provider_detail(exc)}"
     return str(exc)

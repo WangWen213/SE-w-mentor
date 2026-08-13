@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-import type { GovernanceReport, Proposal, Task } from "../api/mentorApi";
-import type { TaskTab, WorkbenchMessage } from "../app/fixtures";
+import type { DiffTrace, GovernanceReport, Proposal, Task } from "../api/mentorApi";
+import type { TaskTab, WorkbenchMessage, WorkbenchTimelineItem } from "../app/fixtures";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { GovernanceDecision } from "../components/GovernanceDecision";
@@ -46,7 +46,12 @@ const text = {
 interface ProposalReviewPageProps {
   approvalAction?: string | null;
   approvalGranted?: boolean;
+  changes?: DiffTrace[];
+  changesError?: string | null;
+  changesHasLoaded?: boolean;
+  changesLoading?: boolean;
   conversationMessages?: WorkbenchMessage[];
+  timelineItems?: WorkbenchTimelineItem[];
   error: string | null;
   governanceError?: string | null;
   governanceReport?: GovernanceReport | null;
@@ -58,11 +63,13 @@ interface ProposalReviewPageProps {
   onCancel: () => Promise<void>;
   onConfirm: () => Promise<void>;
   onDenyGovernance?: () => Promise<void>;
+  onOpenChanges?: () => void;
   onNeedAnswer?: (message: string) => Promise<void>;
   onOpenGovernance?: () => void;
   onRetryProposal?: () => Promise<void>;
   pendingAction: string | null;
   proposal: Proposal | null;
+  proposalState?: "LOADING" | "NOT_CREATED" | "EXISTS";
   stage?: NewTaskStage;
   task: Task | null;
 }
@@ -70,6 +77,10 @@ interface ProposalReviewPageProps {
 export function ProposalReviewPage({
   approvalAction,
   approvalGranted = false,
+  changes = [],
+  changesError = null,
+  changesHasLoaded = false,
+  changesLoading = false,
   conversationMessages = [],
   error,
   governanceError = null,
@@ -81,16 +92,20 @@ export function ProposalReviewPage({
   onCancel,
   onConfirm,
   onDenyGovernance,
+  onOpenChanges,
   onSubmitTurn,
   onOpenGovernance,
   onRetryProposal,
   pendingAction,
   proposal,
+  proposalState = "NOT_CREATED",
   stage = "IDLE",
   task,
+  timelineItems = [],
 }: ProposalReviewPageProps) {
   const [activeTab, setActiveTab] = useState<TaskTab>("conversation");
   const [composerText, setComposerText] = useState("");
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
   if (loading) {
     return <EmptyWorkbench title={text.loadingTitle} body={text.loadingBody} />;
@@ -103,23 +118,36 @@ export function ProposalReviewPage({
   const hasProposal = proposal !== null && !proposalFailed;
   const proposalConfirmed = hasProposal && proposal.status === "CONFIRMED";
   const proposalCanConfirm = hasProposal && (proposal.completeness?.canConfirm ?? true);
-  const analyzing = !hasProposal && !proposalFailed;
+  const proposalLoading = proposalState === "LOADING";
+  const analyzing = !hasProposal && !proposalFailed && !proposalLoading;
   const busy = pendingAction !== null || Boolean(harnessProgress);
-  const displayState = hasProposal
-    ? proposalConfirmed
-      ? "SCOPE_CONFIRMED"
-      : "AWAITING_CONFIRMATION"
-    : proposalFailed
-      ? "PROPOSAL_FAILED"
-      : "ANALYZING";
+  const displayState = deriveProposalDisplayState({
+    hasProposal,
+    proposalConfirmed,
+    proposalFailed,
+    proposalState,
+  });
   const displayStateLabel = stageLabel(displayState);
 
   const messages = conversationMessages;
+
+  const openTab = (tab: TaskTab) => {
+    setActiveTab(tab);
+    if (tab === "changes") {
+      onOpenChanges?.();
+    }
+  };
+
+  const focusComposer = () => {
+    setActiveTab("conversation");
+    composerRef.current?.focus();
+  };
 
   const taskForConversation = {
     title: task.request,
     status: displayStateLabel,
     messages,
+    timeline: timelineItems,
     changes: [],
     checks: [
       { label: text.taskCoverage, state: hasProposal ? text.toReview : text.waiting, tone: "neutral" as const },
@@ -218,9 +246,31 @@ export function ProposalReviewPage({
           </Button>
         </div>
       ) : null}
-      <TaskTabs active={activeTab} onChange={setActiveTab} />
-      {activeTab === "conversation" ? <Conversation task={taskForConversation} /> : null}
-      <ChangesPanel active={activeTab === "changes"} task={taskForConversation} />
+      <TaskTabs active={activeTab} onChange={openTab} />
+      {activeTab === "conversation" ? (
+        <Conversation
+          confirmDisabled={!proposalCanConfirm || pendingAction !== null}
+          confirmLabel={pendingAction === "confirm" ? text.confirming : text.confirm}
+          task={taskForConversation}
+          onAdjustProposal={focusComposer}
+          onConfirmProposal={() => void onConfirm()}
+          onTimelineAction={(target) => {
+            if (target === "governance") {
+              onOpenGovernance?.();
+              return;
+            }
+            openTab(target);
+          }}
+        />
+      ) : null}
+      <ChangesPanel
+        active={activeTab === "changes"}
+        changes={changes}
+        error={changesError}
+        hasLoaded={changesHasLoaded}
+        loading={changesLoading}
+        taskStatus={task.status}
+      />
       <ChecksPanel active={activeTab === "checks"} task={taskForConversation} />
       <div className="composer-wrap show">
         <form className="composer" onSubmit={submitComposer}>
@@ -231,6 +281,7 @@ export function ProposalReviewPage({
             aria-label={text.adjustment}
             disabled={busy || analyzing}
             id="proposal-adjustment"
+            ref={composerRef}
             placeholder={
               analyzing
                 ? text.analyzingPlaceholder
@@ -255,9 +306,6 @@ export function ProposalReviewPage({
               <Button disabled={busy || (!proposalFailed && (!composerText.trim() || !hasProposal))} type="submit">
                 {proposalFailed ? text.regenerate : hasProposal && proposal.missingInformationQuestion ? text.submitAnswer : text.adjustment}
               </Button>
-              {hasProposal && !proposalConfirmed ? (
-                <ProposalActions disabled={!proposalCanConfirm} pendingAction={pendingAction} onConfirm={onConfirm} />
-              ) : null}
             </div>
           </div>
         </form>
@@ -266,23 +314,32 @@ export function ProposalReviewPage({
   );
 }
 
-function ProposalActions({
-  disabled,
-  onConfirm,
-  pendingAction,
+export type ProposalDisplayState = "AWAITING_CONFIRMATION" | "SCOPE_CONFIRMED" | "PROPOSAL_FAILED" | "ANALYZING" | "LOADING";
+
+export function deriveProposalDisplayState({
+  hasProposal,
+  proposalConfirmed,
+  proposalFailed,
+  proposalState,
 }: {
-  disabled: boolean;
-  onConfirm: () => Promise<void>;
-  pendingAction: string | null;
-}) {
-  return (
-    <Button variant="dark" disabled={disabled || pendingAction !== null} onClick={onConfirm}>
-      {pendingAction === "confirm" ? text.confirming : text.confirm}
-    </Button>
-  );
+  hasProposal: boolean;
+  proposalConfirmed: boolean;
+  proposalFailed: boolean;
+  proposalState: "LOADING" | "NOT_CREATED" | "EXISTS";
+}): ProposalDisplayState {
+  if (hasProposal) {
+    return proposalConfirmed ? "SCOPE_CONFIRMED" : "AWAITING_CONFIRMATION";
+  }
+  if (proposalFailed) {
+    return "PROPOSAL_FAILED";
+  }
+  if (proposalState === "LOADING") {
+    return "LOADING";
+  }
+  return "ANALYZING";
 }
 
-function stageLabel(stage: "AWAITING_CONFIRMATION" | "SCOPE_CONFIRMED" | "PROPOSAL_FAILED" | "ANALYZING") {
+function stageLabel(stage: ProposalDisplayState) {
   switch (stage) {
     case "AWAITING_CONFIRMATION":
       return "\u65b9\u6848\u5f85\u786e\u8ba4";
@@ -290,6 +347,8 @@ function stageLabel(stage: "AWAITING_CONFIRMATION" | "SCOPE_CONFIRMED" | "PROPOS
       return "\u8303\u56f4\u5df2\u786e\u8ba4";
     case "PROPOSAL_FAILED":
       return text.failed;
+    case "LOADING":
+      return text.loadingTitle;
     case "ANALYZING":
       return "\u6b63\u5728\u751f\u6210\u65b9\u6848";
   }

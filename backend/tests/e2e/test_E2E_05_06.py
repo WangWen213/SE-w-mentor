@@ -78,7 +78,11 @@ def test_E2E_06_cancel_rollback(tmp_path: Path) -> None:
         script=(
             MockResponse(
                 match="run",
-                content='{"action_type":"READ_FILE","path":"src/modified.py","reason":"inspect"}',
+                content=(
+                    '{"action_type":"READ_FILE",'
+                    '"parameters":{"path":"src/modified.py","start_line":1,"end_line":20},'
+                    '"reason":"inspect"}'
+                ),
                 input_tokens=1,
                 output_tokens=1,
             ),

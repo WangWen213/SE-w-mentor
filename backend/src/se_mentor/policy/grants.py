@@ -27,6 +27,49 @@ class TemporaryGrant:
         return normalized in self.write_paths and normalized not in self.protected_paths
 
 
+@dataclass(frozen=True)
+class ExecutionAuthorization:
+    task_id: str
+    action_id: str
+    policy_id: str
+    proposal_hash: str
+    revision: str
+    write_paths: tuple[str, ...]
+    commands: tuple[str, ...]
+    protected_paths: tuple[str, ...]
+    temporary_grant: TemporaryGrant | None = None
+
+    @classmethod
+    def from_policy(
+        cls,
+        policy: ExecutionPolicy,
+        *,
+        temporary_grant: TemporaryGrant | None = None,
+    ) -> "ExecutionAuthorization":
+        return cls(
+            task_id=policy.task_id,
+            action_id=policy.action_id,
+            policy_id=policy.id,
+            proposal_hash=policy.proposal_hash,
+            revision=policy.revision,
+            write_paths=_json_tuple(policy.write_paths_json),
+            commands=_json_list(policy.commands_json),
+            protected_paths=_json_tuple(policy.protected_paths_json),
+            temporary_grant=temporary_grant,
+        )
+
+    def allows_write(self, relative_path: str, *, revision: str) -> bool:
+        if revision != self.revision:
+            return False
+        normalized = relative_path.replace("\\", "/")
+        baseline_allowed = normalized in self.write_paths and normalized not in self.protected_paths
+        if not baseline_allowed:
+            return False
+        if self.temporary_grant is None:
+            return True
+        return self.temporary_grant.allows_write(normalized, revision=revision)
+
+
 class TemporaryGrantService:
     def __init__(self, session: Session) -> None:
         self.session = session

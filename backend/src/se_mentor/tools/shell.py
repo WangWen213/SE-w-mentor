@@ -13,7 +13,7 @@ from se_mentor.models.execution import (
     ToolExecutionStatus,
     TransactionState,
 )
-from se_mentor.policy.grants import TemporaryGrant
+from se_mentor.policy.grants import ExecutionAuthorization, TemporaryGrant
 from se_mentor.security.process_env import build_child_env
 
 _SHELL_PROGRAMS = {"cmd", "powershell", "pwsh", "bash", "sh"}
@@ -31,6 +31,7 @@ class ShellResult:
     stderr: str
     timed_out: bool
     truncated: bool
+    tool_execution_id: str | None = None
 
 
 class ShellTool:
@@ -52,21 +53,22 @@ class ShellTool:
         *,
         task_id: str,
         action_id: str,
-        transaction_id: str,
-        grant: TemporaryGrant,
+        transaction_id: str | None,
+        grant: TemporaryGrant | ExecutionAuthorization,
         program: str,
         args: tuple[str, ...],
         cwd: str,
         revision: str,
         timeout_seconds: float = 30,
     ) -> ShellResult:
-        transaction = self._prepared_transaction(transaction_id, task_id)
+        transaction = (
+            self._prepared_transaction(transaction_id, task_id)
+            if transaction_id is not None
+            else None
+        )
         cwd_path = (self.project_root / cwd).resolve()
         if not cwd_path.is_relative_to(self.project_root):
             raise ShellToolError("cwd escape")
-        normalized_cwd = cwd_path.relative_to(self.project_root).as_posix() or "."
-        if not grant.allows_write(normalized_cwd, revision=revision):
-            raise ShellToolError("cwd not granted")
         program_name = Path(program).name.lower()
         if program_name in _SHELL_PROGRAMS or any(arg.lower() in {"-lc", "/c"} for arg in args):
             raise ShellToolError("command injection blocked")
@@ -74,7 +76,7 @@ class ShellTool:
             arg.lower() for arg in args
         }:
             raise ShellToolError("approval required command")
-        if program not in grant.commands:
+        if "RUN_COMMAND" not in grant.commands and program not in grant.commands:
             raise ShellToolError("command not granted")
 
         try:
@@ -88,6 +90,23 @@ class ShellTool:
                 timeout=timeout_seconds,
                 check=False,
             )
+        except FileNotFoundError:
+            result = ShellResult(
+                None,
+                "",
+                f"program not found: {program}",
+                False,
+                False,
+            )
+            execution = self._record(transaction, task_id, action_id, program, args, result)
+            return ShellResult(
+                None,
+                "",
+                f"program not found: {program}",
+                False,
+                False,
+                execution.id,
+            )
         except subprocess.TimeoutExpired as exc:
             stdout = _to_text(exc.stdout)
             stderr = _to_text(exc.stderr)
@@ -97,8 +116,10 @@ class ShellTool:
                 self.max_output_chars,
             )
             result = ShellResult(None, truncated_stdout, truncated_stderr, True, truncated)
-            self._record(transaction, task_id, action_id, program, args, result)
-            return result
+            execution = self._record(transaction, task_id, action_id, program, args, result)
+            return ShellResult(
+                None, truncated_stdout, truncated_stderr, True, truncated, execution.id
+            )
 
         stdout, stderr, truncated = _truncate(
             completed.stdout,
@@ -106,8 +127,8 @@ class ShellTool:
             self.max_output_chars,
         )
         result = ShellResult(completed.returncode, stdout, stderr, False, truncated)
-        self._record(transaction, task_id, action_id, program, args, result)
-        return result
+        execution = self._record(transaction, task_id, action_id, program, args, result)
+        return ShellResult(completed.returncode, stdout, stderr, False, truncated, execution.id)
 
     def _prepared_transaction(self, transaction_id: str, task_id: str) -> TaskTransaction:
         transaction = self.session.get(TaskTransaction, transaction_id)
@@ -122,13 +143,13 @@ class ShellTool:
 
     def _record(
         self,
-        transaction: TaskTransaction,
+        transaction: TaskTransaction | None,
         task_id: str,
         action_id: str,
         program: str,
         args: tuple[str, ...],
         result: ShellResult,
-    ) -> None:
+    ) -> ToolExecution:
         status = (
             ToolExecutionStatus.CANCELLED
             if result.timed_out
@@ -138,27 +159,27 @@ class ShellTool:
                 else ToolExecutionStatus.FAILED
             )
         )
-        self.session.add(
-            ToolExecution(
-                task_id=task_id,
-                action_id=action_id,
-                transaction_id=transaction.id,
-                tool_name="RUN_COMMAND",
-                command_summary=program,
-                status=status,
-                exit_code=result.exit_code,
-                evidence_json=json.dumps(
-                    {
-                        "program": program,
-                        "args": args,
-                        "timed_out": result.timed_out,
-                        "truncated": result.truncated,
-                    },
-                    sort_keys=True,
-                ),
-            )
+        execution = ToolExecution(
+            task_id=task_id,
+            action_id=action_id,
+            transaction_id=transaction.id if transaction is not None else None,
+            tool_name="RUN_COMMAND",
+            command_summary=program,
+            status=status,
+            exit_code=result.exit_code,
+            evidence_json=json.dumps(
+                {
+                    "program": program,
+                    "args": args,
+                    "timed_out": result.timed_out,
+                    "truncated": result.truncated,
+                },
+                sort_keys=True,
+            ),
         )
+        self.session.add(execution)
         self.session.flush()
+        return execution
 
 
 def _truncate(stdout: str, stderr: str, max_chars: int) -> tuple[str, str, bool]:

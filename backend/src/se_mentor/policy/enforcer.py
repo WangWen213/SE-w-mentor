@@ -8,7 +8,7 @@ from typing import TypeVar
 from sqlalchemy.orm import Session
 
 from se_mentor.models.approval import ExecutionPolicy, ExecutionPolicyStatus
-from se_mentor.policy.grants import TemporaryGrant
+from se_mentor.policy.grants import ExecutionAuthorization, TemporaryGrant
 
 T = TypeVar("T")
 
@@ -27,7 +27,7 @@ class PolicyEnforcer:
         self,
         *,
         policy_id: str,
-        grant: TemporaryGrant,
+        grant: TemporaryGrant | ExecutionAuthorization,
         relative_path: str,
         revision: str,
         orchestrator_allowed: bool,

@@ -6,6 +6,7 @@ import type { NavKey } from "./fixtures";
 import { navItems } from "./fixtures";
 
 const shellText = {
+  booting: "\u6b63\u5728\u6062\u590d\u5de5\u4f5c\u53f0",
   bootstrapFailed: "\u9879\u76ee\u5206\u6790\u5931\u8d25\uff0c\u4ecd\u53ef\u8fdb\u5165\u5de5\u4f5c\u53f0",
   bootstrapping: "\u6b63\u5728\u5206\u6790\u9879\u76ee",
   currentProject: "\u5f53\u524d\u9879\u76ee",
@@ -27,6 +28,7 @@ interface AppShellProps {
   onNewTask: () => void;
   onOpenProject: () => void;
   onViewChange: (view: NavKey) => void;
+  projectHydrationState?: "BOOTING" | "READY" | "EMPTY" | "ERROR";
   project: Project | null;
   projectBootstrap: Project["bootstrap"] | null;
   projectError: string | null;
@@ -40,6 +42,7 @@ export function AppShell({
   onNewTask,
   onOpenProject,
   onViewChange,
+  projectHydrationState = "READY",
   project,
   projectBootstrap,
   projectError,
@@ -48,7 +51,9 @@ export function AppShell({
 }: AppShellProps) {
   const projectName = project?.rootPath
     ? project.rootPath.replaceAll("\\", "/").split("/").filter(Boolean).at(-1) ?? project.id
-    : shellText.noProject;
+    : projectHydrationState === "BOOTING"
+      ? shellText.booting
+      : shellText.noProject;
   const branch = project?.branch ?? "main";
 
   return (
@@ -68,7 +73,11 @@ export function AppShell({
             {projectName}
           </div>
           <div className="project-meta">
-            {project ? `${branch} - ${project.rootPath ?? project.id}` : shellText.selectRepo}
+            {project
+              ? `${branch} - ${project.rootPath ?? project.id}`
+              : projectHydrationState === "BOOTING"
+                ? shellText.booting
+                : shellText.selectRepo}
           </div>
           {project && projectBootstrap?.status && projectBootstrap.status !== "READY" ? (
             <div className={`project-bootstrap ${projectBootstrap.status.toLowerCase()}`}>
