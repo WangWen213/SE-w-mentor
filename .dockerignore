@@ -32,6 +32,10 @@ deploy/**/.git/
 logs/
 backups/
 secrets/
+certs/
+letsencrypt/
+deploy/nginx/certs/
+deploy/nginx/letsencrypt/
 evidence/
 
 .env

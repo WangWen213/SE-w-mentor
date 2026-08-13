@@ -235,6 +235,10 @@ backend/backups/
 /backend/logs/
 secrets/
 backend/secrets/
+certs/
+letsencrypt/
+deploy/nginx/certs/
+deploy/nginx/letsencrypt/
 *.pem
 *.key
 *.sqlite

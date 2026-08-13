@@ -69,6 +69,20 @@ def test_T107_compose_enforces_cloud_demo_persistence_and_local_backend_boundary
     assert ":/workspace" not in compose
 
 
+def test_T108_compose_gateway_is_the_public_entrypoint() -> None:
+    compose = read("deploy/docker-compose.yml")
+    assert "  gateway:" in compose
+    assert "./nginx/se-mentor.conf:/etc/nginx/conf.d/default.conf:ro" in compose
+    assert (
+        "./nginx/snippets/se-mentor-locations.conf:/etc/nginx/se-mentor-locations.conf:ro"
+        in compose
+    )
+    assert '"127.0.0.1:${SE_MENTOR_GATEWAY_HTTP_PORT:-8088}:8080"' in compose
+    assert "frontend:" in compose
+    assert "backend:" in compose
+    assert "se_mentor_internal" in compose
+
+
 def test_T107_dockerignore_excludes_dev_runtime_and_secret_material() -> None:
     dockerignore = read(".dockerignore")
     for pattern in (
