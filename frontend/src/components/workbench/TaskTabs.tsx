@@ -13,7 +13,7 @@ interface TaskTabsProps {
 
 export function TaskTabs({ active, onChange }: TaskTabsProps) {
   return (
-    <div aria-label="\u4efb\u52a1\u5185\u5bb9" className="tabs" role="tablist">
+    <div aria-label="任务内容" className="tabs" role="tablist">
       {tabs.map((tab) => (
         <button
           key={tab.key}

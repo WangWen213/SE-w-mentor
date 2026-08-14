@@ -1832,9 +1832,9 @@ export function SettingsViewV2({
   };
 
   return (
-    <Page title="\u8bbe\u7f6e">
+    <Page title="设置">
       <div className="settings-grid">
-        <EmptyState title="\u9879\u76ee" body={`\u5f53\u524d\u9879\u76ee\uff1a${projectPath}`} />
+        <EmptyState title="项目" body={`\u5f53\u524d\u9879\u76ee\uff1a${projectPath}`} />
         <section className="setting-card">
           <div className="setting-head">
             <div className="setting-title">

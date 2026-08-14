@@ -7,6 +7,7 @@ set -eu
 : "${SE_MENTOR_DATABASE_URL:=sqlite:///${SE_MENTOR_RUNTIME_ROOT}/se_mentor_api.sqlite3}"
 : "${SE_MENTOR_HOST:=0.0.0.0}"
 : "${SE_MENTOR_PORT:=8000}"
+: "${SE_MENTOR_RUNTIME_PROFILE:=CLOUD_DEMO}"
 
 mkdir -p "${SE_MENTOR_RUNTIME_ROOT}" "$(dirname "${SE_MENTOR_DEMO_WORKSPACE}")" /tmp/se-mentor
 
@@ -15,7 +16,7 @@ if [ ! -d "${SE_MENTOR_DEMO_WORKSPACE}/.baseline" ]; then
   cp -R /opt/se-mentor/demo-workspace "${SE_MENTOR_DEMO_WORKSPACE}"
 fi
 
-export SE_MENTOR_RUNTIME_PROFILE=CLOUD_DEMO
+export SE_MENTOR_RUNTIME_PROFILE
 export SE_MENTOR_RUNTIME_ROOT
 export SE_MENTOR_DEMO_RUNTIME_ROOT
 export SE_MENTOR_DEMO_WORKSPACE

@@ -35,9 +35,9 @@ export function ChangesPanel({
     >
       <div className="simple-panel">
         {initialLoading ? (
-          <EmptyState title="\u6b63\u5728\u8bfb\u53d6\u771f\u5b9e\u6539\u52a8" body="\u6b63\u5728\u4ece\u540e\u7aef FileChange \u8bb0\u5f55\u8bfb\u53d6\u3002" />
+          <EmptyState title="正在读取真实改动" body="正在从后端 FileChange 记录读取。" />
         ) : error && changes.length === 0 ? (
-          <EmptyState title="\u6539\u52a8\u8bfb\u53d6\u5931\u8d25" body={error} />
+          <EmptyState title="改动读取失败" body={error} />
         ) : empty ? (
           <EmptyState title={emptyTitle} body={emptyBodyFor(taskStatus)} />
         ) : (
