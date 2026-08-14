@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 NGINX = ROOT / "deploy" / "nginx" / "se-mentor.conf"
 SNIPPET = ROOT / "deploy" / "nginx" / "snippets" / "se-mentor-locations.conf"
 COMPOSE = ROOT / "deploy" / "docker-compose.yml"
+PRODUCTION_COMPOSE = ROOT / "deploy" / "docker-compose.production.yml"
 
 
 def read(path: Path) -> str:
@@ -59,6 +60,7 @@ def test_T108_frontend_api_health_and_spa_routes_are_defined() -> None:
 
     health = location_block(snippet, "= /health")
     assert "proxy_pass http://se_mentor_backend/health;" in health
+    assert "client_max_body_size 100m;" in snippet
 
 
 def test_T108_sse_location_is_specific_and_disables_buffering() -> None:
@@ -119,9 +121,29 @@ def test_T108_https_is_external_cert_ready_without_committed_material() -> None:
     template = read(ROOT / "deploy" / "nginx" / "se-mentor-https.template.conf")
     assert "ssl_certificate /etc/nginx/certs/fullchain.pem;" in template
     assert "ssl_certificate_key /etc/nginx/certs/privkey.pem;" in template
-    assert "return 301 https://$host$request_uri;" in template
+    assert "listen 8443 ssl http2;" in template
+    assert "location ^~ /.well-known/acme-challenge/" in template
+    assert "root /var/www/acme;" in template
+    assert "return 301 https://$host$request_uri;" in location_block(template, "/")
     assert "-----BEGIN" not in template
 
     ignore = read(ROOT / ".gitignore") + read(ROOT / ".dockerignore")
     for pattern in ("*.pem", "*.key", "certs/", "letsencrypt/"):
         assert pattern in ignore
+
+
+def test_phase5a_production_compose_is_https_ready_without_public_app_ports() -> None:
+    compose = read(PRODUCTION_COMPOSE)
+    base = read(COMPOSE)
+
+    assert 'SE_MENTOR_RUNTIME_PROFILE: CLOUD_DEMO' in base
+    assert 'SE_MENTOR_TRUST_PROXY: "false"' in base
+    assert 'SE_MENTOR_RUNTIME_PROFILE: "${SE_MENTOR_RUNTIME_PROFILE:-CLOUD_DEMO}"' in compose
+    assert 'SE_MENTOR_TRUST_PROXY: "${SE_MENTOR_TRUST_PROXY:-false}"' in compose
+    assert "se-mentor-https.template.conf:/etc/nginx/conf.d/default.conf:ro" in compose
+    assert "${SE_MENTOR_TLS_CERT_DIR:-./certs}:/etc/nginx/certs:ro" in compose
+    assert "${SE_MENTOR_ACME_WEBROOT:-./acme-webroot}:/var/www/acme:ro" in compose
+    assert '"${SE_MENTOR_PUBLIC_HTTP_PORT:-80}:8080"' in compose
+    assert '"${SE_MENTOR_PUBLIC_HTTPS_PORT:-443}:8443"' in compose
+    assert "8000:8000" not in compose
+    assert "8080:8080" not in compose

@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from se_mentor.models.task import ChangeProposal, ChangeTask, ProposalCreatedByType
 from se_mentor.runtime.online_provider_security import (
     ONLINE_SAFE_PROVIDER_CREDENTIAL_REQUIRED,
     ONLINE_SAFE_PROVIDER_ENDPOINT_FORBIDDEN,
@@ -191,7 +190,7 @@ def test_online_safe_provider_construction_is_session_scoped_without_network(
     )
 
 
-def test_online_safe_public_agent_flow_remains_locked(
+def test_online_safe_public_agent_flow_requires_credential_then_reaches_task_boundary(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -199,40 +198,33 @@ def test_online_safe_public_agent_flow_remains_locked(
         monkeypatch,
         tmp_path / "runtime",
     )
+    monkeypatch.setattr(
+        "se_mentor.runtime.online_provider_security.socket.getaddrinfo",
+        _resolver({"api.example.test": ["93.184.216.34"]}),
+    )
     client = TestClient(app_module.create_app(), base_url="https://testserver")
     assert runtime_module._ENGINE is not None
     project_id = _import_project(client)["id"]
-    with runtime_module.get_session_factory()() as session:
-        task = ChangeTask(project_id=project_id, original_request="do work")
-        session.add(task)
-        session.flush()
-        proposal = ChangeProposal(
-            task_id=task.id,
-            version=1,
-            goal="do work",
-            expected_behavior="done",
-            initial_scope_json="[]",
-            acceptance_criteria_json="[]",
-            status="DRAFT",
-            created_by_type=ProposalCreatedByType.LLM,
-        )
-        session.add(proposal)
-        session.commit()
-        task_id = task.id
-        proposal_id = proposal.id
-
-    responses = [
-        client.post("/api/tasks", json={"projectId": project_id, "request": "do work"}),
-        client.post(f"/api/tasks/{task_id}/proposals", json={"goal": "do work"}),
-        client.post(f"/api/tasks/{task_id}/proposals/{proposal_id}/confirm"),
-        client.post(f"/api/tasks/{task_id}/execute", json={"command": "pytest"}),
-    ]
-
-    assert all(response.status_code == 409 for response in responses)
-    assert all(
-        response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_EXECUTION_ERROR
-        for response in responses
+    missing_credential = client.post(
+        "/api/tasks",
+        json={"projectId": project_id, "request": "do work"},
     )
+    configured = client.post(
+        "/api/credentials/llm",
+        json={
+            "provider": "openai-compatible",
+            "key": ONLINE_SAFE_TEST_KEY,
+            "baseUrl": "https://api.example.test/v1",
+            "model": "model-a",
+        },
+    )
+    task = client.post("/api/tasks", json={"projectId": project_id, "request": "do work"})
+
+    assert missing_credential.status_code == 409
+    assert missing_credential.json()["error"]["code"] == ONLINE_SAFE_PROVIDER_CREDENTIAL_REQUIRED
+    assert configured.status_code == 200
+    assert task.status_code == 201
+    assert task.json()["data"]["projectId"] == project_id
 
 
 def _resolver(hosts: dict[str, list[str]]):
@@ -272,6 +264,7 @@ def _reload_api_for_online_safe(monkeypatch: pytest.MonkeyPatch, runtime_root: P
     monkeypatch.setenv("SE_MENTOR_RUNTIME_ROOT", str(runtime_root))
     import se_mentor.api.credentials as credentials_api
     import se_mentor.api.execution as execution_api
+    import se_mentor.api.online_readiness as online_readiness_api
     import se_mentor.api.projects as projects_api
     import se_mentor.api.proposals as proposals_api
     import se_mentor.api.runtime as runtime
@@ -280,6 +273,7 @@ def _reload_api_for_online_safe(monkeypatch: pytest.MonkeyPatch, runtime_root: P
     import se_mentor.main as main
 
     runtime = importlib.reload(runtime)
+    importlib.reload(online_readiness_api)
     projects_api = importlib.reload(projects_api)
     credentials_api = importlib.reload(credentials_api)
     tasks_api = importlib.reload(tasks_api)

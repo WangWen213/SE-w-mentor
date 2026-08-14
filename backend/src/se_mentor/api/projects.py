@@ -47,6 +47,7 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 _SESSION_FACTORY = get_session_factory()
 LOGGER = logging.getLogger("se_mentor.api.projects")
 ONLINE_SAFE_PROJECT_ZIP_REQUIRED = "ONLINE_SAFE_PROJECT_ZIP_REQUIRED"
+ONLINE_SAFE_PROJECT_ALREADY_EXISTS = "ONLINE_SAFE_PROJECT_ALREADY_EXISTS"
 ONLINE_SAFE_PATCH_EXPORT_UNTRACKED_ERROR = "ONLINE_SAFE_PATCH_EXPORT_UNTRACKED_UNSUPPORTED"
 _BOOTSTRAP_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="project-bootstrap")
 _BOOTSTRAP_LOCK = Lock()
@@ -219,9 +220,10 @@ async def import_project_zip(request: Request, response: Response) -> dict[str, 
         return error("ONLINE_SAFE_SESSION_LIMIT_REACHED", "active session limit reached")
     existing = _online_project_for_owner(owner_hash)
     if existing is not None:
-        response.status_code = status.HTTP_200_OK
-        return ok(
-            _project_payload(existing, bootstrap=get_project_bootstrap_state(existing.id))
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(
+            ONLINE_SAFE_PROJECT_ALREADY_EXISTS,
+            "current ONLINE_SAFE session already has an imported project",
         )
     archive = await request.body()
     archive_name = request.headers.get("x-se-mentor-filename", "project.zip")

@@ -10,16 +10,19 @@ from sqlalchemy import func, select
 
 from se_mentor.api.envelope import error, ok
 from se_mentor.api.online_access import require_proposal_access, require_task_access
+from se_mentor.api.online_readiness import (
+    OnlineSafeReadiness,
+    require_online_safe_project_readiness,
+)
 from se_mentor.api.projects import get_project_bootstrap_state, is_project_context_ready
 from se_mentor.api.runtime import (
-    ONLINE_SAFE_EXECUTION_ERROR,
     get_domain_provider,
     get_runtime_settings,
     get_session_factory,
 )
 from se_mentor.api.workbench_presentation import workbench_message_text
 from se_mentor.db.session import session_scope
-from se_mentor.llm.base import LLMRequest, ProviderError
+from se_mentor.llm.base import LLMProvider, LLMRequest, ProviderError
 from se_mentor.models.task import (
     ChangeProposal,
     ChangeTask,
@@ -65,8 +68,6 @@ def create_proposal(
             if require_task_access(session, task_id, request, response) is None:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("TASK_NOT_FOUND", "task not found")
-    if online_safe_error := _online_safe_execution_error(response):
-        return online_safe_error
     with session_scope(_SESSION_FACTORY) as session:
         task = require_task_access(session, task_id, request, response)
         if task is None:
@@ -90,6 +91,9 @@ def create_proposal(
             return error("CONTEXT_BUILD_FAILED", _CONTEXT_NOT_READY_MESSAGE)
         try:
             started = perf_counter()
+            provider = _provider_for_project(session, task.project_id, request, response)
+            if isinstance(provider, dict):
+                return provider
             context_started = perf_counter()
             context = ProposalContextBuilder(session).build_for_task(task_id, payload.goal.strip())
             context_ms = int((perf_counter() - context_started) * 1000)
@@ -111,7 +115,6 @@ def create_proposal(
                 _safe_message(exc, "Unable to build proposal context"),
             )
         try:
-            provider = get_domain_provider()
             generator = ProposalGenerator(session, provider)
             proposal = generator.generate(
                 task_id=task_id,
@@ -254,8 +257,6 @@ def confirm_proposal(
             if proposal is None or proposal.task_id != task_id:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("PROPOSAL_NOT_FOUND", "proposal not found")
-    if online_safe_error := _online_safe_execution_error(response):
-        return online_safe_error
     with session_scope(_SESSION_FACTORY) as session:
         proposal = require_proposal_access(session, proposal_id, request, response)
         if proposal is None or proposal.task_id != task_id:
@@ -263,7 +264,10 @@ def confirm_proposal(
             return error("PROPOSAL_NOT_FOUND", "proposal not found")
         try:
             started = perf_counter()
-            result = ChangeFlowOrchestrator(session, get_domain_provider()).confirm_and_analyze(
+            provider = _provider_for_project(session, proposal.task.project_id, request, response)
+            if isinstance(provider, dict):
+                return provider
+            result = ChangeFlowOrchestrator(session, provider).confirm_and_analyze(
                 proposal_id,
                 actor_id="webui-user",
             )
@@ -322,8 +326,6 @@ def reject_proposal(
             if proposal is None or proposal.task_id != task_id:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("PROPOSAL_NOT_FOUND", "proposal not found")
-    if online_safe_error := _online_safe_execution_error(response):
-        return online_safe_error
     with session_scope(_SESSION_FACTORY) as session:
         proposal = require_proposal_access(session, proposal_id, request, response)
         if proposal is None or proposal.task_id != task_id:
@@ -352,8 +354,6 @@ def adjust_proposal(
             if previous is None or previous.task_id != task_id:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("PROPOSAL_NOT_FOUND", "proposal not found")
-    if online_safe_error := _online_safe_execution_error(response):
-        return online_safe_error
     instruction = payload.instruction.strip()
     if not instruction:
         response.status_code = status.HTTP_400_BAD_REQUEST
@@ -392,6 +392,9 @@ def adjust_proposal(
             response.status_code = status.HTTP_409_CONFLICT
             return error("CONTEXT_BUILD_FAILED", _CONTEXT_NOT_READY_MESSAGE)
         try:
+            provider = _provider_for_project(session, task.project_id, request, response)
+            if isinstance(provider, dict):
+                return provider
             context_started = perf_counter()
             context = ProposalContextBuilder(session).build_for_revision(
                 task_id=task_id,
@@ -416,7 +419,7 @@ def adjust_proposal(
                 _safe_message(exc, "Unable to build proposal context"),
             )
         try:
-            adjusted = ProposalGenerator(session, get_domain_provider()).generate(
+            adjusted = ProposalGenerator(session, provider).generate(
                 task_id=task_id,
                 request=LLMRequest(
                     prompt_summary="structured adjusted change proposal",
@@ -675,11 +678,18 @@ def _proposal_generation_error(exc: ProposalGenerationError) -> dict[str, object
     )
 
 
-def _online_safe_execution_error(response: Response) -> dict[str, object] | None:
+def _provider_for_project(
+    session,
+    project_id: str,
+    request: Request,
+    response: Response,
+) -> LLMProvider | dict[str, object]:
     if get_runtime_settings().profile is not RuntimeProfile.ONLINE_SAFE:
-        return None
-    response.status_code = status.HTTP_409_CONFLICT
-    return error(ONLINE_SAFE_EXECUTION_ERROR, "online safe execution is not ready")
+        return get_domain_provider()
+    readiness = require_online_safe_project_readiness(session, project_id, request, response)
+    if isinstance(readiness, OnlineSafeReadiness):
+        return readiness.provider
+    return readiness
 
 
 def _add_workbench_message(

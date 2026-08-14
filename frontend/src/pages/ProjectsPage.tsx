@@ -36,18 +36,16 @@ export function ProjectsPage({
           <div className="page-actions">
             {onlineSafe && project ? (
               <>
-                <Button onClick={onDownloadZip}>
-                  下载项目 ZIP
-                </Button>
-                <Button onClick={onDownloadPatch}>
-                  下载变更 Patch
-                </Button>
+                <Button onClick={onDownloadZip}>下载修改后的项目</Button>
+                <Button onClick={onDownloadPatch}>下载变更 Patch</Button>
               </>
             ) : null}
             <Button onClick={onStartNewTask}>新建任务</Button>
           </div>
         </div>
-        {loading ? <EmptyState title="正在加载任务" body="Mentor 正在读取后端任务列表。" /> : null}
+        {loading ? (
+          <EmptyState title="正在加载任务" body="Mentor 正在读取后端任务列表。" />
+        ) : null}
         {error ? (
           <div className="action-error" role="alert">
             <div>
@@ -59,7 +57,7 @@ export function ProjectsPage({
         {!loading && !error && project && tasks.length === 0 ? (
           <EmptyState
             title="还没有任务"
-            body="创建一个任务后，Mentor 会先整理方案，不会立即修改文件。"
+            body="创建一个任务后，Mentor 会先整理方案，不会立刻修改文件。"
             action="新建任务"
           />
         ) : null}

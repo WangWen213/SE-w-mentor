@@ -10,8 +10,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from se_mentor.agent.runtime import AgentRuntime, ExecutionPipelineUnavailable
 from se_mentor.api.envelope import error, ok
 from se_mentor.api.online_access import require_task_access
+from se_mentor.api.online_readiness import (
+    OnlineSafeReadiness,
+    require_online_safe_project_readiness,
+)
 from se_mentor.api.runtime import (
-    ONLINE_SAFE_EXECUTION_ERROR,
     get_runtime_settings,
 )
 from se_mentor.db.session import session_scope
@@ -72,11 +75,27 @@ def execute(
             response.status_code = status.HTTP_409_CONFLICT
             return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
         with session_scope(_SESSION_FACTORY) as session:
-            if require_task_access(session, task_id, request, response) is None:
+            task = require_task_access(session, task_id, request, response)
+            if task is None:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("TASK_NOT_FOUND", "task not found")
-    if online_safe_error := _online_safe_execution_error(response):
-        return online_safe_error
+            readiness = require_online_safe_project_readiness(
+                session,
+                task.project_id,
+                request,
+                response,
+            )
+            if isinstance(readiness, dict):
+                return readiness
+        orchestrator = ExecutionOrchestrator(
+            _SESSION_FACTORY,
+            runtime=_RUNTIME,
+            provider_override=readiness.provider
+            if isinstance(readiness, OnlineSafeReadiness)
+            else None,
+        )
+    else:
+        orchestrator = get_execution_orchestrator()
     if _SESSION_FACTORY is None:
         response.status_code = status.HTTP_409_CONFLICT
         return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
@@ -89,7 +108,7 @@ def execute(
             response.status_code = status.HTTP_409_CONFLICT
             return error("TASK_BLOCKED", "blocked tasks cannot execute tools")
     try:
-        result = get_execution_orchestrator().execute_task(task_id, command=payload.command)
+        result = orchestrator.execute_task(task_id, command=payload.command)
     except ExecutionRejected as exc:
         response.status_code = status.HTTP_409_CONFLICT
         return error(exc.code, _safe_error(exc))
@@ -120,8 +139,6 @@ def cancel(task_id: str, request: Request, response: Response) -> dict[str, obje
             if require_task_access(session, task_id, request, response) is None:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("TASK_NOT_FOUND", "task not found")
-    if online_safe_error := _online_safe_execution_error(response):
-        return online_safe_error
     if _SESSION_FACTORY is not None:
         with session_scope(_SESSION_FACTORY) as session:
             task = require_task_access(session, task_id, request, response)
@@ -154,8 +171,6 @@ def policy(task_id: str, request: Request, response: Response) -> dict[str, obje
             if require_task_access(session, task_id, request, response) is None:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("TASK_NOT_FOUND", "task not found")
-    if online_safe_error := _online_safe_execution_error(response):
-        return online_safe_error
     if _SESSION_FACTORY is None:
         response.status_code = status.HTTP_409_CONFLICT
         return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
@@ -178,13 +193,6 @@ def policy(task_id: str, request: Request, response: Response) -> dict[str, obje
 
 def _safe_error(exc: Exception) -> str:
     return " ".join((str(exc) or type(exc).__name__).split())[:360]
-
-
-def _online_safe_execution_error(response: Response) -> dict[str, object] | None:
-    if get_runtime_settings().profile is not RuntimeProfile.ONLINE_SAFE:
-        return None
-    response.status_code = status.HTTP_409_CONFLICT
-    return error(ONLINE_SAFE_EXECUTION_ERROR, "online safe execution is not ready")
 
 
 def _active_policy(session: Session, task: ChangeTask) -> ExecutionPolicy | None:

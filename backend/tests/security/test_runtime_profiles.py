@@ -241,6 +241,45 @@ def test_online_safe_credentials_use_secure_ephemeral_session_store(
     assert credentials_api.get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE
 
 
+def test_online_safe_trusted_proxy_accepts_gateway_forwarded_https(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    runtime_root = tmp_path / "online-safe-runtime"
+    app_module, _, credentials_api, runtime_module, _ = _reload_api_for_online_safe(
+        monkeypatch,
+        runtime_root,
+        trust_proxy=True,
+    )
+    monkeypatch.setattr(
+        "se_mentor.runtime.online_provider_security.socket.getaddrinfo",
+        _online_resolver({"api.example.test": ["93.184.216.34"]}),
+    )
+    client = TestClient(app_module.create_app())
+
+    status_response = client.get("/api/credentials/llm/status")
+    session_id = client.cookies.get(ONLINE_SESSION_COOKIE_NAME)
+    set_response = client.post(
+        "/api/credentials/llm",
+        json={
+            "provider": "openai-compatible",
+            "key": ONLINE_SAFE_TEST_KEY,
+            "baseUrl": "https://api.example.test/v1",
+            "model": "model-a",
+        },
+        headers={
+            "Cookie": f"{ONLINE_SESSION_COOKIE_NAME}={session_id}",
+            "X-Forwarded-Proto": "https",
+        },
+    )
+
+    assert status_response.status_code == 200
+    assert credentials_api.get_runtime_settings().trust_proxy is True
+    assert runtime_module.get_runtime_settings().trust_proxy is True
+    assert set_response.status_code == 200
+    assert set_response.json()["data"]["configured"] is True
+
+
 def test_online_safe_session_ttl_is_12h_sliding_and_cookie_refreshes(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -500,6 +539,7 @@ def test_demo_reset_is_idempotent_and_does_not_touch_local_storage(tmp_path: Pat
 
 def _reload_api_for_cloud_demo(monkeypatch, demo_root: Path, runtime_root: Path):
     monkeypatch.setenv("SE_MENTOR_RUNTIME_PROFILE", "CLOUD_DEMO")
+    monkeypatch.delenv("SE_MENTOR_TRUST_PROXY", raising=False)
     monkeypatch.setenv("SE_MENTOR_DEMO_WORKSPACE", str(demo_root))
     monkeypatch.setenv("SE_MENTOR_DEMO_RUNTIME_ROOT", str(runtime_root))
     import se_mentor.api.credentials as credentials_api
@@ -516,16 +556,27 @@ def _reload_api_for_cloud_demo(monkeypatch, demo_root: Path, runtime_root: Path)
     return main, projects_api, credentials_api, runtime, orchestrator_module
 
 
-def _reload_api_for_online_safe(monkeypatch, runtime_root: Path):
+def _reload_api_for_online_safe(
+    monkeypatch,
+    runtime_root: Path,
+    *,
+    trust_proxy: bool = False,
+):
     monkeypatch.setenv("SE_MENTOR_RUNTIME_PROFILE", "ONLINE_SAFE")
     monkeypatch.setenv("SE_MENTOR_RUNTIME_ROOT", str(runtime_root))
+    if trust_proxy:
+        monkeypatch.setenv("SE_MENTOR_TRUST_PROXY", "true")
+    else:
+        monkeypatch.delenv("SE_MENTOR_TRUST_PROXY", raising=False)
     import se_mentor.api.credentials as credentials_api
+    import se_mentor.api.online_readiness as online_readiness_api
     import se_mentor.api.projects as projects_api
     import se_mentor.api.runtime as runtime
     import se_mentor.execution.orchestrator as orchestrator_module
     import se_mentor.main as main
 
     runtime = importlib.reload(runtime)
+    importlib.reload(online_readiness_api)
     projects_api = importlib.reload(projects_api)
     credentials_api = importlib.reload(credentials_api)
     orchestrator_module = importlib.reload(orchestrator_module)

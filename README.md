@@ -36,3 +36,15 @@ and runs frontend commands from `frontend/` with `npm.cmd` on Windows.
 
 `npm.cmd run build` is separate frontend readiness evidence; it is not part of the canonical
 `scripts/check_all.py` quality gate.
+
+## Runtime Profiles
+
+- `LOCAL_FULL`: local desktop use. The user opens a local Git repository with "打开本地仓库".
+- `CLOUD_DEMO`: public demo mode. It uses the fixed demo workspace and built-in Mock provider;
+  no API key is required or accepted.
+- `ONLINE_SAFE`: public service mode. The user enters their own OpenAI-compatible credential,
+  uploads a project ZIP, SE-Mentor extracts it into a per-session isolated server workspace,
+  runs the real Harness, and lets the user download a modified ZIP or patch.
+
+ONLINE_SAFE does not access the user's local filesystem directly and does not use a local bridge.
+See `docs/ONLINE_SAFE_PHASE5A_READINESS.md` for HTTPS/trusted-proxy and manual Web E2E readiness.

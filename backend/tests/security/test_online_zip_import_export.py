@@ -71,8 +71,8 @@ def test_online_safe_imports_project_zip_into_current_session_workspace(
     assert imported.json()["data"]["rootPath"] == "Uploaded Project"
     assert str(tmp_path) not in str(imported.json())
     assert session_id not in str(imported.json())
-    assert repeated.status_code == 200
-    assert repeated.json()["data"]["id"] == imported.json()["data"]["id"]
+    assert repeated.status_code == 409
+    assert repeated.json()["error"]["code"] == "ONLINE_SAFE_PROJECT_ALREADY_EXISTS"
     assert listed.json()["data"]["items"][0]["id"] == imported.json()["data"]["id"]
     assert owner_hash is not None
     assert (project_root / "app.py").read_text(encoding="utf-8") == "print('hello')\n"
@@ -257,12 +257,14 @@ def _reload_api_for_online_safe(
     monkeypatch.setenv("SE_MENTOR_RUNTIME_ROOT", str(runtime_root))
     monkeypatch.setenv("SE_MENTOR_DEMO_WORKSPACE", str(demo_workspace))
     import se_mentor.api.credentials as credentials_api
+    import se_mentor.api.online_readiness as online_readiness_api
     import se_mentor.api.projects as projects_api
     import se_mentor.api.runtime as runtime
     import se_mentor.api.runtime_workspace as runtime_workspace_api
     import se_mentor.main as main
 
     runtime = importlib.reload(runtime)
+    importlib.reload(online_readiness_api)
     projects_api = importlib.reload(projects_api)
     credentials_api = importlib.reload(credentials_api)
     runtime_workspace_api = importlib.reload(runtime_workspace_api)

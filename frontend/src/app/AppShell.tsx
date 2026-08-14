@@ -20,6 +20,8 @@ const shellText = {
   ready: "\u9879\u76ee\u5206\u6790\u5b8c\u6210",
   registered: "\u9879\u76ee\u5df2\u6ce8\u518c",
   selectRepo: "\u8bf7\u9009\u62e9\u672c\u5730 Git \u4ed3\u5e93",
+  onlineProject: "\u5728\u7ebf\u9879\u76ee",
+  replaceProject: "\u66f4\u6362\u9879\u76ee",
   uploadProject: "\u4e0a\u4f20\u9879\u76ee",
   uploadZip: "\u4e0a\u4f20 ZIP \u9879\u76ee",
 };
@@ -53,13 +55,20 @@ export function AppShell({
   projectOpening,
   taskCount,
 }: AppShellProps) {
-  const projectName = project?.rootPath
+  const projectName = onlineSafe && project
+    ? shellText.onlineProject
+    : project?.rootPath
     ? project.rootPath.replaceAll("\\", "/").split("/").filter(Boolean).at(-1) ?? project.id
     : projectHydrationState === "BOOTING"
       ? shellText.booting
       : shellText.noProject;
   const branch = project?.branch ?? "main";
-  const openProjectLabel = onlineSafe ? shellText.uploadProject : shellText.openLocalRepo;
+  const openProjectLabel =
+    onlineSafe && project
+      ? shellText.replaceProject
+      : onlineSafe
+        ? shellText.uploadProject
+        : shellText.openLocalRepo;
 
   return (
     <div className="app">
@@ -78,8 +87,10 @@ export function AppShell({
             {projectName}
           </div>
           <div className="project-meta">
-            {project
-              ? `${branch} - ${project.rootPath ?? project.id}`
+            {onlineSafe && project
+              ? shellText.onlineProject
+              : project
+                ? `${branch} - ${project.rootPath ?? project.id}`
               : projectHydrationState === "BOOTING"
                 ? shellText.booting
                 : onlineSafe

@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, Response, status
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_readiness import is_secure_online_request
 from se_mentor.api.runtime import (
     ONLINE_SAFE_HTTPS_ERROR,
     ONLINE_SAFE_WORKSPACE_ERROR,
@@ -43,7 +44,7 @@ def get_runtime_workspace(request: Request, response: Response) -> dict[str, obj
 def reset_runtime_workspace(request: Request, response: Response) -> dict[str, object]:
     if not _online_safe(response):
         return error(ONLINE_SAFE_WORKSPACE_ERROR, "online safe workspace is unavailable")
-    if request.url.scheme != "https":
+    if not is_secure_online_request(request):
         response.status_code = status.HTTP_409_CONFLICT
         return error(ONLINE_SAFE_HTTPS_ERROR, "ONLINE_SAFE workspace reset requires HTTPS")
     try:

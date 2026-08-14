@@ -21,6 +21,7 @@ class RuntimeSettings:
     profile: RuntimeProfile
     runtime_root: Path
     demo_workspace_root: Path
+    trust_proxy: bool = False
 
     @property
     def cloud_demo(self) -> bool:
@@ -35,6 +36,7 @@ _PROFILE_ENV = "SE_MENTOR_RUNTIME_PROFILE"
 _LOCAL_RUNTIME_ROOT_ENV = "SE_MENTOR_RUNTIME_ROOT"
 _DEMO_WORKSPACE_ENV = "SE_MENTOR_DEMO_WORKSPACE"
 _DEMO_RUNTIME_ROOT_ENV = "SE_MENTOR_DEMO_RUNTIME_ROOT"
+_TRUST_PROXY_ENV = "SE_MENTOR_TRUST_PROXY"
 
 
 def get_runtime_profile(env: dict[str, str] | None = None) -> RuntimeProfile:
@@ -57,6 +59,7 @@ def get_runtime_settings(env: dict[str, str] | None = None) -> RuntimeSettings:
         profile=profile,
         runtime_root=_runtime_root(profile, source),
         demo_workspace_root=_demo_workspace_root(source),
+        trust_proxy=_truthy(source.get(_TRUST_PROXY_ENV)),
     )
 
 
@@ -96,3 +99,9 @@ def _repo_root() -> Path:
 
 def _backend_root() -> Path:
     return Path(__file__).resolve().parents[3]
+
+
+def _truthy(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}

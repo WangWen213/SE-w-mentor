@@ -132,6 +132,10 @@ export function isOnlineSafeCredentialStatus(status: CredentialStatus | null): b
   return status?.source === "ONLINE_SAFE" || status?.source === "ONLINE_SAFE_SESSION";
 }
 
+export function isCloudDemoCredentialStatus(status: CredentialStatus | null): boolean {
+  return status?.source === "CLOUD_DEMO";
+}
+
 function selectProjectZipFile(): Promise<File | null> {
   if (typeof document === "undefined") {
     return Promise.resolve(null);
@@ -517,6 +521,12 @@ export function App({ api: providedApi }: AppProps = {}) {
     if (projectOpening) {
       return;
     }
+    if (onlineSafeProfile && project) {
+      setProjectError(
+        "当前在线会话已经有上传项目。为了避免清除任务、治理和执行状态，本版本不会覆盖项目；请使用新的浏览器会话上传另一个 ZIP。",
+      );
+      return;
+    }
     const finishTiming = startFrontendTiming("project_open");
     const runId = hydrationRunRef.current + 1;
     hydrationRunRef.current = runId;
@@ -563,7 +573,7 @@ export function App({ api: providedApi }: AppProps = {}) {
       }
       finishTiming();
     }
-  }, [api, onlineSafeProfile, projectOpening]);
+  }, [api, onlineSafeProfile, project, projectOpening]);
 
   const openTask = useCallback(
     async (taskId: string) => {
@@ -1332,7 +1342,7 @@ export function App({ api: providedApi }: AppProps = {}) {
     }
     executionDispatchRef.current = activeTask.id;
     setHarnessProgress("正在执行改动");
-    void api.executeTask(activeTask.id, "RUN_COMMAND")
+    void api.executeTask(activeTask.id, onlineSafeProfile ? "APPLY_APPROVED_CHANGES" : "RUN_COMMAND")
       .then(async (result) => {
         if (result.task) {
           applyTaskSnapshot(result.task);
@@ -1346,7 +1356,7 @@ export function App({ api: providedApi }: AppProps = {}) {
         setHarnessProgress(null);
         void reconcileTaskProjection(activeTask.id);
       });
-  }, [activeGovernanceReport, activeTask, api, applyTaskSnapshot, reconcileTaskProjection, scheduleFileChangesRefresh]);
+  }, [activeGovernanceReport, activeTask, api, applyTaskSnapshot, onlineSafeProfile, reconcileTaskProjection, scheduleFileChangesRefresh]);
 
   const approveGovernance = useCallback(async () => {
     if (!activeGovernanceReport?.approvalRequestId) {
@@ -1530,7 +1540,11 @@ export function App({ api: providedApi }: AppProps = {}) {
     try {
       downloadBlob(await api.exportProjectPatch(project.id), "se-mentor-changes.patch");
     } catch (error) {
-      setProjectError(userError(error));
+      setProjectError(
+        isApiErrorCode(error, "ONLINE_SAFE_PATCH_EXPORT_UNTRACKED_UNSUPPORTED")
+          ? "当前变更包含新建文件，Patch 下载暂不支持未跟踪文件；请下载完整项目 ZIP。"
+          : userError(error),
+      );
     }
   }, [api, project]);
 
@@ -1680,7 +1694,7 @@ export function App({ api: providedApi }: AppProps = {}) {
         )
       ) : null}
       {activeView === "settings" ? (
-        <SettingsView
+        <SettingsViewV2
           credentialError={credentialError}
           credentialPending={credentialPending}
           credentialStatus={credentialStatus}
@@ -1776,6 +1790,165 @@ function MemorySection({ title, values }: { title: string; values: string[] }) {
         ))}
       </div>
     </section>
+  );
+}
+
+export function SettingsViewV2({
+  credentialError,
+  credentialPending,
+  credentialStatus,
+  onClearCredential,
+  onSaveCredential,
+  project,
+}: {
+  credentialError: string | null;
+  credentialPending: string | null;
+  credentialStatus: CredentialStatus | null;
+  onClearCredential: () => Promise<void>;
+  onSaveCredential: (key: string | null, baseUrl: string, model: string) => Promise<void>;
+  project: Project | null;
+}) {
+  const projectPath = project?.rootPath ?? "\u5c1a\u672a\u9009\u62e9\u9879\u76ee";
+  const [apiKey, setApiKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [model, setModel] = useState("");
+  const configured = credentialStatus?.configured ?? false;
+  const cloudDemo = isCloudDemoCredentialStatus(credentialStatus);
+  const onlineSafe = isOnlineSafeCredentialStatus(credentialStatus);
+  useEffect(() => {
+    setBaseUrl(credentialStatus?.baseUrl ?? "");
+    setModel(credentialStatus?.model ?? "");
+  }, [credentialStatus?.baseUrl, credentialStatus?.model]);
+  const submitCredential = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const key = apiKey.trim();
+    const trimmedBaseUrl = baseUrl.trim();
+    const trimmedModel = model.trim();
+    if ((!configured && !key) || !trimmedBaseUrl || !trimmedModel || credentialPending !== null) {
+      return;
+    }
+    await onSaveCredential(key || null, trimmedBaseUrl, trimmedModel);
+    setApiKey("");
+  };
+
+  return (
+    <Page title="\u8bbe\u7f6e">
+      <div className="settings-grid">
+        <EmptyState title="\u9879\u76ee" body={`\u5f53\u524d\u9879\u76ee\uff1a${projectPath}`} />
+        <section className="setting-card">
+          <div className="setting-head">
+            <div className="setting-title">
+              {cloudDemo ? "\u6f14\u793a\u6a21\u5f0f" : "\u6a21\u578b\u670d\u52a1"}
+            </div>
+            <span className={`setting-status ${configured ? "" : "neutral"}`}>
+              {cloudDemo ? "Mock" : configured ? "\u5df2\u914d\u7f6e" : "\u672a\u914d\u7f6e"}
+            </span>
+          </div>
+          {cloudDemo ? (
+            <div className="setting-row credential-row">
+              <div className="setting-label">CLOUD_DEMO</div>
+              <div className="setting-value">
+                {"\u5f53\u524d\u4f7f\u7528\u5185\u7f6e Mock \u6a21\u578b\uff0c\u65e0\u9700 API Key\u3002"}
+                <span className="setting-sub">
+                  {"\u6765\u6e90\uff1a"}{credentialStatus?.source ?? "CLOUD_DEMO"}
+                </span>
+              </div>
+            </div>
+          ) : null}
+          {!cloudDemo ? (
+            <form className="setting-row credential-row" onSubmit={submitCredential}>
+              <div className="setting-label">OpenAI {"\u517c\u5bb9\u63a5\u53e3"}</div>
+              <div className="setting-value">
+                {onlineSafe
+                  ? "\u51ed\u636e\u4ec5\u4fdd\u5b58\u5728\u5f53\u524d\u5728\u7ebf\u4f1a\u8bdd\u4e2d\uff0c\u8fde\u7eed 12 \u5c0f\u65f6\u65e0\u6d3b\u52a8\u540e\u81ea\u52a8\u6e05\u9664\u3002"
+                  : configured
+                    ? "LLM \u5df2\u914d\u7f6e\u3002\u7559\u7a7a API Key \u4f1a\u7ee7\u7eed\u4f7f\u7528\u5df2\u4fdd\u5b58\u7684\u5bc6\u94a5\u3002"
+                    : "\u914d\u7f6e LLM API Key \u540e\uff0cMentor \u624d\u80fd\u751f\u6210\u65b9\u6848\u548c\u5206\u6790\u6539\u52a8\u3002"}
+                <span className="setting-sub">
+                  {"\u6765\u6e90\uff1a"}{credentialStatus?.source ?? "\u672a\u914d\u7f6e"}
+                </span>
+                <label className="setting-field" htmlFor="llm-base-url">
+                  API Base URL
+                  <input
+                    autoComplete="off"
+                    className="credential-input"
+                    id="llm-base-url"
+                    placeholder="https://api.example.com/v1"
+                    type="url"
+                    value={baseUrl}
+                    onChange={(event) => setBaseUrl(event.currentTarget.value)}
+                  />
+                </label>
+                <label className="setting-field" htmlFor="llm-model">
+                  Model
+                  <input
+                    autoComplete="off"
+                    className="credential-input"
+                    id="llm-model"
+                    placeholder={"\u670d\u52a1\u5546\u5b9e\u9645 model id"}
+                    type="text"
+                    value={model}
+                    onChange={(event) => setModel(event.currentTarget.value)}
+                  />
+                </label>
+                <label className="sr-only" htmlFor="llm-api-key">
+                  OpenAI API Key
+                </label>
+                <input
+                  autoComplete="off"
+                  className="credential-input"
+                  id="llm-api-key"
+                  placeholder={
+                    configured
+                      ? "\u4fdd\u7559\u5f53\u524d\u4f1a\u8bdd\u4e2d\u7684 API Key"
+                      : "\u8f93\u5165 API Key"
+                  }
+                  type="password"
+                  value={apiKey}
+                  onChange={(event) => setApiKey(event.currentTarget.value)}
+                />
+                {credentialError ? (
+                  <span className="setting-error" role="alert">
+                    {credentialError}
+                  </span>
+                ) : null}
+              </div>
+              <div className="page-actions">
+                <Button
+                  disabled={
+                    (!configured && !apiKey.trim()) ||
+                    !baseUrl.trim() ||
+                    !model.trim() ||
+                    credentialPending !== null
+                  }
+                  size="small"
+                  type="submit"
+                >
+                  {credentialPending === "save"
+                    ? "\u4fdd\u5b58\u4e2d"
+                    : configured
+                      ? "\u66f4\u65b0\u6a21\u578b\u670d\u52a1"
+                      : "\u4fdd\u5b58\u6a21\u578b\u670d\u52a1"}
+                </Button>
+                {configured ? (
+                  <Button
+                    disabled={credentialPending !== null}
+                    size="small"
+                    variant="danger"
+                    onClick={() => {
+                      setApiKey("");
+                      void onClearCredential();
+                    }}
+                  >
+                    {credentialPending === "clear" ? "\u6e05\u9664\u4e2d" : "\u6e05\u9664 Key"}
+                  </Button>
+                ) : null}
+              </div>
+            </form>
+          ) : null}
+        </section>
+      </div>
+    </Page>
   );
 }
 

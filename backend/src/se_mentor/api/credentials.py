@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_readiness import is_secure_online_request as _is_secure_online_request
 from se_mentor.api.runtime import (
     ONLINE_SAFE_HTTPS_ERROR,
     ONLINE_SAFE_SESSION_ERROR,
@@ -216,7 +217,7 @@ def _online_safe_insecure_error(
 
 
 def is_secure_online_request(request: Request) -> bool:
-    return request.url.scheme == "https"
+    return _is_secure_online_request(request)
 
 
 def _set_endpoint_error_response(

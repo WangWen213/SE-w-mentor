@@ -11,9 +11,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
-from se_mentor.api.online_access import require_task_access
+from se_mentor.api.online_access import require_project_access, require_task_access
+from se_mentor.api.online_readiness import require_online_safe_project_readiness
 from se_mentor.api.runtime import (
-    ONLINE_SAFE_EXECUTION_ERROR,
     get_runtime_settings,
     get_session_factory,
 )
@@ -21,7 +21,6 @@ from se_mentor.db.session import session_scope
 from se_mentor.git.git_service import GitService
 from se_mentor.models.execution import FileChange, ToolExecution
 from se_mentor.models.governance import GovernanceDecision, ImpactReport
-from se_mentor.models.project import Project
 from se_mentor.models.task import ChangeProposal, ChangeTask, ProposalStatus
 from se_mentor.models.validation import ValidationPlan, ValidationRun
 from se_mentor.models.workbench import WorkbenchMessage
@@ -40,16 +39,26 @@ class TaskCreate(BaseModel):
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_task(payload: TaskCreate, response: Response) -> dict[str, object]:
-    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
-        response.status_code = status.HTTP_409_CONFLICT
-        return error(ONLINE_SAFE_EXECUTION_ERROR, "online safe execution is not ready")
+def create_task(
+    payload: TaskCreate,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
     total_started = perf_counter()
     if not payload.request.strip():
         response.status_code = status.HTTP_400_BAD_REQUEST
         return error("TASK_REQUEST_REQUIRED", "task request is required")
     with session_scope(_SESSION_FACTORY) as session:
-        project = session.get(Project, payload.project_id)
+        if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+            readiness = require_online_safe_project_readiness(
+                session,
+                payload.project_id,
+                request,
+                response,
+            )
+            if isinstance(readiness, dict):
+                return readiness
+        project = require_project_access(session, payload.project_id, request, response)
         if project is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROJECT_NOT_FOUND", "project not found")
