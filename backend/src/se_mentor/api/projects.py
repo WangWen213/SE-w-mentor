@@ -170,9 +170,7 @@ def _register_project(root_path: str, response: Response) -> dict[str, object]:
     except ProjectRegistrationError as exc:
         if "duplicate" in str(exc):
             with session_scope(_SESSION_FACTORY) as session:
-                existing = find_project_by_root(
-                    session, Path(root_path).resolve(strict=True)
-                )
+                existing = find_project_by_root(session, Path(root_path).resolve(strict=True))
                 if existing is not None:
                     existing.updated_at = datetime.now(UTC)
                     session.flush()

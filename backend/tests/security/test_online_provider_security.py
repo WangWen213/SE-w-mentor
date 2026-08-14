@@ -185,9 +185,7 @@ def test_online_safe_provider_construction_is_session_scoped_without_network(
         handler.__class__.__name__ == "_NoRedirectHandler"
         for handler in response_a._opener.handlers
     )
-    assert not any(
-        hasattr(handler, "proxy_open") for handler in response_a._opener.handlers
-    )
+    assert not any(hasattr(handler, "proxy_open") for handler in response_a._opener.handlers)
 
 
 def test_online_safe_public_agent_flow_requires_credential_then_reaches_task_boundary(

@@ -284,8 +284,7 @@ class AgentRuntime:
             _collect_observed_paths(action_snapshot, summarized_tool_result, observed_paths)
             evidence_fingerprint = _json_value(summarized_tool_result)
             new_evidence = (
-                bool(evidence_fingerprint)
-                and evidence_fingerprint not in evidence_fingerprints
+                bool(evidence_fingerprint) and evidence_fingerprint not in evidence_fingerprints
             )
             evidence_fingerprints.add(evidence_fingerprint)
             action_type = str(action_snapshot.get("action_type") or "")
@@ -362,9 +361,7 @@ class AgentRuntime:
                     and read_only_corrections >= self.policy.max_read_only_corrections
                     else "STALLED"
                 )
-                _publish(
-                    publish_stage, "TASK_FAILED", code, "tools completed without file changes"
-                )
+                _publish(publish_stage, "TASK_FAILED", code, "tools completed without file changes")
                 if code == "STALLED_READ_ONLY_LOOP":
                     raise AgentStalledReadOnlyLoop(
                         "agent stalled in read-only loop without producing required file changes"
@@ -442,9 +439,7 @@ class AgentRuntime:
                     select(ToolExecution.id)
                     .where(ToolExecution.task_id == task_id)
                     .where(
-                        ToolExecution.tool_name.in_(
-                            ["APPLY_PATCH", "CREATE_FILE", "DELETE_FILE"]
-                        )
+                        ToolExecution.tool_name.in_(["APPLY_PATCH", "CREATE_FILE", "DELETE_FILE"])
                     )
                 )
             )

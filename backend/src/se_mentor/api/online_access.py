@@ -40,9 +40,7 @@ def current_online_session(request: Request, response: Response) -> OnlineSessio
         )
     except OnlineSessionLimitExceeded as exc:
         raise OnlineSessionUnavailable("active session limit reached") from exc
-    get_online_workspace_factory().cleanup_expired(
-        get_online_session_store().active_session_ids()
-    )
+    get_online_workspace_factory().cleanup_expired(get_online_session_store().active_session_ids())
     response.set_cookie(
         key=ONLINE_SESSION_COOKIE_NAME,
         value=session.session_id,

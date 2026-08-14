@@ -285,9 +285,7 @@ def test_online_safe_session_ttl_is_12h_sliding_and_cookie_refreshes(
 ) -> None:
     runtime_root = tmp_path / "online-safe-runtime"
     current_time = datetime(2026, 8, 14, 0, 0, tzinfo=UTC)
-    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
-        monkeypatch, runtime_root
-    )
+    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(monkeypatch, runtime_root)
     store = InMemoryOnlineSessionStore(
         ttl_seconds=ONLINE_SESSION_TTL_SECONDS,
         max_active_sessions=8,
@@ -322,9 +320,7 @@ def test_online_safe_session_credentials_are_isolated_and_expire(
 ) -> None:
     runtime_root = tmp_path / "online-safe-runtime"
     current_time = datetime(2026, 8, 14, 0, 0, tzinfo=UTC)
-    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
-        monkeypatch, runtime_root
-    )
+    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(monkeypatch, runtime_root)
     monkeypatch.setattr(
         "se_mentor.runtime.online_provider_security.socket.getaddrinfo",
         _online_resolver(
@@ -393,9 +389,7 @@ def test_online_safe_store_reset_loses_credentials_and_sqlite_never_contains_key
     monkeypatch, tmp_path: Path
 ) -> None:
     runtime_root = tmp_path / "online-safe-runtime"
-    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
-        monkeypatch, runtime_root
-    )
+    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(monkeypatch, runtime_root)
     monkeypatch.setattr(
         "se_mentor.runtime.online_provider_security.socket.getaddrinfo",
         _online_resolver({"api.example.test": ["93.184.216.34"]}),
@@ -460,9 +454,7 @@ def test_online_safe_provider_is_locked_without_env_key_or_mock_fallback(
 
 def test_online_safe_project_registration_is_locked(monkeypatch, tmp_path: Path) -> None:
     runtime_root = tmp_path / "online-safe-runtime"
-    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
-        monkeypatch, runtime_root
-    )
+    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(monkeypatch, runtime_root)
     client = TestClient(app_module.create_app(), base_url="https://testserver")
 
     source_repo = Path.cwd()

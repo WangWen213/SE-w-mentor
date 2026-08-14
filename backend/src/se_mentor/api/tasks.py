@@ -253,8 +253,7 @@ def _timeline_items(
         )
         if proposal.status == ProposalStatus.CONFIRMED:
             confirmed_body = (
-                "\u6b63\u5728\u57fa\u4e8e\u786e\u8ba4\u8303\u56f4"
-                "\u5206\u6790\u5f71\u54cd\u3002"
+                "\u6b63\u5728\u57fa\u4e8e\u786e\u8ba4\u8303\u56f4\u5206\u6790\u5f71\u54cd\u3002"
             )
             items.append(
                 _node(
@@ -296,9 +295,7 @@ def _timeline_items(
     if location_node:
         items.append(location_node)
     write_tools = [
-        tool
-        for tool in tools
-        if tool.tool_name in {"APPLY_PATCH", "CREATE_FILE", "DELETE_FILE"}
+        tool for tool in tools if tool.tool_name in {"APPLY_PATCH", "CREATE_FILE", "DELETE_FILE"}
     ]
     for tool in write_tools:
         items.append(
@@ -388,8 +385,7 @@ def _governance_node(decision: GovernanceDecision) -> dict[str, object]:
         kind = "GOVERNANCE_ALLOW"
         title = "\u6cbb\u7406\u68c0\u67e5\u5b8c\u6210"
         body = (
-            "\u81ea\u52a8\u5141\u8bb8 \u00b7 "
-            f"\u5f71\u54cd {scope_count} \u4e2a\u6587\u4ef6\u3002"
+            f"\u81ea\u52a8\u5141\u8bb8 \u00b7 \u5f71\u54cd {scope_count} \u4e2a\u6587\u4ef6\u3002"
         )
         status_value = "SUCCESS"
     return _node(
@@ -412,9 +408,7 @@ def _location_node(
     read_tools = [tool for tool in tools if tool.tool_name in {"SEARCH_CODE", "READ_FILE"}]
     if not read_tools:
         return None
-    located_path = _first_located_path(read_tools) or (
-        changes[0].relative_path if changes else ""
-    )
+    located_path = _first_located_path(read_tools) or (changes[0].relative_path if changes else "")
     kind = "TARGET_LOCATED" if located_path else "LOCATING"
     title = (
         "\u5df2\u5b9a\u4f4d\u76ee\u6807"

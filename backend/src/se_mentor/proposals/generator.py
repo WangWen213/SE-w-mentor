@@ -245,7 +245,6 @@ class ProposalGenerator:
         )
         return proposal
 
-
     def _next_version(self, task_id: str) -> int:
         latest = self.session.scalars(
             select(ChangeProposal.version)

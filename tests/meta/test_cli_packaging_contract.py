@@ -12,9 +12,9 @@ def read(path: str) -> str:
 def test_launcher_dispatch_preserves_default_serve_and_adds_cli_commands() -> None:
     launcher = read("packaging/se_mentor_launcher.py")
     assert "return serve()" in launcher
-    assert "args[0] == \"serve\"" in launcher
-    assert "\"run\"" in launcher
-    assert "\"credentials\"" in launcher
+    assert 'args[0] == "serve"' in launcher
+    assert '"run"' in launcher
+    assert '"credentials"' in launcher
     assert "se_mentor.cli.main" in launcher
     assert "uvicorn.run" in launcher
 
@@ -39,4 +39,3 @@ def test_cli_facade_uses_existing_harness_services_without_direct_tool_bypass() 
     assert "AtomicApplyPatchTool" not in facade
     assert "ToolDispatcher" not in facade
     assert "sqlite3.connect" not in facade
-

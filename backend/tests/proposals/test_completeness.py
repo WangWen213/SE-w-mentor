@@ -48,7 +48,9 @@ def test_AC_FR02_02_incomplete_proposal_cannot_enter_analysis(tmp_path: Path) ->
     assert task.failure_code == "NEEDS_MORE_TECHNICAL_ANALYSIS"
 
 
-def test_phase1_completeness_separates_technical_unknowns_from_user_decisions(tmp_path: Path) -> None:
+def test_phase1_completeness_separates_technical_unknowns_from_user_decisions(
+    tmp_path: Path,
+) -> None:
     engine = create_schema(tmp_path / "phase1-completeness.sqlite3")
     ids = seed_task_graph(engine, tmp_path)
     session_factory = create_session_factory(engine)
@@ -65,7 +67,8 @@ def test_phase1_completeness_separates_technical_unknowns_from_user_decisions(tm
             validation_plan_json='["Run frontend type-check"]',
             constraints_json=(
                 '{"changes":[{"path":"backend/src/se_mentor/api/memory.py","symbol":null,'
-                '"action":"TBD","reason":"Need to locate API contract"}],"steps":["Inspect memory API"],'
+                '"action":"TBD","reason":"Need to locate API contract"}],'
+                '"steps":["Inspect memory API"],'
                 '"constraints":[]}'
             ),
             risks_json='{"risks":["Compatibility risk"],"inferences":[]}',
@@ -85,7 +88,8 @@ def test_phase1_completeness_separates_technical_unknowns_from_user_decisions(tm
             validation_plan_json='["Run frontend type-check"]',
             constraints_json=(
                 '{"changes":[{"path":"backend/src/se_mentor/api/memory.py","symbol":null,'
-                '"action":"Return categorized presentation fields","reason":"Frontend needs productized memory"}],'
+                '"action":"Return categorized presentation fields",'
+                '"reason":"Frontend needs productized memory"}],'
                 '"steps":["Inspect memory API","Map knowledge categories"],"constraints":[]}'
             ),
             risks_json='{"risks":["旧记忆兼容"],"inferences":[]}',
@@ -105,8 +109,10 @@ def test_phase1_completeness_separates_technical_unknowns_from_user_decisions(tm
             validation_plan_json='["Run frontend type-check"]',
             constraints_json=(
                 '{"changes":[{"path":"backend/src/se_mentor/api/memory.py","symbol":null,'
-                '"action":"Return categorized presentation fields","reason":"Frontend needs productized memory"}],'
-                '"steps":["Inspect memory API","Map knowledge categories"],"constraints":["Keep old records readable"]}'
+                '"action":"Return categorized presentation fields",'
+                '"reason":"Frontend needs productized memory"}],'
+                '"steps":["Inspect memory API","Map knowledge categories"],'
+                '"constraints":["Keep old records readable"]}'
             ),
             risks_json='{"risks":["旧记忆兼容"],"inferences":[]}',
             assumptions_json="{}",

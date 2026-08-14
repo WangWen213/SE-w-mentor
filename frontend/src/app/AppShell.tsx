@@ -117,14 +117,18 @@ export function AppShell({
           ) : null}
         </section>
 
-        <nav aria-label={shellText.nav} className="nav">
+        <nav aria-label={shellText.nav} className="nav" role="tablist">
           {navItems.map((item) => {
             const count = item.key === "tasks" && taskCount > 0 ? String(taskCount) : undefined;
             return (
               <button
                 key={item.key}
                 aria-current={activeView === item.key ? "page" : undefined}
+                aria-controls={`${item.key}-panel`}
+                aria-selected={activeView === item.key}
                 className={`nav-item ${activeView === item.key ? "active" : ""}`}
+                id={`${item.key}-tab`}
+                role="tab"
                 type="button"
                 onClick={() => onViewChange(item.key)}
               >
@@ -152,7 +156,12 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="main">
+      <main
+        aria-labelledby={`${activeView}-tab`}
+        className="main"
+        id={`${activeView}-panel`}
+        role="tabpanel"
+      >
         <header className="topbar" data-testid="mentor-topbar">
           <div className="top-project">{projectName}</div>
           <div className="branch">{branch}</div>

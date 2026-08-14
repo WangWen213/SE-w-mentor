@@ -53,4 +53,3 @@ def run_bounded_technical_supplement(
         )
     session.flush()
     return supplemented
-

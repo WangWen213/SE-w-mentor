@@ -51,7 +51,9 @@ def test_T066_read_action_flows_through_context_llm_parser_governance_dispatcher
             registry=registry,
             tool_handlers={
                 "READ_FILE": lambda action: "".join(
-                    (repo / action.parameters.path).read_text(encoding="utf-8").splitlines(keepends=True)[
+                    (repo / action.parameters.path)
+                    .read_text(encoding="utf-8")
+                    .splitlines(keepends=True)[
                         action.parameters.start_line - 1 : action.parameters.end_line
                     ]
                 )

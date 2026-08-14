@@ -130,7 +130,9 @@ def test_T109_production_compose_publishes_only_gateway_http() -> None:
     ]
     assert "se_mentor_runtime" in config["volumes"]
     assert "se_mentor_internal" in config["networks"]
-    assert services["backend"]["environment"]["SE_MENTOR_RUNTIME_PROFILE"] == "CLOUD_DEMO"
+    assert (
+        services["backend"]["environment"]["SE_MENTOR_RUNTIME_PROFILE"] == "CLOUD_DEMO"
+    )
     assert "47.76.106.57" not in read("deploy/docker-compose.production.yml")
 
 

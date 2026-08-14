@@ -62,13 +62,17 @@ def create_message(
             if proposal is None or proposal.task_id != task_id:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("PROPOSAL_NOT_FOUND", "proposal not found")
-        sequence = int(
-            session.scalar(
-                select(func.coalesce(func.max(WorkbenchMessage.sequence), 0))
-                .where(WorkbenchMessage.task_id == task_id)
+        sequence = (
+            int(
+                session.scalar(
+                    select(func.coalesce(func.max(WorkbenchMessage.sequence), 0)).where(
+                        WorkbenchMessage.task_id == task_id
+                    )
+                )
+                or 0
             )
-            or 0
-        ) + 1
+            + 1
+        )
         message = WorkbenchMessage(
             task_id=task_id,
             sequence=sequence,

@@ -30,13 +30,8 @@ describe("frontend scaffold", () => {
     expect(html).toContain('role="tab"');
     expect(html).toContain('aria-selected="true"');
     expect(html).toContain('role="tabpanel"');
-    expect(html).toContain("对话");
-    expect(html).toContain("改动");
-    expect(html).toContain("检查");
-    expect(html).toContain('aria-label="给 Mentor 发送消息"');
-    expect(html).toContain('data-testid="proposal-card"');
-    expect(html).toContain('role="status"');
-    expect(html).toContain("需要确认");
-    expect(html).toContain("阻止");
+    expect(html).toContain("正在恢复工作台");
+    expect(html).toContain("新任务需求");
+    expect(html).toContain("确认方案后才会进入治理和执行流程");
   });
 });

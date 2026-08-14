@@ -69,9 +69,7 @@ def _online_safe(response: Response) -> bool:
 
 
 def _cleanup_expired_workspaces() -> None:
-    get_online_workspace_factory().cleanup_expired(
-        get_online_session_store().active_session_ids()
-    )
+    get_online_workspace_factory().cleanup_expired(get_online_session_store().active_session_ids())
 
 
 def _session_cookie(request: Request) -> str | None:

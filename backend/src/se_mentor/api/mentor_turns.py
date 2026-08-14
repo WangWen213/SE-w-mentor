@@ -9,13 +9,18 @@ from sqlalchemy import func, select
 from se_mentor.api.envelope import error, ok
 from se_mentor.api.online_access import require_task_access
 from se_mentor.api.runtime import get_domain_provider, get_session_factory
+from se_mentor.api.workbench_presentation import QUESTION_ANSWER_FAILURE, workbench_message_text
 from se_mentor.db.session import session_scope
 from se_mentor.llm.base import LLMRequest, ProviderError
-from se_mentor.models.governance import GovernanceDecision, GovernanceDecisionStatus, ImpactReport, ImpactReportStatus
+from se_mentor.models.governance import (
+    GovernanceDecision,
+    GovernanceDecisionStatus,
+    ImpactReport,
+    ImpactReportStatus,
+)
 from se_mentor.models.knowledge import EngineeringKnowledge
 from se_mentor.models.task import ChangeProposal, ChangeTask, ProposalStatus
 from se_mentor.models.workbench import WorkbenchMessage
-from se_mentor.api.workbench_presentation import QUESTION_ANSWER_FAILURE, workbench_message_text
 
 router = APIRouter(prefix="/api/tasks/{task_id}/turns", tags=["mentor-turns"])
 _SESSION_FACTORY = get_session_factory()
@@ -161,7 +166,9 @@ def _continue_analysis_answer(session, proposal: ChangeProposal) -> str:
     if impact is None:
         return (
             "当前 Proposal 的主要修改范围已经完整。\n\n"
-            "你刚才提到的继续分析，属于确认范围后的正式影响分析阶段。我会在该阶段继续核实性能、数据兼容、安全和依赖影响，不需要你现在逐项确认，也不会创建新的 Proposal。"
+            "你刚才提到的继续分析，属于确认范围后的正式影响分析阶段。"
+            "我会在该阶段继续核实性能、数据兼容、安全和依赖影响，"
+            "不需要你现在逐项确认，也不会创建新的 Proposal。"
         )
     unknowns = _as_string_list(_json_object(impact.uncertainties_json).get("unknowns"))
     return (
@@ -227,7 +234,8 @@ def _memory_contexts(session, project_id: str) -> list[dict[str, object]]:
     facts = [
         "项目记忆页展示后端 knowledge repository 中的 EngineeringKnowledge 条目。",
         "项目记忆会记录知识 key、类型、状态、摘要、作用范围和 evidence refs。",
-        "Project Understanding 条目会从索引证据中整理技术栈、模块、关键路径、测试框架、风险和结构化详情。",
+        "Project Understanding 条目会从索引证据中整理技术栈、模块、"
+        "关键路径、测试框架、风险和结构化详情。",
         "记忆更新来自项目理解、成功经验、失败经验和人工复核后的知识沉淀。",
     ]
     for row in rows[:6]:
@@ -236,13 +244,15 @@ def _memory_contexts(session, project_id: str) -> list[dict[str, object]]:
         {
             "kind": "memory",
             "title": "项目记忆功能",
-            "keywords": "项目记忆 记忆 memory knowledge engineeringknowledge 学习 展示 更新 evidence 项目理解 模块 技术栈",
+            "keywords": "项目记忆 记忆 memory knowledge engineeringknowledge 学习 展示 "
+            "更新 evidence 项目理解 模块 技术栈",
             "facts": facts,
         },
         {
             "kind": "project",
             "title": "项目理解",
-            "keywords": "项目 模块 核心模块 代码 仓库 技术栈 project understanding index repository",
+            "keywords": "项目 模块 核心模块 代码 仓库 技术栈 project "
+            "understanding index repository",
             "facts": facts,
         },
     ]
@@ -277,7 +287,8 @@ def _proposal_context(session, proposal: ChangeProposal) -> dict[str, object]:
     return {
         "kind": "proposal",
         "title": "当前 Proposal",
-        "keywords": "proposal 方案 风险 影响 范围 验证 治理 当前proposal risk impact scope governance",
+        "keywords": "proposal 方案 风险 影响 范围 验证 治理 当前proposal "
+        "risk impact scope governance",
         "facts": facts,
     }
 
@@ -314,7 +325,10 @@ def _generate_question_answer(user_text: str, contexts: list[dict[str, object]])
         )
     except ProviderError:
         return _fallback_answer_from_current_query(prompt, contexts)
-    return workbench_message_text(role="MENTOR", kind="TEXT", text=response.content) or QUESTION_ANSWER_FAILURE
+    return (
+        workbench_message_text(role="MENTOR", kind="TEXT", text=response.content)
+        or QUESTION_ANSWER_FAILURE
+    )
 
 
 def _user_facing_question_answer(content: str) -> str:
@@ -366,7 +380,8 @@ def _project_answer(prompt: str, context: dict[str, object]) -> str:
             *[f"- {fact}" for fact in facts],
             "",
             "建议下一步",
-            "- 打开项目记忆页查看 Project Understanding 是否已经足够；如果不足，需要先补充索引证据。",
+            "- 打开项目记忆页查看 Project Understanding 是否已经足够；"
+            "如果不足，需要先补充索引证据。",
             "",
             _supporting_note(prompt),
         ]
@@ -414,15 +429,23 @@ def _supporting_note(prompt: str) -> str:
 
 def _relevance_score(user_text: str, context: dict[str, object]) -> int:
     query_tokens = _tokens(user_text)
-    context_tokens = _tokens(" ".join([str(context["title"]), str(context["keywords"]), *map(str, context["facts"])]))
+    context_tokens = _tokens(
+        " ".join([str(context["title"]), str(context["keywords"]), *map(str, context["facts"])])
+    )
     return len(query_tokens & context_tokens)
 
 
 def _tokens(value: str) -> set[str]:
     lowered = value.lower()
-    ascii_parts = {part for part in lowered.replace("_", " ").replace("-", " ").split() if len(part) >= 2}
+    ascii_parts = {
+        part for part in lowered.replace("_", " ").replace("-", " ").split() if len(part) >= 2
+    }
     cjk_chars = {char for char in lowered if "\u4e00" <= char <= "\u9fff"}
-    cjk_bigrams = {lowered[index : index + 2] for index in range(len(lowered) - 1) if all("\u4e00" <= char <= "\u9fff" for char in lowered[index : index + 2])}
+    cjk_bigrams = {
+        lowered[index : index + 2]
+        for index in range(len(lowered) - 1)
+        if all("\u4e00" <= char <= "\u9fff" for char in lowered[index : index + 2])
+    }
     return ascii_parts | cjk_chars | cjk_bigrams
 
 
@@ -459,13 +482,17 @@ def _add_workbench_message(
     status: str,
     text: str,
 ) -> WorkbenchMessage:
-    sequence = int(
-        session.scalar(
-            select(func.coalesce(func.max(WorkbenchMessage.sequence), 0))
-            .where(WorkbenchMessage.task_id == task_id)
+    sequence = (
+        int(
+            session.scalar(
+                select(func.coalesce(func.max(WorkbenchMessage.sequence), 0)).where(
+                    WorkbenchMessage.task_id == task_id
+                )
+            )
+            or 0
         )
-        or 0
-    ) + 1
+        + 1
+    )
     message = WorkbenchMessage(
         task_id=task_id,
         sequence=sequence,

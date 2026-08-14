@@ -5,12 +5,17 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from se_mentor.main import create_app
 from se_mentor.api.runtime import get_session_factory
+from se_mentor.api.workbench_presentation import workbench_message_text
 from se_mentor.db.session import session_scope
 from se_mentor.llm.base import LLMRequest, LLMResponse, LLMUsage
-from se_mentor.models.task import ChangeProposal, ProposalCompleteness, ProposalCreatedByType, ProposalStatus
-from se_mentor.api.workbench_presentation import workbench_message_text
+from se_mentor.main import create_app
+from se_mentor.models.task import (
+    ChangeProposal,
+    ProposalCompleteness,
+    ProposalCreatedByType,
+    ProposalStatus,
+)
 
 
 def test_workbench_messages_persist_and_reload_in_sequence(tmp_path: Path) -> None:
@@ -96,7 +101,9 @@ def test_mentor_turn_question_answer_input_keeps_current_user_query(
                 provider=self.provider_name,
             )
 
-    monkeypatch.setattr("se_mentor.api.mentor_turns.get_domain_provider", lambda: CapturingProvider())
+    monkeypatch.setattr(
+        "se_mentor.api.mentor_turns.get_domain_provider", lambda: CapturingProvider()
+    )
     client = TestClient(create_app())
     repo = _git_repo(tmp_path / "repo")
     project = client.post("/api/projects", json={"rootPath": str(repo)}).json()["data"]
@@ -112,7 +119,9 @@ def test_mentor_turn_question_answer_input_keeps_current_user_query(
     assert response.status_code == 201
     assert response.json()["data"]["type"] == "ANSWER"
     assert f"CURRENT USER QUESTION:\n{current_query}" in captured["prompt"]
-    assert "Do not replace the user's question with the current proposal topic." in captured["prompt"]
+    assert (
+        "Do not replace the user's question with the current proposal topic." in captured["prompt"]
+    )
     assert "[memory] 项目记忆功能" in captured["prompt"]
     proposals = client.get(f"/api/tasks/{task['id']}/proposals/history").json()["data"]["items"]
     assert [proposal["version"] for proposal in proposals] == [1]
@@ -135,7 +144,9 @@ def test_mentor_turn_question_persists_answer_field_not_structured_json(
                 provider=self.provider_name,
             )
 
-    monkeypatch.setattr("se_mentor.api.mentor_turns.get_domain_provider", lambda: StructuredProvider())
+    monkeypatch.setattr(
+        "se_mentor.api.mentor_turns.get_domain_provider", lambda: StructuredProvider()
+    )
     client = TestClient(create_app())
     repo = _git_repo(tmp_path / "repo")
     project = client.post("/api/projects", json={"rootPath": str(repo)}).json()["data"]
@@ -184,11 +195,14 @@ def test_structured_results_are_mapped_at_workbench_presentation_boundary() -> N
     assert proposal_text == "我已经更新了当前方案，请查看下方 Proposal 卡片。"
     assert "proposal" not in proposal_text
     assert "{" not in proposal_text
-    assert workbench_message_text(
-        role="MENTOR",
-        kind="ERROR",
-        text='{"message":"模型返回的方案格式不完整，请重新生成。"}',
-    ) == "模型返回的方案格式不完整，请重新生成。"
+    assert (
+        workbench_message_text(
+            role="MENTOR",
+            kind="ERROR",
+            text='{"message":"模型返回的方案格式不完整，请重新生成。"}',
+        )
+        == "模型返回的方案格式不完整，请重新生成。"
+    )
 
 
 def test_continue_analysis_turn_stays_answer_without_new_proposal(
@@ -207,7 +221,9 @@ def test_continue_analysis_turn_stays_answer_without_new_proposal(
                 provider=self.provider_name,
             )
 
-    monkeypatch.setattr("se_mentor.api.mentor_turns.get_domain_provider", lambda: StructuredProvider())
+    monkeypatch.setattr(
+        "se_mentor.api.mentor_turns.get_domain_provider", lambda: StructuredProvider()
+    )
     client = TestClient(create_app())
     repo = _git_repo(tmp_path / "repo")
     project = client.post("/api/projects", json={"rootPath": str(repo)}).json()["data"]
@@ -243,16 +259,18 @@ def test_mentor_turn_question_persists_fenced_answer_as_markdown_text(
         def complete(self, request: LLMRequest) -> LLMResponse:
             return LLMResponse(
                 content=(
-                    '```json\n'
+                    "```json\n"
                     '{"answer":"More impacts remain:\\n\\n1. **Performance**\\n2. **Security**"}\n'
-                    '```'
+                    "```"
                 ),
                 usage=LLMUsage(input_tokens=1, output_tokens=1),
                 model=self.model,
                 provider=self.provider_name,
             )
 
-    monkeypatch.setattr("se_mentor.api.mentor_turns.get_domain_provider", lambda: FencedStructuredProvider())
+    monkeypatch.setattr(
+        "se_mentor.api.mentor_turns.get_domain_provider", lambda: FencedStructuredProvider()
+    )
     client = TestClient(create_app())
     repo = _git_repo(tmp_path / "repo")
     project = client.post("/api/projects", json={"rootPath": str(repo)}).json()["data"]

@@ -174,4 +174,3 @@ def _json_tuple(value: str) -> tuple[str, ...]:
     if not isinstance(data, list):
         return ()
     return tuple(str(item) for item in data)
-

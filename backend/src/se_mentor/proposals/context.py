@@ -528,9 +528,7 @@ def _direct_text_matches(root: Path, keywords: tuple[str, ...]) -> tuple[set[str
         return set(), stats
     text_terms = _keyword_variants(
         tuple(
-            keyword
-            for keyword in keywords
-            if any("\u4e00" <= char <= "\u9fff" for char in keyword)
+            keyword for keyword in keywords if any("\u4e00" <= char <= "\u9fff" for char in keyword)
         )
     )
     if not text_terms:
@@ -645,7 +643,7 @@ def _source_semantic_context(path: str, source: str) -> list[str]:
     contexts: list[str] = []
     for label, markers in (
         ("sidebar", ("sidebar", "<aside", "side-")),
-        ("navigation", ("navitems", "<nav", "className=\"nav", "navigation")),
+        ("navigation", ("navitems", "<nav", 'className="nav', "navigation")),
         ("menu-item", ("label:", "key:", "nav-item")),
         ("page-heading", ("page-title", "<h1")),
         ("button", ("<button", "button")),

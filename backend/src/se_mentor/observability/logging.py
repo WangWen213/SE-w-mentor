@@ -68,9 +68,7 @@ def configure_runtime_logging(runtime_dir: str | Path | None = None) -> Path:
         existing.set_name(PERF_LOG_HANDLER_NAME)
         logger.addHandler(existing)
     existing.setLevel(logging.INFO)
-    existing.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
-    )
+    existing.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
     if not any(isinstance(item, PerfLogFilter) for item in existing.filters):
         existing.addFilter(PerfLogFilter())
     return log_path

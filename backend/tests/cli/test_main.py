@@ -46,9 +46,7 @@ class FakeHarness:
                 understanding="Update the greeting copy",
                 expected_behavior="Friendlier greeting",
                 scope=("app.py",),
-                changes=(
-                    {"path": "app.py", "action": "update", "reason": "contains greeting"},
-                ),
+                changes=({"path": "app.py", "action": "update", "reason": "contains greeting"},),
                 steps=("read app.py", "patch greeting"),
                 risks=("copy regression",),
                 acceptance=("test_app.py passes",),
@@ -175,4 +173,3 @@ def test_governance_block_never_executes() -> None:
     assert fake.executed is False
     assert "Decision: BLOCK" in output
     assert "Status: NOT_EXECUTED" in output
-

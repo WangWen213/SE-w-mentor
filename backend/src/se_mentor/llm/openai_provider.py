@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from se_mentor.llm.base import (
     LLMRequest,
     LLMResponse,
     LLMUsage,
-    ProviderError,
     ProviderConnectionError,
+    ProviderError,
     ProviderHTTPError,
     ProviderInvalidResponse,
     ProviderRequestBuildError,
@@ -50,11 +50,15 @@ class OpenAIResponsesProvider:
             if isinstance(exc, ProviderError):
                 raise
             if "timeout" in type(exc).__name__.lower():
-                raise ProviderTimeout(f"OpenAI provider timeout: {_safe_error_detail(exc)}") from exc
+                raise ProviderTimeout(
+                    f"OpenAI provider timeout: {_safe_error_detail(exc)}"
+                ) from exc
             status_code = _status_code(exc)
             detail = _safe_error_detail(exc)
             if isinstance(status_code, int):
-                raise ProviderHTTPError(status_code, f"OpenAI HTTP {status_code}: {detail}") from exc
+                raise ProviderHTTPError(
+                    status_code, f"OpenAI HTTP {status_code}: {detail}"
+                ) from exc
             if _is_connection_error(exc):
                 raise ProviderConnectionError(f"OpenAI connection error: {detail}") from exc
             raise ProviderRequestError(f"OpenAI provider request failed: {detail}") from exc
@@ -89,7 +93,9 @@ class OpenAIResponsesProvider:
                 },
             }
         except Exception as exc:
-            raise ProviderRequestBuildError(f"OpenAI structured output request build failed: {exc}") from exc
+            raise ProviderRequestBuildError(
+                f"OpenAI structured output request build failed: {exc}"
+            ) from exc
         return kwargs
 
 

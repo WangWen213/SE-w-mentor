@@ -143,9 +143,7 @@ def update_credential(
     set_provider_config(base_url=payload.base_url, model=payload.model)
     key = payload.key.strip() if payload.key else ""
     status_result = (
-        get_credential_store().update_api_key(key)
-        if key
-        else get_credential_store().status()
+        get_credential_store().update_api_key(key) if key else get_credential_store().status()
     )
     return ok(credential_status_payload(status_result))
 
@@ -189,9 +187,7 @@ def _set_session_cookie(response: Response, session: OnlineSession) -> None:
 
 
 def _cleanup_online_workspaces() -> None:
-    get_online_workspace_factory().cleanup_expired(
-        get_online_session_store().active_session_ids()
-    )
+    get_online_workspace_factory().cleanup_expired(get_online_session_store().active_session_ids())
 
 
 def _online_session_status_payload(session: OnlineSession) -> dict[str, object]:

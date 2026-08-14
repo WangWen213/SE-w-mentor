@@ -490,14 +490,17 @@ def _add_workbench_message(
     text: str,
     proposal_id: str | None = None,
 ) -> None:
-    sequence = int(
-        session.scalar(
-            select(func.coalesce(func.max(WorkbenchMessage.sequence), 0)).where(
-                WorkbenchMessage.task_id == task_id
+    sequence = (
+        int(
+            session.scalar(
+                select(func.coalesce(func.max(WorkbenchMessage.sequence), 0)).where(
+                    WorkbenchMessage.task_id == task_id
+                )
             )
+            or 0
         )
-        or 0
-    ) + 1
+        + 1
+    )
     session.add(
         WorkbenchMessage(
             task_id=task_id,

@@ -42,9 +42,7 @@ def task_changes(task_id: str, request: Request, response: Response) -> dict[str
             if tool is None:
                 continue
             backup = (
-                session.get(BackupEntry, change.backup_entry_id)
-                if change.backup_entry_id
-                else None
+                session.get(BackupEntry, change.backup_entry_id) if change.backup_entry_id else None
             )
             items.append(_trace_payload(change, tool, task, project, backup))
         return ok({"taskId": task_id, "items": items, "count": len(items)})
@@ -70,9 +68,7 @@ def trace_change(change_id: str, request: Request, response: Response) -> dict[s
             response.status_code = status.HTTP_409_CONFLICT
             return error("FILE_CHANGE_EVIDENCE_MISSING", "file change has no project")
         backup = (
-            session.get(BackupEntry, change.backup_entry_id)
-            if change.backup_entry_id
-            else None
+            session.get(BackupEntry, change.backup_entry_id) if change.backup_entry_id else None
         )
         return ok(_trace_payload(change, tool, task, project, backup))
 

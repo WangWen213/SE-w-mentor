@@ -70,7 +70,11 @@ def test_governance_rule_hit_writes_traceable_engineering_memory(tmp_path: Path)
         assert result is not None
         knowledge = session.get(EngineeringKnowledge, result.knowledge_id)
         assert knowledge is not None
-        source = session.query(KnowledgeSource).filter(KnowledgeSource.knowledge_id == knowledge.id).one()
+        source = (
+            session.query(KnowledgeSource)
+            .filter(KnowledgeSource.knowledge_id == knowledge.id)
+            .one()
+        )
         evidence = json.loads(source.evidence_json)
 
     assert result.category == "reusable_engineering_constraint"
