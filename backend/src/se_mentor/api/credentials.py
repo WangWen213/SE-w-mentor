@@ -15,6 +15,7 @@ from se_mentor.api.runtime import (
     get_runtime_settings,
     set_provider_config,
 )
+from se_mentor.runtime.online_provider_security import OnlineProviderEndpointError
 from se_mentor.runtime.online_sessions import (
     ONLINE_SESSION_COOKIE_NAME,
     OnlineCredentialValidationError,
@@ -77,6 +78,9 @@ def set_credential(
                 model=payload.model,
                 key=payload.key,
             )
+        except OnlineProviderEndpointError as exc:
+            _set_endpoint_error_response(response, exc)
+            return error(exc.code, str(exc))
         except OnlineCredentialValidationError as exc:
             response.status_code = status.HTTP_400_BAD_REQUEST
             return error("PROVIDER_UNSUPPORTED", str(exc))
@@ -116,6 +120,9 @@ def update_credential(
                 model=payload.model,
                 key=payload.key,
             )
+        except OnlineProviderEndpointError as exc:
+            _set_endpoint_error_response(response, exc)
+            return error(exc.code, str(exc))
         except OnlineCredentialValidationError as exc:
             response.status_code = status.HTTP_400_BAD_REQUEST
             return error("PROVIDER_UNSUPPORTED", str(exc))
@@ -202,3 +209,14 @@ def _online_safe_insecure_error(
 
 def is_secure_online_request(request: Request) -> bool:
     return request.url.scheme == "https"
+
+
+def _set_endpoint_error_response(
+    response: Response,
+    exc: OnlineProviderEndpointError,
+) -> None:
+    response.status_code = (
+        status.HTTP_400_BAD_REQUEST
+        if exc.code.endswith("_INVALID") or exc.code.endswith("_TRANSPORT_REQUIRED")
+        else status.HTTP_409_CONFLICT
+    )

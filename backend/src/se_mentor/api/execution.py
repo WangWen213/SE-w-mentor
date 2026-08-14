@@ -9,6 +9,10 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from se_mentor.agent.runtime import AgentRuntime, ExecutionPipelineUnavailable
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.runtime import (
+    ONLINE_SAFE_EXECUTION_ERROR,
+    get_runtime_settings,
+)
 from se_mentor.db.session import session_scope
 from se_mentor.execution.orchestrator import (
     ExecutionOrchestrator,
@@ -17,6 +21,7 @@ from se_mentor.execution.orchestrator import (
 )
 from se_mentor.models.approval import ExecutionPolicy, ExecutionPolicyStatus
 from se_mentor.models.task import ChangeTask, TaskStatus
+from se_mentor.runtime.profiles import RuntimeProfile
 
 router = APIRouter(prefix="/api/tasks", tags=["execution"])
 _SESSION_FACTORY: sessionmaker[Session] | None = None
@@ -56,6 +61,8 @@ def get_execution_orchestrator() -> ExecutionOrchestratorProtocol:
 
 @router.post("/{task_id}/execute")
 def execute(task_id: str, payload: ExecuteRequest, response: Response) -> dict[str, object]:
+    if online_safe_error := _online_safe_execution_error(response):
+        return online_safe_error
     if _SESSION_FACTORY is None:
         response.status_code = status.HTTP_409_CONFLICT
         return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
@@ -91,6 +98,8 @@ def execute(task_id: str, payload: ExecuteRequest, response: Response) -> dict[s
 
 @router.post("/{task_id}/cancel")
 def cancel(task_id: str, response: Response) -> dict[str, object]:
+    if online_safe_error := _online_safe_execution_error(response):
+        return online_safe_error
     if _SESSION_FACTORY is not None:
         with session_scope(_SESSION_FACTORY) as session:
             task = session.get(ChangeTask, task_id)
@@ -115,6 +124,8 @@ def cancel(task_id: str, response: Response) -> dict[str, object]:
 
 @router.get("/{task_id}/policy")
 def policy(task_id: str, response: Response) -> dict[str, object]:
+    if online_safe_error := _online_safe_execution_error(response):
+        return online_safe_error
     if _SESSION_FACTORY is None:
         response.status_code = status.HTTP_409_CONFLICT
         return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
@@ -137,6 +148,13 @@ def policy(task_id: str, response: Response) -> dict[str, object]:
 
 def _safe_error(exc: Exception) -> str:
     return " ".join((str(exc) or type(exc).__name__).split())[:360]
+
+
+def _online_safe_execution_error(response: Response) -> dict[str, object] | None:
+    if get_runtime_settings().profile is not RuntimeProfile.ONLINE_SAFE:
+        return None
+    response.status_code = status.HTTP_409_CONFLICT
+    return error(ONLINE_SAFE_EXECUTION_ERROR, "online safe execution is not ready")
 
 
 def _active_policy(session: Session, task: ChangeTask) -> ExecutionPolicy | None:

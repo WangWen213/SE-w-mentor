@@ -11,7 +11,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
-from se_mentor.api.runtime import get_session_factory
+from se_mentor.api.runtime import (
+    ONLINE_SAFE_EXECUTION_ERROR,
+    get_runtime_settings,
+    get_session_factory,
+)
 from se_mentor.db.session import session_scope
 from se_mentor.git.git_service import GitService
 from se_mentor.models.execution import FileChange, ToolExecution
@@ -20,6 +24,7 @@ from se_mentor.models.project import Project
 from se_mentor.models.task import ChangeProposal, ChangeTask, ProposalStatus
 from se_mentor.models.validation import ValidationPlan, ValidationRun
 from se_mentor.models.workbench import WorkbenchMessage
+from se_mentor.runtime.profiles import RuntimeProfile
 from se_mentor.tasks.task_service import TaskCreationRequest, TaskService
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -35,6 +40,9 @@ class TaskCreate(BaseModel):
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_task(payload: TaskCreate, response: Response) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(ONLINE_SAFE_EXECUTION_ERROR, "online safe execution is not ready")
     total_started = perf_counter()
     if not payload.request.strip():
         response.status_code = status.HTTP_400_BAD_REQUEST

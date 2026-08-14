@@ -5,8 +5,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from secrets import token_urlsafe
 from threading import Lock
-from urllib import parse as urlparse
 
+from se_mentor.runtime.online_provider_security import (
+    OnlineProviderEndpointError,
+    validate_online_provider_endpoint,
+)
 from se_mentor.security.secrets import Secret
 
 ONLINE_SESSION_COOKIE_NAME = "se_mentor_session"
@@ -217,17 +220,16 @@ def validate_online_credential_metadata(
     if provider_name.lower() not in {"openai", "openai-compatible"}:
         raise OnlineCredentialValidationError("only OpenAI provider is supported")
     normalized_base_url = _normalize_base_url(base_url)
-    parsed = urlparse.urlparse(normalized_base_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise OnlineCredentialValidationError(
-            "OpenAI-compatible base_url must include http(s) scheme and host"
-        )
+    try:
+        endpoint = validate_online_provider_endpoint(normalized_base_url)
+    except OnlineProviderEndpointError:
+        raise
     model_name = model.strip()
     if not model_name:
         raise OnlineCredentialValidationError("model is required")
     return OnlineCredentialMetadata(
         provider="OpenAI",
-        base_url=normalized_base_url,
+        base_url=endpoint.base_url,
         model=model_name,
     )
 

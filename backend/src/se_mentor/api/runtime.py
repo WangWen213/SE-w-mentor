@@ -38,7 +38,16 @@ from se_mentor.llm.base import (
 from se_mentor.llm.mock import MockLLMProvider, MockResponse
 from se_mentor.llm.openai_provider import OpenAIProviderConfig, OpenAIResponsesProvider
 from se_mentor.runtime.demo import ensure_demo_workspace
-from se_mentor.runtime.online_sessions import InMemoryOnlineSessionStore
+from se_mentor.runtime.online_provider_security import (
+    ONLINE_SAFE_PROVIDER_CREDENTIAL_REQUIRED,
+    OnlineProviderEndpointError,
+    validate_online_provider_endpoint,
+)
+from se_mentor.runtime.online_sessions import (
+    InMemoryOnlineSessionStore,
+    OnlineSessionExpired,
+    OnlineSessionRequired,
+)
 from se_mentor.runtime.profiles import RuntimeProfile  # noqa: I001
 from se_mentor.runtime.profiles import get_runtime_settings as resolve_runtime_settings
 from se_mentor.security.secrets import Secret
@@ -82,6 +91,7 @@ _CREDENTIAL_STORE = _build_credential_store()
 LOGGER = logging.getLogger("se_mentor.provider")
 _DEFAULT_OPENAI_TIMEOUT_SECONDS = 120
 _MAX_OPENAI_TIMEOUT_SECONDS = 180
+_ONLINE_SAFE_OPENAI_TIMEOUT_SECONDS = 60
 
 
 def _ensure_runtime_schema_compatibility() -> None:
@@ -125,6 +135,7 @@ ONLINE_SAFE_SESSION_ERROR = "ONLINE_SAFE_SESSION_REQUIRED"
 ONLINE_SAFE_SESSION_EXPIRED_ERROR = "ONLINE_SAFE_SESSION_EXPIRED"
 ONLINE_SAFE_PROVIDER_ERROR = "ONLINE_SAFE_PROVIDER_NOT_READY"
 ONLINE_SAFE_WORKSPACE_ERROR = "ONLINE_SAFE_WORKSPACE_NOT_READY"
+ONLINE_SAFE_EXECUTION_ERROR = "ONLINE_SAFE_EXECUTION_NOT_READY"
 _ONLINE_SESSION_STORE = InMemoryOnlineSessionStore()
 
 
@@ -254,6 +265,35 @@ def get_domain_provider() -> LLMProvider:
     return ProviderFactory(get_credential_store()).create()
 
 
+def get_online_session_provider(session_id: str | None) -> LLMProvider:
+    if _RUNTIME_SETTINGS.profile is not RuntimeProfile.ONLINE_SAFE:
+        return get_domain_provider()
+    try:
+        session = get_online_session_store().require(session_id)
+    except OnlineSessionRequired as exc:
+        raise OnlineSafeNotReadyError(ONLINE_SAFE_SESSION_ERROR) from exc
+    except OnlineSessionExpired as exc:
+        raise OnlineSafeNotReadyError(ONLINE_SAFE_SESSION_EXPIRED_ERROR) from exc
+    credential = session.credential
+    if credential is None:
+        raise OnlineSafeNotReadyError(ONLINE_SAFE_PROVIDER_CREDENTIAL_REQUIRED)
+    try:
+        endpoint = validate_online_provider_endpoint(credential.metadata.base_url)
+    except OnlineProviderEndpointError as exc:
+        raise OnlineSafeNotReadyError(exc.code) from exc
+    return build_openai_provider(
+        credential.secret,
+        config=ProviderRuntimeConfig(
+            base_url=endpoint.base_url,
+            model=credential.metadata.model,
+        ),
+        credential_source="online-safe-session",
+        allow_redirects=False,
+        trust_env=False,
+        request_timeout_seconds=_ONLINE_SAFE_OPENAI_TIMEOUT_SECONDS,
+    )
+
+
 def _cloud_demo_provider() -> MockLLMProvider:
     return MockLLMProvider(
         model="cloud-demo",
@@ -342,6 +382,9 @@ def build_openai_provider(
     *,
     config: ProviderRuntimeConfig | None = None,
     credential_source: str = "settings",
+    allow_redirects: bool = True,
+    trust_env: bool = True,
+    request_timeout_seconds: int | None = None,
 ) -> OpenAIResponsesProvider:
     resolved = config or _resolved_provider_config()
     if not resolved.base_url:
@@ -351,11 +394,15 @@ def build_openai_provider(
         raise ProviderConfigError("OpenAI-compatible model is not configured")
     return OpenAIResponsesProvider(
         client=_OpenAIHTTPClient(
-            secret, base_url=resolved.base_url, credential_source=credential_source
+            secret,
+            base_url=resolved.base_url,
+            credential_source=credential_source,
+            allow_redirects=allow_redirects,
+            trust_env=trust_env,
         ),
         config=OpenAIProviderConfig(
             model=resolved.model,
-            request_timeout_seconds=_openai_timeout_seconds(),
+            request_timeout_seconds=request_timeout_seconds or _openai_timeout_seconds(),
         ),
     )
 
@@ -373,17 +420,44 @@ def _environment_source_label(configured: bool) -> str:
 
 
 class _OpenAIHTTPClient:
-    def __init__(self, secret: Secret, *, base_url: str, credential_source: str) -> None:
+    def __init__(
+        self,
+        secret: Secret,
+        *,
+        base_url: str,
+        credential_source: str,
+        allow_redirects: bool = True,
+        trust_env: bool = True,
+    ) -> None:
         self.responses = _OpenAIHTTPResponses(
-            secret, base_url=base_url, credential_source=credential_source
+            secret,
+            base_url=base_url,
+            credential_source=credential_source,
+            allow_redirects=allow_redirects,
+            trust_env=trust_env,
         )
 
 
 class _OpenAIHTTPResponses:
-    def __init__(self, secret: Secret, *, base_url: str, credential_source: str) -> None:
+    def __init__(
+        self,
+        secret: Secret,
+        *,
+        base_url: str,
+        credential_source: str,
+        allow_redirects: bool = True,
+        trust_env: bool = True,
+    ) -> None:
         self._secret = secret
         self._base_url = base_url
         self._credential_source = credential_source
+        self.allow_redirects = allow_redirects
+        self.trust_env = trust_env
+        self._opener = (
+            _openai_url_opener(allow_redirects=allow_redirects, trust_env=trust_env)
+            if not allow_redirects or not trust_env
+            else None
+        )
 
     def create(self, **kwargs: object) -> object:
         LOGGER.info(
@@ -424,7 +498,8 @@ class _OpenAIHTTPResponses:
             kwargs.get("model"),
         )
         try:
-            with urlrequest.urlopen(request, timeout=timeout) as response:
+            urlopen = self._opener.open if self._opener is not None else urlrequest.urlopen
+            with urlopen(request, timeout=timeout) as response:
                 payload = json.loads(response.read().decode("utf-8"))
                 LOGGER.info(
                     "[provider] response RECEIVED status=%s type=chat_completions", response.status
@@ -464,6 +539,29 @@ class _HTTPProviderError(Exception):
     def __init__(self, status_code: int) -> None:
         super().__init__(f"OpenAI HTTP error {status_code}")
         self.status_code = status_code
+
+
+class _NoRedirectHandler(urlrequest.HTTPRedirectHandler):
+    def redirect_request(self, *args: object, **kwargs: object) -> None:
+        return None
+
+
+class _NoProxyHandler(urlrequest.ProxyHandler):
+    def __init__(self) -> None:
+        super().__init__({})
+
+
+def _openai_url_opener(
+    *,
+    allow_redirects: bool,
+    trust_env: bool,
+) -> urlrequest.OpenerDirector:
+    handlers: list[urlrequest.BaseHandler] = []
+    if not allow_redirects:
+        handlers.append(_NoRedirectHandler())
+    if not trust_env:
+        handlers.append(_NoProxyHandler())
+    return urlrequest.build_opener(*handlers)
 
 
 class _OpenAIResponse:

@@ -10,7 +10,12 @@ from sqlalchemy import func, select
 
 from se_mentor.api.envelope import error, ok
 from se_mentor.api.projects import get_project_bootstrap_state, is_project_context_ready
-from se_mentor.api.runtime import get_domain_provider, get_session_factory
+from se_mentor.api.runtime import (
+    ONLINE_SAFE_EXECUTION_ERROR,
+    get_domain_provider,
+    get_runtime_settings,
+    get_session_factory,
+)
 from se_mentor.api.workbench_presentation import workbench_message_text
 from se_mentor.db.session import session_scope
 from se_mentor.llm.base import LLMRequest, ProviderError
@@ -27,6 +32,7 @@ from se_mentor.proposals.context import ProposalContextBuilder
 from se_mentor.proposals.generator import ProposalGenerationError, ProposalGenerator
 from se_mentor.proposals.review_service import ProposalReviewService
 from se_mentor.proposals.supplement import run_bounded_technical_supplement
+from se_mentor.runtime.profiles import RuntimeProfile
 
 router = APIRouter(prefix="/api/tasks/{task_id}/proposals", tags=["proposals"])
 _SESSION_FACTORY = get_session_factory()
@@ -48,6 +54,8 @@ class ProposalAdjust(BaseModel):
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_proposal(task_id: str, payload: ProposalCreate, response: Response) -> dict[str, object]:
+    if online_safe_error := _online_safe_execution_error(response):
+        return online_safe_error
     with session_scope(_SESSION_FACTORY) as session:
         task = session.get(ChangeTask, task_id)
         if task is None:
@@ -224,6 +232,8 @@ def proposal_history(task_id: str, response: Response) -> dict[str, object]:
 
 @router.post("/{proposal_id}/confirm")
 def confirm_proposal(task_id: str, proposal_id: str, response: Response) -> dict[str, object]:
+    if online_safe_error := _online_safe_execution_error(response):
+        return online_safe_error
     with session_scope(_SESSION_FACTORY) as session:
         proposal = session.get(ChangeProposal, proposal_id)
         if proposal is None or proposal.task_id != task_id:
@@ -279,6 +289,8 @@ def confirm_proposal(task_id: str, proposal_id: str, response: Response) -> dict
 
 @router.post("/{proposal_id}/reject")
 def reject_proposal(task_id: str, proposal_id: str, response: Response) -> dict[str, object]:
+    if online_safe_error := _online_safe_execution_error(response):
+        return online_safe_error
     with session_scope(_SESSION_FACTORY) as session:
         proposal = session.get(ChangeProposal, proposal_id)
         if proposal is None or proposal.task_id != task_id:
@@ -300,6 +312,8 @@ def adjust_proposal(
     payload: ProposalAdjust,
     response: Response,
 ) -> dict[str, object]:
+    if online_safe_error := _online_safe_execution_error(response):
+        return online_safe_error
     instruction = payload.instruction.strip()
     if not instruction:
         response.status_code = status.HTTP_400_BAD_REQUEST
@@ -619,6 +633,13 @@ def _proposal_generation_error(exc: ProposalGenerationError) -> dict[str, object
         expectedKeys=exc.expected_keys,
         validationErrors=exc.validation_errors,
     )
+
+
+def _online_safe_execution_error(response: Response) -> dict[str, object] | None:
+    if get_runtime_settings().profile is not RuntimeProfile.ONLINE_SAFE:
+        return None
+    response.status_code = status.HTTP_409_CONFLICT
+    return error(ONLINE_SAFE_EXECUTION_ERROR, "online safe execution is not ready")
 
 
 def _add_workbench_message(

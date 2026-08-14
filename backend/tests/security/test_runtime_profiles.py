@@ -150,6 +150,10 @@ def test_online_safe_credentials_use_secure_ephemeral_session_store(
     app_module, projects_api, credentials_api, runtime_module, _ = _reload_api_for_online_safe(
         monkeypatch, runtime_root
     )
+    monkeypatch.setattr(
+        "se_mentor.runtime.online_provider_security.socket.getaddrinfo",
+        _online_resolver({"api.example.test": ["93.184.216.34"]}),
+    )
 
     class FailingStore:
         def status(self):
@@ -237,6 +241,15 @@ def test_online_safe_session_credentials_are_isolated_and_expire(
     app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
         monkeypatch, runtime_root
     )
+    monkeypatch.setattr(
+        "se_mentor.runtime.online_provider_security.socket.getaddrinfo",
+        _online_resolver(
+            {
+                "a.example.test": ["93.184.216.34"],
+                "b.example.test": ["93.184.216.35"],
+            }
+        ),
+    )
     store = InMemoryOnlineSessionStore(
         ttl_seconds=60,
         max_active_sessions=8,
@@ -298,6 +311,10 @@ def test_online_safe_store_reset_loses_credentials_and_sqlite_never_contains_key
     runtime_root = tmp_path / "online-safe-runtime"
     app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
         monkeypatch, runtime_root
+    )
+    monkeypatch.setattr(
+        "se_mentor.runtime.online_provider_security.socket.getaddrinfo",
+        _online_resolver({"api.example.test": ["93.184.216.34"]}),
     )
     client = TestClient(app_module.create_app(), base_url="https://testserver")
 
@@ -483,3 +500,20 @@ def _git_repo(root: Path) -> Path:
 
 class _Authorization:
     revision = "rev-1"
+
+
+def _online_resolver(hosts: dict[str, list[str]]):
+    def resolve(host: str, port: int | None, *args: object):
+        addresses = hosts[host.lower().rstrip(".")]
+        return [
+            (
+                0,
+                0,
+                0,
+                "",
+                (address, port or 443),
+            )
+            for address in addresses
+        ]
+
+    return resolve
