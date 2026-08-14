@@ -1,0 +1,84 @@
+name: Production Deploy
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ONLINE_SAFE Production
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deployment secrets
+        id: deploy_secrets
+        env:
+          SE_MENTOR_DEPLOY_HOST: ${{ secrets.SE_MENTOR_DEPLOY_HOST }}
+          SE_MENTOR_DEPLOY_USER: ${{ secrets.SE_MENTOR_DEPLOY_USER }}
+          SE_MENTOR_DEPLOY_SSH_KEY: ${{ secrets.SE_MENTOR_DEPLOY_SSH_KEY }}
+          SE_MENTOR_DEPLOY_KNOWN_HOSTS: ${{ secrets.SE_MENTOR_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          missing=0
+          for name in SE_MENTOR_DEPLOY_HOST SE_MENTOR_DEPLOY_USER SE_MENTOR_DEPLOY_SSH_KEY SE_MENTOR_DEPLOY_KNOWN_HOSTS; do
+            eval "value=\${$name:-}"
+            if [ -z "$value" ]; then
+              echo "::notice::$name is not configured."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::notice::Production deployment skipped before SSH because deployment secrets are incomplete."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Configure SSH
+        if: steps.deploy_secrets.outputs.ready == 'true'
+        env:
+          SE_MENTOR_DEPLOY_SSH_KEY: ${{ secrets.SE_MENTOR_DEPLOY_SSH_KEY }}
+          SE_MENTOR_DEPLOY_KNOWN_HOSTS: ${{ secrets.SE_MENTOR_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SE_MENTOR_DEPLOY_SSH_KEY" > "$HOME/.ssh/se_mentor_deploy_key"
+          chmod 600 "$HOME/.ssh/se_mentor_deploy_key"
+          printf '%s\n' "$SE_MENTOR_DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Deploy over SSH
+        if: steps.deploy_secrets.outputs.ready == 'true'
+        env:
+          SE_MENTOR_DEPLOY_HOST: ${{ secrets.SE_MENTOR_DEPLOY_HOST }}
+          SE_MENTOR_DEPLOY_USER: ${{ secrets.SE_MENTOR_DEPLOY_USER }}
+        run: |
+          set -eu
+          ssh \
+            -i "$HOME/.ssh/se_mentor_deploy_key" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "${SE_MENTOR_DEPLOY_USER}@${SE_MENTOR_DEPLOY_HOST}" \
+            'set -eu
+             cd /opt/se-mentor
+             if [ ! -x scripts/deploy_production.sh ]; then
+               test "$(git rev-parse --abbrev-ref HEAD)" = main
+               test -z "$(git status --porcelain --untracked-files=no)"
+               git fetch origin main
+               git merge --ff-only origin/main
+             fi
+             exec scripts/deploy_production.sh'

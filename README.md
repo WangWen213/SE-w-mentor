@@ -1,5 +1,12 @@
 # SE-Mentor
 
+Production CD for the current ONLINE_SAFE deployment is documented in
+`docs/PRODUCTION_CD_RUNBOOK.md`. The deployment path is:
+
+```text
+main -> CI -> Production Deploy -> ECS /opt/se-mentor -> production compose
+```
+
 > **Software Change Proposal Analysis and Governance**  
 > 面向真实软件项目的受治理 Coding Agent Harness。
 

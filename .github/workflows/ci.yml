@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-quality:
+    name: Backend Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "backend[dev]"
+      - name: Ruff format
+        run: python -m ruff format --check backend scripts tests
+      - name: Ruff check
+        run: python -m ruff check backend scripts tests
+      - name: Mypy
+        run: cd backend && python -m mypy src tests
+
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "backend[dev]"
+      - name: Migration policy
+        run: python scripts/ci/check_migrations.py
+      - name: Backend unit tests
+        run: python scripts/ci/run_backend_tests.py
+      - name: Mock-safe E2E
+        run: python scripts/ci/run_mock_e2e.py
+      - name: Security checks
+        run: python scripts/ci/run_security_checks.py
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Type check
+        run: npm run type-check
+      - name: Frontend tests
+        run: npm run test -- --run
+      - name: Frontend production build
+        run: npm run build
+
+  security-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Scan tracked files
+        run: python scripts/ci/scan_secrets.py
+
+  release-gate:
+    name: Release Gate
+    runs-on: ubuntu-latest
+    needs:
+      - backend-quality
+      - backend-tests
+      - frontend-tests
+      - security-scan
+    steps:
+      - name: Validate release gate inputs
+        run: |
+          test -n "${GITHUB_SHA}"
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            test "${GITHUB_REF_NAME}" = "main"
+          fi
+          echo "CI release gate passed for ${GITHUB_SHA}."
