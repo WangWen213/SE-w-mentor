@@ -18,6 +18,7 @@ from se_mentor.context.context_builder import ContextBuilder, ContextItem, Trust
 from se_mentor.context.token_budget import BudgetedLLMProvider, estimate_tokens
 from se_mentor.contracts.actions import AgentActionAdapter
 from se_mentor.governance.decision_service import GovernanceDecisionService
+from se_mentor.governance.rule_repository import RuleDefinition
 from se_mentor.llm.base import LLMProvider, LLMRequest
 from se_mentor.models.governance import GovernanceVerdict
 from se_mentor.models.llm import (
@@ -63,6 +64,7 @@ class SingleTurnAgentRunner:
         registry: ToolRegistry,
         tool_handlers: dict[str, Callable[[Any], object]],
         enforcers: dict[str, Callable[[Any], bool]] | None = None,
+        governance_rules: tuple[RuleDefinition, ...] = (),
     ) -> None:
         self.session = session
         self.project_root = Path(project_root).resolve()
@@ -71,6 +73,7 @@ class SingleTurnAgentRunner:
         self.registry = registry
         self.tool_handlers = tool_handlers
         self.enforcers = enforcers or {}
+        self.governance_rules = governance_rules
 
     def run(
         self,
@@ -265,7 +268,7 @@ class SingleTurnAgentRunner:
             action_id=action.id,
             proposal_hash=proposal_hash,
             revision=revision,
-            rules=(),
+            rules=self.governance_rules,
             changed_paths=_changed_paths(parsed.action),
             llm_verdict=GovernanceVerdict.ALLOW,
             user_verdict=None,
@@ -328,10 +331,7 @@ class SingleTurnAgentRunner:
         )
         dispatch_ms = int((perf_counter() - dispatch_started) * 1000)
         LOGGER.info(
-            (
-                "[perf] execution.turn.tool task_id=%s turn=%s duration_ms=%s "
-                "tool=%s error=%s"
-            ),
+            ("[perf] execution.turn.tool task_id=%s turn=%s duration_ms=%s tool=%s error=%s"),
             task_id,
             iteration.iteration_number,
             dispatch_ms,
@@ -349,10 +349,7 @@ class SingleTurnAgentRunner:
         self.session.flush()
         persist_ms = int((perf_counter() - persist_started) * 1000)
         LOGGER.info(
-            (
-                "[perf] execution.turn.persist task_id=%s turn=%s duration_ms=%s "
-                "result=progress"
-            ),
+            ("[perf] execution.turn.persist task_id=%s turn=%s duration_ms=%s result=progress"),
             task_id,
             iteration.iteration_number,
             persist_ms,

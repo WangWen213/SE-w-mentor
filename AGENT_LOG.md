@@ -2,6 +2,57 @@
 
 Append one section per Task execution.
 
+## 2026-08-14 T113 Deterministic Mechanism Demo
+
+### Task ID
+T113
+
+### Date
+2026-08-14
+
+### Agent
+Codex
+
+### Worktree
+codex/mechanism-demo at `C:\Users\ww\Desktop\SE-w-mentor-demo`
+
+### Start Commit
+`5b4242aa4618d8697605be5875ca60445be3e579`
+
+### Status Before
+`[ ]`
+
+### Status After
+`[-]` branch implementation and runtime acceptance complete; awaiting review/merge.
+
+### Change Scope
+Added the deterministic offline mechanism demo CLI, a small configurable-rule hook for the
+existing single-turn runner, focused T113 tests, README instructions, and this task record.
+
+### Implementation Summary
+`scripts/demo_harness.py --all` runs three isolated temporary scenarios with `MockLLMProvider`:
+Governance Guardrail, Feedback-driven Self Correction, and Engineering Memory / Context. The demo
+uses the existing context builder, action parser, governance decision service, dispatcher, feedback
+controller, knowledge repository, and retriever.
+
+### Runtime Evidence
+`scripts/demo_harness.py --help`, each individual scenario, `--all`, repeated `--all`, and
+`--all --output $env:TEMP\sementor-demo-evidence` passed with no network, real provider, API key,
+Credential Manager, ECS, public URL, or user repository mutation.
+
+### Regression Evidence
+Focused tests in `backend/tests/demo/test_harness_demo.py` reached 3 passing assertions, including
+repeatability, parseable evidence, secret-free evidence, and failure exit-code behavior. In this
+Windows shared-venv environment, pytest reached `[100%]` but did not return to the shell before the
+tool timeout; the same teardown hang reproduced on pre-existing `backend/tests/context` pytest
+smoke. Ruff check and ruff format check passed for all touched files with `RUFF_CACHE_DIR`
+redirected to `%TEMP%`.
+
+### Deviations
+No ECS, public URL, ONLINE_SAFE, Docker, frontend, real provider, credential, schema migration, or
+persistent runtime state was modified. The demo branch is isolated from the active ONLINE_SAFE
+worktree.
+
 ## 2026-08-08 Phase 1 Data Model Main Integration Closure
 
 ### Task ID

@@ -36,3 +36,40 @@ and runs frontend commands from `frontend/` with `npm.cmd` on Windows.
 
 `npm.cmd run build` is separate frontend readiness evidence; it is not part of the canonical
 `scripts/check_all.py` quality gate.
+
+## Deterministic Harness Mechanism Demo
+
+The coursework mechanism demo is an offline CLI artifact, separate from the Online WebUI,
+ONLINE_SAFE profile, ECS deployment, and public URL.
+
+It uses the real harness path with `MockLLMProvider`: context building, action parsing,
+governance decisioning, dispatcher gating, validation feedback, and engineering-memory retrieval.
+It does not require a real LLM, API key, network, Credential Manager, ECS, or a user project.
+Each run creates an isolated temporary fixture repository and temporary SQLite state.
+
+Main command:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path backend\src).Path
+.\backend\.venv\Scripts\python.exe scripts\demo_harness.py --all
+```
+
+Scenario commands:
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path backend\src).Path
+.\backend\.venv\Scripts\python.exe scripts\demo_harness.py --scenario governance
+.\backend\.venv\Scripts\python.exe scripts\demo_harness.py --scenario feedback
+.\backend\.venv\Scripts\python.exe scripts\demo_harness.py --scenario memory
+.\backend\.venv\Scripts\python.exe scripts\demo_harness.py --all --output $env:TEMP\sementor-demo-evidence
+```
+
+Expected summary:
+
+```text
+Governance Guardrail             PASS
+Feedback-driven Self Correction  PASS
+Engineering Memory / Context     PASS
+
+Scenarios passed: 3 / 3
+```

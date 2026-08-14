@@ -3377,15 +3377,16 @@ T000-T008 规约/契约/迁移门禁
 
 ## T113 — 可复现机制演示场景
 
-- **状态**：[ ] 未开始
+- **状态**：[-] branch implementation and runtime acceptance complete; awaiting review/merge
 - **阻塞说明**：无
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`课程演示`, `FR-12`, `US 闭环`
 - **目标**：提供 ALLOW、WARN、BLOCK、自动修正、停滞、回滚和知识保鲜的演示入口。
 - **涉及文件**：
-  - `demo/run_demo.py`
-  - `demo/scenarios/`
-  - `demo/README.md`
+  - `scripts/demo_harness.py`
+  - `backend/src/se_mentor/demo/harness_demo.py`
+  - `backend/tests/demo/test_harness_demo.py`
+  - `README.md`
 - **预期实现要点**：
   - 每场景从干净 Git 状态开始
   - 输出决策、证据、策略、diff、验证和知识摘要
@@ -3402,7 +3403,7 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T113.xml
   - evidence/diffs/T113.patch
   - `AGENT_LOG.md` 中的 T113 记录
-- **Commit**：`未填写`
+- **Commit**：`pending codex/mechanism-demo branch commit`
 
 ## T114 — 陌生智能体冷启动验证与二次修订
 
