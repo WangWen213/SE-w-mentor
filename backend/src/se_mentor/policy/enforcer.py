@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TypeVar
 
 from sqlalchemy.orm import Session
 
 from se_mentor.models.approval import ExecutionPolicy, ExecutionPolicyStatus
+from se_mentor.paths import ProjectPathError, canonical_project_path
 from se_mentor.policy.grants import ExecutionAuthorization, TemporaryGrant
 
 T = TypeVar("T")
@@ -38,8 +38,9 @@ class PolicyEnforcer:
             return EnforcementResult(False, "inactive_policy")
         if grant.policy_id != policy.id or grant.task_id != policy.task_id:
             return EnforcementResult(False, "grant_mismatch")
-        normalized = relative_path.replace("\\", "/")
-        if Path(normalized).is_absolute() or ".." in Path(normalized).parts:
+        try:
+            normalized = canonical_project_path(relative_path)
+        except ProjectPathError:
             return EnforcementResult(False, "outside_policy")
         if not grant.allows_write(normalized, revision=revision):
             return EnforcementResult(False, "outside_policy")

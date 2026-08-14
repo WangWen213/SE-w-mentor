@@ -19,7 +19,8 @@ from se_mentor.context.token_budget import BudgetedLLMProvider, estimate_tokens
 from se_mentor.contracts.actions import AgentActionAdapter
 from se_mentor.governance.decision_service import GovernanceDecisionService
 from se_mentor.llm.base import LLMProvider, LLMRequest
-from se_mentor.models.governance import GovernanceVerdict
+from se_mentor.models.approval import ExecutionPolicy, ExecutionPolicyStatus
+from se_mentor.models.governance import GovernanceDecision, GovernanceVerdict
 from se_mentor.models.llm import (
     AgentAction,
     AgentActionStatus,
@@ -35,6 +36,7 @@ from se_mentor.models.task import (
     TaskIterationResult,
 )
 from se_mentor.policy.compiler import ExecutionPolicyCompiler
+from se_mentor.runtime.profiles import RuntimeProfile, get_runtime_settings
 from se_mentor.tools.dispatcher import ToolDispatcher, ToolDispatchResult
 from se_mentor.tools.registry import ToolRegistry
 
@@ -328,10 +330,7 @@ class SingleTurnAgentRunner:
         )
         dispatch_ms = int((perf_counter() - dispatch_started) * 1000)
         LOGGER.info(
-            (
-                "[perf] execution.turn.tool task_id=%s turn=%s duration_ms=%s "
-                "tool=%s error=%s"
-            ),
+            ("[perf] execution.turn.tool task_id=%s turn=%s duration_ms=%s tool=%s error=%s"),
             task_id,
             iteration.iteration_number,
             dispatch_ms,
@@ -349,10 +348,7 @@ class SingleTurnAgentRunner:
         self.session.flush()
         persist_ms = int((perf_counter() - persist_started) * 1000)
         LOGGER.info(
-            (
-                "[perf] execution.turn.persist task_id=%s turn=%s duration_ms=%s "
-                "result=progress"
-            ),
+            ("[perf] execution.turn.persist task_id=%s turn=%s duration_ms=%s result=progress"),
             task_id,
             iteration.iteration_number,
             persist_ms,
@@ -440,11 +436,22 @@ class SingleTurnAgentRunner:
     ) -> None:
         if not changed_paths:
             return
+        decision = self.session.get(GovernanceDecision, governance_decision_id)
+        if decision is None:
+            return
+        active = self.session.scalar(
+            select(ExecutionPolicy).where(
+                ExecutionPolicy.task_id == decision.task_id,
+                ExecutionPolicy.status == ExecutionPolicyStatus.ACTIVE,
+            )
+        )
+        if active is not None:
+            return
         policy = ExecutionPolicyCompiler(self.session).compile(
             governance_decision_id=governance_decision_id,
             read_paths=changed_paths,
             write_paths=changed_paths,
-            commands=("RUN_COMMAND",),
+            commands=_execution_commands(),
             protected_paths=(),
             network={},
             resource_limits={},
@@ -553,6 +560,12 @@ def _execution_policy_text(goal: str, feedback: str) -> str:
             feedback,
         ]
     )
+
+
+def _execution_commands() -> tuple[str, ...]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        return ("APPLY_APPROVED_CHANGES",)
+    return ("RUN_COMMAND",)
 
 
 def _sanitize_provider_text(text: str) -> str:

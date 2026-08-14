@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from se_mentor.models.approval import ExecutionPolicy, ExecutionPolicyStatus
+from se_mentor.paths import ProjectPathError, canonical_project_path, canonical_project_paths
 
 
 @dataclass(frozen=True)
@@ -23,7 +24,10 @@ class TemporaryGrant:
     def allows_write(self, relative_path: str, *, revision: str) -> bool:
         if self.revoked or revision != self.revision:
             return False
-        normalized = relative_path.replace("\\", "/")
+        try:
+            normalized = canonical_project_path(relative_path)
+        except ProjectPathError:
+            return False
         return normalized in self.write_paths and normalized not in self.protected_paths
 
 
@@ -45,7 +49,7 @@ class ExecutionAuthorization:
         policy: ExecutionPolicy,
         *,
         temporary_grant: TemporaryGrant | None = None,
-    ) -> "ExecutionAuthorization":
+    ) -> ExecutionAuthorization:
         return cls(
             task_id=policy.task_id,
             action_id=policy.action_id,
@@ -61,7 +65,10 @@ class ExecutionAuthorization:
     def allows_write(self, relative_path: str, *, revision: str) -> bool:
         if revision != self.revision:
             return False
-        normalized = relative_path.replace("\\", "/")
+        try:
+            normalized = canonical_project_path(relative_path)
+        except ProjectPathError:
+            return False
         baseline_allowed = normalized in self.write_paths and normalized not in self.protected_paths
         if not baseline_allowed:
             return False
@@ -110,7 +117,10 @@ def _json_tuple(value: str) -> tuple[str, ...]:
     data = json.loads(value)
     if not isinstance(data, list):
         return ()
-    return tuple(str(item).replace("\\", "/") for item in data)
+    try:
+        return canonical_project_paths([str(item) for item in data])
+    except ProjectPathError:
+        return ()
 
 
 def _json_list(value: str) -> tuple[str, ...]:
@@ -121,4 +131,4 @@ def _json_list(value: str) -> tuple[str, ...]:
 
 
 def _normalize(paths: tuple[str, ...]) -> tuple[str, ...]:
-    return tuple(path.replace("\\", "/") for path in paths)
+    return canonical_project_paths(paths)

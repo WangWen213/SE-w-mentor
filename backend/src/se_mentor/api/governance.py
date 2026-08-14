@@ -39,6 +39,7 @@ from se_mentor.models.governance import (
 )
 from se_mentor.models.task import ChangeProposal, ChangeTask, ProposalStatus, TaskStatus
 from se_mentor.orchestration.change_flow import _ensure_proposal_action
+from se_mentor.paths import ProjectPathError, canonical_project_paths
 from se_mentor.policy.compiler import ExecutionPolicyCompiler
 from se_mentor.runtime.profiles import RuntimeProfile
 
@@ -64,13 +65,15 @@ def current_governance(
         if proposal.status != ProposalStatus.CONFIRMED:
             response.status_code = status.HTTP_409_CONFLICT
             return error("PROPOSAL_NOT_CONFIRMED", "proposal must be confirmed before governance")
-        changed_paths = tuple(_json_list(proposal.initial_scope_json))
+        changed_paths = _canonical_scope_or_error(proposal, response)
+        if changed_paths is None:
+            return error("GOVERNED_SCOPE_INVALID", "confirmed proposal scope is invalid")
         existing = _latest_governance(session, proposal.id)
         if existing is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("GOVERNANCE_NOT_FOUND", "governance result not found")
         impact_report, decision, approval = existing
-        if not _impact_scope_matches(impact_report, changed_paths):
+        if not _governed_scope_matches(decision, changed_paths):
             response.status_code = status.HTTP_409_CONFLICT
             return error(
                 "GOVERNANCE_SCOPE_STALE",
@@ -103,14 +106,20 @@ def run_governance(
         if proposal.status != ProposalStatus.CONFIRMED:
             response.status_code = status.HTTP_409_CONFLICT
             return error("PROPOSAL_NOT_CONFIRMED", "proposal must be confirmed before governance")
+        changed_paths = _canonical_scope_or_error(
+            proposal,
+            response,
+            requested_paths=payload.changed_paths,
+        )
+        if changed_paths is None:
+            return error("GOVERNED_SCOPE_INVALID", "confirmed proposal scope is invalid")
         provider = _provider_for_project(session, proposal.task.project_id, request, response)
         if isinstance(provider, dict):
             return provider
-        changed_paths = tuple(payload.changed_paths or _json_list(proposal.initial_scope_json))
         existing = _latest_governance(session, proposal.id)
         if existing is not None:
             impact_report, decision, approval = existing
-            if _impact_scope_matches(impact_report, changed_paths):
+            if _governed_scope_matches(decision, changed_paths):
                 approval = _ensure_execution_readiness(
                     session,
                     proposal=proposal,
@@ -234,6 +243,10 @@ def _ensure_execution_readiness(
         )
     if decision.decision == GovernanceVerdict.ALLOW:
         policy = _active_policy_for_decision(session, decision.id)
+        if policy is not None and not _policy_scope_matches(policy, changed_paths):
+            policy.status = ExecutionPolicyStatus.SUPERSEDED
+            policy.executable = False
+            policy = None
         if policy is None:
             policy = ExecutionPolicyCompiler(session).compile(
                 governance_decision_id=decision.id,
@@ -364,9 +377,7 @@ def _governance_payload(
             for item in direct
         ],
         "inferences": (
-            [str(uncertainties.get("narrative", ""))]
-            if uncertainties.get("narrative")
-            else []
+            [str(uncertainties.get("narrative", ""))] if uncertainties.get("narrative") else []
         ),
         "unknowns": [str(item) for item in uncertainties.get("unknowns", [])],
         "evidence": [
@@ -440,14 +451,38 @@ def _mark_governance_failed(session, task_id: str, code: str, message: str) -> N
     task.failure_message = message or "Governance failed"
 
 
-def _impact_scope_matches(impact_report: ImpactReport, changed_paths: tuple[str, ...]) -> bool:
-    direct = _json_any(impact_report.direct_impacts_json, [])
-    paths = {
-        str(item.get("relative_path", ""))
-        for item in direct
-        if isinstance(item, dict) and item.get("relative_path")
-    }
-    return set(changed_paths).issubset(paths)
+def _canonical_scope_or_error(
+    proposal: ChangeProposal,
+    response: Response,
+    *,
+    requested_paths: list[str] | None = None,
+) -> tuple[str, ...] | None:
+    source = requested_paths or _json_list(proposal.initial_scope_json)
+    try:
+        return canonical_project_paths(source)
+    except ProjectPathError:
+        response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        return None
+
+
+def _governed_scope_matches(decision, changed_paths: tuple[str, ...]) -> bool:
+    if decision.decision == GovernanceVerdict.BLOCK:
+        persisted = _json_list(decision.denied_scope_json)
+    else:
+        persisted = _json_list(decision.allowed_scope_json)
+    try:
+        return set(canonical_project_paths(persisted)) == set(changed_paths)
+    except ProjectPathError:
+        return False
+
+
+def _policy_scope_matches(policy: ExecutionPolicy, changed_paths: tuple[str, ...]) -> bool:
+    try:
+        return set(canonical_project_paths(_json_list(policy.write_paths_json))) == set(
+            changed_paths
+        )
+    except ProjectPathError:
+        return False
 
 
 def _json_list(value: str | None) -> list[str]:

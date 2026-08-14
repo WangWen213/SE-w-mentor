@@ -12,6 +12,7 @@ from se_mentor.models.approval import (
     ExecutionPolicyStatus,
 )
 from se_mentor.models.governance import GovernanceDecision, GovernanceVerdict
+from se_mentor.paths import canonical_project_paths
 
 
 class ExecutionPolicyCompiler:
@@ -36,6 +37,9 @@ class ExecutionPolicyCompiler:
             raise ValueError("execution policy requires an action-bound decision")
         approval = self._approved_request(decision)
         executable = decision.decision == GovernanceVerdict.ALLOW or approval is not None
+        read_paths = canonical_project_paths(read_paths)
+        write_paths = canonical_project_paths(write_paths)
+        protected_paths = canonical_project_paths(protected_paths)
         write_grants = tuple(sorted(write_paths)) if executable else ()
         command_grants = tuple(sorted(commands)) if executable else ()
         if decision.decision == GovernanceVerdict.BLOCK:

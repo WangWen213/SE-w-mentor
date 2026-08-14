@@ -15,6 +15,7 @@ from se_mentor.models.execution import (
     ToolExecutionStatus,
     TransactionState,
 )
+from se_mentor.paths import ProjectPathError, canonical_project_path
 from se_mentor.policy.grants import ExecutionAuthorization, TemporaryGrant
 
 
@@ -107,10 +108,10 @@ class CreateFileTool:
 
 
 def _normalize_relative_path(relative_path: str) -> str:
-    path = Path(relative_path)
-    if path.is_absolute() or ".." in path.parts:
-        raise CreateFileError("target path invalid")
-    return path.as_posix()
+    try:
+        return canonical_project_path(relative_path)
+    except ProjectPathError as exc:
+        raise CreateFileError("target path invalid") from exc
 
 
 def _sha(data: bytes) -> str:

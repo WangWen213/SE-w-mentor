@@ -172,10 +172,7 @@ class ExecutionOrchestrator:
             )
             prepare_ms = int((perf_counter() - prepare_started) * 1000)
             LOGGER.info(
-                (
-                    "[perf] execution.startup.prepare task_id=%s project_id=%s "
-                    "duration_ms=%s"
-                ),
+                ("[perf] execution.startup.prepare task_id=%s project_id=%s duration_ms=%s"),
                 task_id,
                 task.project_id,
                 prepare_ms,
@@ -186,10 +183,7 @@ class ExecutionOrchestrator:
             )
             initial_context_ms = int((perf_counter() - context_started) * 1000)
             LOGGER.info(
-                (
-                    "[perf] execution.startup.context task_id=%s project_id=%s "
-                    "duration_ms=%s"
-                ),
+                ("[perf] execution.startup.context task_id=%s project_id=%s duration_ms=%s"),
                 task_id,
                 task.project_id,
                 initial_context_ms,
@@ -285,9 +279,7 @@ class ExecutionOrchestrator:
                 try:
                     EvaluationService(session).persist_for_task(task.id)
                 except Exception:
-                    LOGGER.exception(
-                        "TASK_EVALUATION_POSTPROCESS_FAILED task_id=%s", task.id
-                    )
+                    LOGGER.exception("TASK_EVALUATION_POSTPROCESS_FAILED task_id=%s", task.id)
             except Exception as exc:
                 _mark_execution_failed(session, task, write_context.transaction_id, exc)
                 write_context.release_lock()
@@ -402,7 +394,7 @@ class ExecutionOrchestrator:
                 ).create(
                     task_id=task.id,
                     action_id=_current_action_id(session, task.id),
-                    transaction_id=write_context.ensure_prepared().transaction_id,
+                    transaction_id=write_context.ensure_prepared().id,
                     grant=current_authorization(),
                     relative_path=action.parameters.path,
                     content=action.parameters.content,
@@ -413,7 +405,7 @@ class ExecutionOrchestrator:
                 ).delete(
                     task_id=task.id,
                     action_id=_current_action_id(session, task.id),
-                    transaction_id=write_context.ensure_prepared().transaction_id,
+                    transaction_id=write_context.ensure_prepared().id,
                     grant=current_authorization(),
                     relative_path=action.parameters.path,
                     revision=current_authorization().revision,
@@ -1043,9 +1035,7 @@ def _semantic_context(
     symbol: str | None,
     class_names: list[str],
 ) -> list[str]:
-    haystack = " ".join(
-        [relative_path, line, joined, symbol or "", " ".join(class_names)]
-    ).lower()
+    haystack = " ".join([relative_path, line, joined, symbol or "", " ".join(class_names)]).lower()
     contexts: list[str] = []
     for label, markers in (
         ("sidebar", ("sidebar", "aside", "side-")),
@@ -1053,7 +1043,7 @@ def _semantic_context(
         ("menu-item", ("menu", "nav-item", "label:", "key:")),
         ("page-heading", ("page-title", "<h1", "heading")),
         ("button", ("<button", "button")),
-        ("tab", ("tab", "role=\"tab\"")),
+        ("tab", ("tab", 'role="tab"')),
     ):
         if any(marker in haystack for marker in markers):
             contexts.append(label)

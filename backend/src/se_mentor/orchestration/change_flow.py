@@ -36,8 +36,10 @@ from se_mentor.models.task import (
     TaskIterationPhase,
     TaskStatus,
 )
+from se_mentor.paths import canonical_project_paths
 from se_mentor.policy.compiler import ExecutionPolicyCompiler
 from se_mentor.proposals.review_service import ProposalReviewService
+from se_mentor.runtime.profiles import RuntimeProfile, get_runtime_settings
 
 LOGGER = logging.getLogger("se_mentor.orchestration.change_flow")
 
@@ -72,7 +74,7 @@ class ChangeFlowOrchestrator:
         )
         task = proposal.task
         task.status = TaskStatus.GOVERNING
-        scope = _json_tuple(proposal.initial_scope_json)
+        scope = canonical_project_paths(_json_tuple(proposal.initial_scope_json))
         if not scope:
             raise ValueError("confirmed proposal has no impact scope")
         project = self.session.get(Project, task.project_id)
@@ -122,9 +124,7 @@ class ChangeFlowOrchestrator:
         evidence_items = _evidence_items(
             revision=revision,
             direct_impacts=direct.impacts,
-            indirect_refs=tuple(
-                ref for impact in indirect.impacts for ref in impact.evidence_refs
-            ),
+            indirect_refs=tuple(ref for impact in indirect.impacts for ref in impact.evidence_refs),
         )
         evidence_refs = tuple(item.evidence_id for item in evidence_items)
         bundle = EvidenceBundleBuilder(evidence_items).build(
@@ -202,7 +202,7 @@ class ChangeFlowOrchestrator:
                 governance_decision_id=decision.id,
                 read_paths=scope,
                 write_paths=scope,
-                commands=("RUN_COMMAND",),
+                commands=_execution_commands(),
                 protected_paths=(),
                 network={},
                 resource_limits={},
@@ -403,6 +403,12 @@ def _rules() -> tuple[RuleDefinition, ...]:
             overridable=True,
         ),
     )
+
+
+def _execution_commands() -> tuple[str, ...]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        return ("APPLY_APPROVED_CHANGES",)
+    return ("RUN_COMMAND",)
 
 
 def _proposal_hash(proposal: ChangeProposal) -> str:

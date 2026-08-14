@@ -16,6 +16,7 @@ from se_mentor.models.governance import (
     GovernanceVerdict,
 )
 from se_mentor.models.llm import RiskLevel
+from se_mentor.paths import canonical_project_paths
 
 LOGGER = logging.getLogger("se_mentor.governance.decision_service")
 
@@ -38,6 +39,7 @@ class GovernanceDecisionService:
     ) -> GovernanceDecision:
         total_started = perf_counter()
         rules_started = perf_counter()
+        changed_paths = canonical_project_paths(changed_paths)
         matched = tuple(_matched_rules(rules, changed_paths))
         rules_ms = int((perf_counter() - rules_started) * 1000)
         decision_started = perf_counter()
@@ -123,10 +125,7 @@ class GovernanceDecisionService:
             approval_required,
         )
         LOGGER.info(
-            (
-                "[perf] governance.persist task_id=%s duration_ms=%s "
-                "decision_id=%s"
-            ),
+            ("[perf] governance.persist task_id=%s duration_ms=%s decision_id=%s"),
             task_id,
             persist_ms,
             governance_decision.id,
