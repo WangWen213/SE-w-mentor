@@ -6,10 +6,12 @@ import re
 import shutil
 import stat
 import subprocess
-from collections.abc import Callable, Collection
+import zipfile
+from collections.abc import Callable, Collection, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
+from io import BytesIO
+from pathlib import Path, PurePosixPath
 
 from se_mentor.runtime.online_sessions import OnlineSession
 
@@ -17,9 +19,11 @@ ONLINE_SAFE_USER_PATH_ERROR = "ONLINE_SAFE_USER_PATH_NOT_ALLOWED"
 ONLINE_SAFE_WORKSPACE_LIMIT_ERROR = "ONLINE_SAFE_WORKSPACE_LIMIT_EXCEEDED"
 ONLINE_SAFE_WORKSPACE_BOUNDARY_ERROR = "ONLINE_SAFE_WORKSPACE_BOUNDARY_VIOLATION"
 ONLINE_SAFE_WORKSPACE_BASELINE_ERROR = "ONLINE_SAFE_WORKSPACE_BASELINE_INVALID"
+ONLINE_SAFE_WORKSPACE_ZIP_ERROR = "ONLINE_SAFE_WORKSPACE_ZIP_INVALID"
 ONLINE_SAFE_WORKSPACE_MAX_BYTES = 100 * 1024 * 1024
 ONLINE_SAFE_WORKSPACE_MAX_FILES = 5000
 ONLINE_SAFE_WORKSPACE_BASELINE_NAME = "demo-baseline"
+ONLINE_SAFE_WORKSPACE_IMPORT_NAME = "zip-import"
 
 _SESSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{16,}$")
 _EXCLUDED_NAMES = {
@@ -50,6 +54,8 @@ _EXCLUDED_FILES = {
     "se_mentor_api.sqlite3-wal",
 }
 _EXCLUDED_SUFFIXES = (".log", ".key", ".pem")
+_EXCLUDED_IMPORT_SUFFIXES = (".p12", ".pfx", ".crt", ".cer")
+_WINDOWS_DRIVE_PATTERN = re.compile(r"^[A-Za-z]:")
 
 
 class OnlineWorkspaceError(RuntimeError):
@@ -131,6 +137,77 @@ class SafeOnlineWorkspaceFactory:
             self._safe_rmtree(workspace_root)
         self._handles.pop(session.session_id, None)
         return self.get_or_create(session)
+
+    def import_zip(
+        self,
+        session: OnlineSession,
+        archive: bytes,
+        *,
+        archive_name: str = "project.zip",
+    ) -> WorkspaceHandle:
+        plan = self._zip_import_plan(archive)
+        session_root = self._session_root(session.session_id)
+        workspace_root = (session_root / "workspace").resolve()
+        self._ensure_inside(workspace_root, session_root)
+        if workspace_root.exists():
+            self._safe_rmtree(workspace_root)
+        session_root.mkdir(parents=True, exist_ok=True)
+        workspace_root.mkdir(parents=True, exist_ok=False)
+        try:
+            with zipfile.ZipFile(BytesIO(archive)) as imported:
+                for entry, relative in plan:
+                    target = (workspace_root / relative).resolve()
+                    self._ensure_inside(target, workspace_root)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with imported.open(entry) as source, target.open("wb") as destination:
+                        shutil.copyfileobj(source, destination)
+            self._init_session_git_repo(workspace_root)
+        except Exception:
+            self._safe_rmtree(workspace_root)
+            self._handles.pop(session.session_id, None)
+            raise
+        now = self._clock()
+        handle = WorkspaceHandle(
+            session_id=session.session_id,
+            root=workspace_root,
+            created_at=now,
+            last_used_at=now,
+            baseline_name=_safe_archive_label(archive_name),
+            baseline_revision=self._git_revision(workspace_root),
+        )
+        self._handles[session.session_id] = handle
+        return handle
+
+    def export_zip(self, handle: WorkspaceHandle) -> bytes:
+        output = BytesIO()
+        files = 0
+        total_bytes = 0
+        with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for source in sorted(handle.root.rglob("*")):
+                relative = source.relative_to(handle.root)
+                if self._is_excluded(relative):
+                    continue
+                if source.is_symlink():
+                    raise OnlineWorkspaceError(
+                        ONLINE_SAFE_WORKSPACE_BOUNDARY_ERROR,
+                        "ONLINE_SAFE export cannot include symlinks",
+                    )
+                if source.is_dir():
+                    continue
+                if not source.is_file():
+                    raise OnlineWorkspaceError(
+                        ONLINE_SAFE_WORKSPACE_BOUNDARY_ERROR,
+                        "ONLINE_SAFE export cannot include unsupported filesystem entries",
+                    )
+                files += 1
+                total_bytes += source.stat().st_size
+                if files > self.max_files or total_bytes > self.max_bytes:
+                    raise OnlineWorkspaceError(
+                        ONLINE_SAFE_WORKSPACE_LIMIT_ERROR,
+                        "ONLINE_SAFE export exceeds configured workspace limits",
+                    )
+                archive.write(source, relative.as_posix())
+        return output.getvalue()
 
     def cleanup_expired(self, active_session_ids: Collection[str]) -> None:
         active = {_session_dir_name(session_id) for session_id in active_session_ids}
@@ -249,6 +326,117 @@ class SafeOnlineWorkspaceFactory:
             digest.update(source.read_bytes())
         return digest.hexdigest()[:16]
 
+    def _git_revision(self, workspace_root: Path) -> str | None:
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=workspace_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            return None
+        return completed.stdout.strip()
+
+    def _zip_import_plan(self, archive: bytes) -> tuple[tuple[zipfile.ZipInfo, Path], ...]:
+        if not archive:
+            raise OnlineWorkspaceError(
+                ONLINE_SAFE_WORKSPACE_ZIP_ERROR,
+                "ONLINE_SAFE project ZIP is empty",
+            )
+        if len(archive) > self.max_bytes:
+            raise OnlineWorkspaceError(
+                ONLINE_SAFE_WORKSPACE_LIMIT_ERROR,
+                "ONLINE_SAFE project ZIP exceeds configured upload size limit",
+            )
+        try:
+            with zipfile.ZipFile(BytesIO(archive)) as imported:
+                entries = imported.infolist()
+                raw_paths: list[tuple[zipfile.ZipInfo, Path]] = []
+                for entry in entries:
+                    relative = self._validate_zip_entry(entry)
+                    if relative is None or self._is_excluded(relative):
+                        continue
+                    raw_paths.append((entry, relative))
+        except zipfile.BadZipFile as exc:
+            raise OnlineWorkspaceError(
+                ONLINE_SAFE_WORKSPACE_ZIP_ERROR,
+                "ONLINE_SAFE project upload must be a valid ZIP archive",
+            ) from exc
+        strip_root = _common_project_root(path for _, path in raw_paths)
+        files = 0
+        total_bytes = 0
+        plan: list[tuple[zipfile.ZipInfo, Path]] = []
+        seen_targets: set[str] = set()
+        for entry, relative in raw_paths:
+            if strip_root and relative.parts[0] == strip_root:
+                target_relative = Path(*relative.parts[1:])
+            else:
+                target_relative = relative
+            if not target_relative.parts or self._is_excluded(target_relative):
+                continue
+            target_key = target_relative.as_posix()
+            if target_key in seen_targets:
+                raise OnlineWorkspaceError(
+                    ONLINE_SAFE_WORKSPACE_ZIP_ERROR,
+                    "ONLINE_SAFE project ZIP contains duplicate target paths",
+                )
+            seen_targets.add(target_key)
+            files += 1
+            total_bytes += entry.file_size
+            if files > self.max_files or total_bytes > self.max_bytes:
+                raise OnlineWorkspaceError(
+                    ONLINE_SAFE_WORKSPACE_LIMIT_ERROR,
+                    "ONLINE_SAFE imported project exceeds configured workspace limits",
+                )
+            plan.append((entry, target_relative))
+        if not plan:
+            raise OnlineWorkspaceError(
+                ONLINE_SAFE_WORKSPACE_ZIP_ERROR,
+                "ONLINE_SAFE project ZIP contains no importable source files",
+            )
+        return tuple(plan)
+
+    def _validate_zip_entry(self, entry: zipfile.ZipInfo) -> Path | None:
+        raw_name = entry.filename
+        normalized_name = raw_name.replace("\\", "/")
+        if (
+            not normalized_name
+            or normalized_name.startswith("/")
+            or normalized_name.startswith("\\")
+            or _WINDOWS_DRIVE_PATTERN.match(normalized_name)
+        ):
+            raise OnlineWorkspaceError(
+                ONLINE_SAFE_WORKSPACE_ZIP_ERROR,
+                "ONLINE_SAFE project ZIP contains an absolute path",
+            )
+        path = PurePosixPath(normalized_name)
+        if any(part in {"", ".", ".."} for part in path.parts):
+            raise OnlineWorkspaceError(
+                ONLINE_SAFE_WORKSPACE_ZIP_ERROR,
+                "ONLINE_SAFE project ZIP contains path traversal",
+            )
+        mode = entry.external_attr >> 16
+        file_type = stat.S_IFMT(mode)
+        if file_type == stat.S_IFLNK:
+            raise OnlineWorkspaceError(
+                ONLINE_SAFE_WORKSPACE_ZIP_ERROR,
+                "ONLINE_SAFE project ZIP symlinks are not allowed",
+            )
+        if file_type and file_type not in {stat.S_IFREG, stat.S_IFDIR}:
+            raise OnlineWorkspaceError(
+                ONLINE_SAFE_WORKSPACE_ZIP_ERROR,
+                "ONLINE_SAFE project ZIP contains unsupported filesystem entries",
+            )
+        if entry.flag_bits & 0x1:
+            raise OnlineWorkspaceError(
+                ONLINE_SAFE_WORKSPACE_ZIP_ERROR,
+                "ONLINE_SAFE project ZIP encryption is not supported",
+            )
+        if entry.is_dir():
+            return None
+        return Path(*path.parts)
+
     def _safe_rmtree(self, target: Path) -> None:
         resolved = Path(target).resolve()
         self._ensure_inside(resolved, self.sessions_root)
@@ -278,7 +466,7 @@ class SafeOnlineWorkspaceFactory:
             bool(parts & _EXCLUDED_NAMES)
             or name in _EXCLUDED_FILES
             or name.startswith(".env.")
-            or name.endswith(_EXCLUDED_SUFFIXES)
+            or name.endswith((*_EXCLUDED_SUFFIXES, *_EXCLUDED_IMPORT_SUFFIXES))
         )
 
     @staticmethod
@@ -301,3 +489,22 @@ def _remove_readonly(function: Callable[[str], None], path: str, exc: BaseExcept
 
 def _session_dir_name(session_id: str) -> str:
     return hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+
+
+def _safe_archive_label(archive_name: str) -> str:
+    normalized = Path(archive_name.replace("\\", "/")).name
+    if normalized.lower().endswith(".zip"):
+        normalized = normalized[:-4]
+    return normalized.strip()[:80] or ONLINE_SAFE_WORKSPACE_IMPORT_NAME
+
+
+def _common_project_root(paths: Iterable[Path]) -> str | None:
+    first_parts = [path.parts for path in paths]
+    if not first_parts:
+        return None
+    root = first_parts[0][0] if len(first_parts[0]) > 1 else None
+    if root is None:
+        return None
+    if all(len(parts) > 1 and parts[0] == root for parts in first_parts):
+        return root
+    return None

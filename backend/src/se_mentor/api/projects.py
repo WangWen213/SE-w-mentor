@@ -3,19 +3,21 @@ from __future__ import annotations
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+from io import BytesIO
 from pathlib import Path
 from threading import Lock
 from time import perf_counter
 
 from fastapi import APIRouter, Request, Response, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
 from se_mentor.api.online_access import (
     OnlineSessionUnavailable,
-    current_online_owner_hash,
     current_online_session,
+    online_owner_hash,
     online_project_filter,
     require_project_access,
 )
@@ -34,12 +36,18 @@ from se_mentor.projects.bootstrap import ProjectBootstrapService
 from se_mentor.projects.project_repository import find_project_by_root
 from se_mentor.projects.project_service import ProjectRegistrationError, register_project
 from se_mentor.runtime.demo import DemoRuntimeError, ensure_demo_workspace
-from se_mentor.runtime.online_workspaces import ONLINE_SAFE_USER_PATH_ERROR, OnlineWorkspaceError
+from se_mentor.runtime.online_workspaces import (
+    ONLINE_SAFE_USER_PATH_ERROR,
+    ONLINE_SAFE_WORKSPACE_LIMIT_ERROR,
+    OnlineWorkspaceError,
+)
 from se_mentor.runtime.profiles import RuntimeProfile
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 _SESSION_FACTORY = get_session_factory()
 LOGGER = logging.getLogger("se_mentor.api.projects")
+ONLINE_SAFE_PROJECT_ZIP_REQUIRED = "ONLINE_SAFE_PROJECT_ZIP_REQUIRED"
+ONLINE_SAFE_PATCH_EXPORT_UNTRACKED_ERROR = "ONLINE_SAFE_PATCH_EXPORT_UNTRACKED_UNSUPPORTED"
 _BOOTSTRAP_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="project-bootstrap")
 _BOOTSTRAP_LOCK = Lock()
 _BOOTSTRAP_STATES: dict[str, dict[str, object]] = {}
@@ -85,9 +93,10 @@ def create_project(
             response.status_code = status.HTTP_409_CONFLICT
             return error(
                 ONLINE_SAFE_USER_PATH_ERROR,
-                "online safe projects use the current session workspace",
+                "online safe projects must be imported from a ZIP upload",
             )
-        return _open_online_safe_project(request, response)
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(ONLINE_SAFE_PROJECT_ZIP_REQUIRED, "upload a project ZIP first")
     if not payload.root_path or not payload.root_path.strip():
         response.status_code = status.HTTP_400_BAD_REQUEST
         return error("PROJECT_PATH_REQUIRED", "project rootPath is required")
@@ -97,7 +106,8 @@ def create_project(
 @router.post("/choose-local", status_code=status.HTTP_201_CREATED)
 def choose_local_project(request: Request, response: Response) -> dict[str, object]:
     if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
-        return _open_online_safe_project(request, response)
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(ONLINE_SAFE_PROJECT_ZIP_REQUIRED, "upload a project ZIP first")
     if get_runtime_settings().profile is RuntimeProfile.CLOUD_DEMO:
         response.status_code = status.HTTP_409_CONFLICT
         return error(
@@ -193,29 +203,42 @@ def _register_project(root_path: str, response: Response) -> dict[str, object]:
     return ok(project_payload)
 
 
-def _open_online_safe_project(request: Request, response: Response) -> dict[str, object]:
+@router.post("/import-zip", status_code=status.HTTP_201_CREATED)
+async def import_project_zip(request: Request, response: Response) -> dict[str, object]:
+    if get_runtime_settings().profile is not RuntimeProfile.ONLINE_SAFE:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(
+            "PROJECT_ZIP_IMPORT_UNAVAILABLE",
+            "project ZIP import is only available in ONLINE_SAFE",
+        )
     try:
         online_session = current_online_session(request, response)
-        owner_hash = current_online_owner_hash(request, response)
-        workspace = get_online_workspace_factory().get_or_create(online_session)
+        owner_hash = online_owner_hash(online_session.session_id)
     except OnlineSessionUnavailable:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return error("ONLINE_SAFE_SESSION_LIMIT_REACHED", "active session limit reached")
-    except OnlineWorkspaceError as exc:
-        response.status_code = status.HTTP_409_CONFLICT
-        return error(exc.code, str(exc))
-
-    with session_scope(_SESSION_FACTORY) as session:
-        existing = session.scalar(
-            select(Project)
-            .where(Project.owner_session_hash == owner_hash)
-            .order_by(Project.created_at.asc())
+    existing = _online_project_for_owner(owner_hash)
+    if existing is not None:
+        response.status_code = status.HTTP_200_OK
+        return ok(
+            _project_payload(existing, bootstrap=get_project_bootstrap_state(existing.id))
         )
-        if existing is not None:
-            existing.updated_at = datetime.now(UTC)
-            session.flush()
-            response.status_code = status.HTTP_200_OK
-            return ok(_project_payload(existing, bootstrap=_bootstrap_state(session, existing.id)))
+    archive = await request.body()
+    archive_name = request.headers.get("x-se-mentor-filename", "project.zip")
+    try:
+        workspace = get_online_workspace_factory().import_zip(
+            online_session,
+            archive,
+            archive_name=archive_name,
+        )
+    except OnlineWorkspaceError as exc:
+        response.status_code = (
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+            if exc.code == ONLINE_SAFE_WORKSPACE_LIMIT_ERROR
+            else status.HTTP_400_BAD_REQUEST
+        )
+        return error(exc.code, str(exc))
+    with session_scope(_SESSION_FACTORY) as session:
         try:
             registered = register_project(
                 session,
@@ -234,6 +257,70 @@ def _open_online_safe_project(request: Request, response: Response) -> dict[str,
     return ok(project_payload)
 
 
+@router.get("/{project_id}/export.zip")
+def export_project_zip(
+    project_id: str,
+    request: Request,
+    response: Response,
+):
+    if get_runtime_settings().profile is not RuntimeProfile.ONLINE_SAFE:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(
+            "PROJECT_ZIP_EXPORT_UNAVAILABLE",
+            "project ZIP export is only available in ONLINE_SAFE",
+        )
+    project = _require_online_project(project_id, request, response)
+    if project is None:
+        return error("PROJECT_NOT_FOUND", "project not found")
+    try:
+        handle = _current_project_workspace(project, request, response)
+        archive = get_online_workspace_factory().export_zip(handle)
+    except OnlineWorkspaceError as exc:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(exc.code, str(exc))
+    return StreamingResponse(
+        BytesIO(archive),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="se-mentor-project.zip"'},
+    )
+
+
+@router.get("/{project_id}/changes.patch")
+def export_project_patch(
+    project_id: str,
+    request: Request,
+    response: Response,
+):
+    if get_runtime_settings().profile is not RuntimeProfile.ONLINE_SAFE:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(
+            "PROJECT_PATCH_EXPORT_UNAVAILABLE",
+            "project patch export is only available in ONLINE_SAFE",
+        )
+    project = _require_online_project(project_id, request, response)
+    if project is None:
+        return error("PROJECT_NOT_FOUND", "project not found")
+    try:
+        _current_project_workspace(project, request, response)
+        git = GitService(project.root_path)
+        git_status = git.status()
+        if git_status.untracked:
+            response.status_code = status.HTTP_409_CONFLICT
+            return error(
+                ONLINE_SAFE_PATCH_EXPORT_UNTRACKED_ERROR,
+                "patch export only supports tracked file changes; download ZIP for created files",
+            )
+        patch = git.scoped_diff(list(git_status.modified)) if git_status.modified else ""
+    except Exception as exc:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error("PROJECT_PATCH_EXPORT_FAILED", str(exc))
+    return Response(
+        content=patch,
+        media_type="text/x-patch; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="se-mentor-changes.patch"'},
+    )
+
+
 @router.get("/{project_id}")
 def get_project(project_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
@@ -249,8 +336,8 @@ def _project_payload(project: Project, *, bootstrap: dict[str, object]) -> dict[
         return {
             "id": project.id,
             "authorized": True,
-            "rootPath": "Online Workspace",
-            "name": "Online Workspace",
+            "rootPath": "Uploaded Project",
+            "name": "Uploaded Project",
             "bootstrap": bootstrap,
         }
     return {
@@ -464,3 +551,53 @@ def list_project_tasks(project_id: str, request: Request, response: Response) ->
             .order_by(ChangeTask.created_at.desc())
         ]
     return ok({"projectId": project_id, "items": tasks})
+
+
+def _online_project_for_owner(owner_hash: str) -> Project | None:
+    with session_scope(_SESSION_FACTORY) as session:
+        project = session.scalar(
+            select(Project)
+            .where(Project.owner_session_hash == owner_hash)
+            .order_by(Project.created_at.asc())
+        )
+        if project is None:
+            return None
+        project.updated_at = datetime.now(UTC)
+        session.flush()
+        session.expunge(project)
+        return project
+
+
+def _require_online_project(
+    project_id: str,
+    request: Request,
+    response: Response,
+) -> Project | None:
+    with session_scope(_SESSION_FACTORY) as session:
+        project = require_project_access(session, project_id, request, response)
+        if project is None:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return None
+        session.expunge(project)
+        return project
+
+
+def _current_project_workspace(
+    project: Project,
+    request: Request,
+    response: Response,
+):
+    try:
+        online_session = current_online_session(request, response)
+        handle = get_online_workspace_factory().get_or_create(online_session)
+    except OnlineSessionUnavailable as exc:
+        raise OnlineWorkspaceError(
+            "ONLINE_SAFE_SESSION_LIMIT_REACHED",
+            "active session limit reached",
+        ) from exc
+    if Path(project.root_path).resolve() != handle.root.resolve():
+        raise OnlineWorkspaceError(
+            "ONLINE_SAFE_WORKSPACE_PROJECT_MISMATCH",
+            "project does not belong to the current session workspace",
+        )
+    return handle

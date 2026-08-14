@@ -128,6 +128,37 @@ function isNavKey(value: string | null): value is NavKey {
   );
 }
 
+export function isOnlineSafeCredentialStatus(status: CredentialStatus | null): boolean {
+  return status?.source === "ONLINE_SAFE" || status?.source === "ONLINE_SAFE_SESSION";
+}
+
+function selectProjectZipFile(): Promise<File | null> {
+  if (typeof document === "undefined") {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".zip,application/zip";
+    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.click();
+  });
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function canConfirmHydratedProposal({
   pendingAction,
   proposalId,
@@ -480,6 +511,8 @@ export function App({ api: providedApi }: AppProps = {}) {
     rememberLastActiveView(activeView);
   }, [activeView]);
 
+  const onlineSafeProfile = isOnlineSafeCredentialStatus(credentialStatus);
+
   const openProject = useCallback(async () => {
     if (projectOpening) {
       return;
@@ -491,7 +524,11 @@ export function App({ api: providedApi }: AppProps = {}) {
     setProjectOpening(true);
     setProjectError(null);
     try {
-      const opened = await api.chooseLocalProject();
+      const zipFile = onlineSafeProfile ? await selectProjectZipFile() : null;
+      if (onlineSafeProfile && !zipFile) {
+        return;
+      }
+      const opened = zipFile ? await api.importProjectZip(zipFile) : await api.chooseLocalProject();
       if (!isCurrentRun()) {
         return;
       }
@@ -526,7 +563,7 @@ export function App({ api: providedApi }: AppProps = {}) {
       }
       finishTiming();
     }
-  }, [api, projectOpening]);
+  }, [api, onlineSafeProfile, projectOpening]);
 
   const openTask = useCallback(
     async (taskId: string) => {
@@ -1473,6 +1510,30 @@ export function App({ api: providedApi }: AppProps = {}) {
     }
   }, [api]);
 
+  const downloadProjectZip = useCallback(async () => {
+    if (!project) {
+      return;
+    }
+    setProjectError(null);
+    try {
+      downloadBlob(await api.exportProjectZip(project.id), "se-mentor-project.zip");
+    } catch (error) {
+      setProjectError(userError(error));
+    }
+  }, [api, project]);
+
+  const downloadProjectPatch = useCallback(async () => {
+    if (!project) {
+      return;
+    }
+    setProjectError(null);
+    try {
+      downloadBlob(await api.exportProjectPatch(project.id), "se-mentor-changes.patch");
+    } catch (error) {
+      setProjectError(userError(error));
+    }
+  }, [api, project]);
+
   const conversationMessages = activeTask
     ? conversationMessagesForTask(
         activeTask.id,
@@ -1501,6 +1562,7 @@ export function App({ api: providedApi }: AppProps = {}) {
       projectHydrationState={projectHydrationState}
       projectOpening={projectOpening}
       taskCount={tasks.length}
+      onlineSafe={onlineSafeProfile}
       onNewTask={startNewTask}
       onOpenProject={() => void openProject()}
       onViewChange={setActiveView}
@@ -1563,8 +1625,11 @@ export function App({ api: providedApi }: AppProps = {}) {
           error={projectError}
           loading={taskListLoading}
           lockStatus={lockStatus}
+          onlineSafe={onlineSafeProfile}
           project={project}
           tasks={tasks}
+          onDownloadPatch={downloadProjectPatch}
+          onDownloadZip={downloadProjectZip}
           onOpenTask={(taskId) => void openTask(taskId)}
           onStartNewTask={startNewTask}
         />

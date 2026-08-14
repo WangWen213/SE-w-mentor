@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib
 import json
+import zipfile
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -33,8 +35,8 @@ def test_online_safe_domain_state_is_isolated_by_project_owner_hash(
     client_a = TestClient(app_module.create_app(), base_url="https://testserver")
     client_b = TestClient(app_module.create_app(), base_url="https://testserver")
 
-    project_a = client_a.post("/api/projects", json={}).json()["data"]
-    project_b = client_b.post("/api/projects", json={}).json()["data"]
+    project_a = _import_project(client_a, {"app.py": "print('a')\n"})
+    project_b = _import_project(client_b, {"app.py": "print('b')\n"})
     session_a = client_a.cookies.get(ONLINE_SESSION_COOKIE_NAME)
     session_b = client_b.cookies.get(ONLINE_SESSION_COOKIE_NAME)
     seeded = _seed_domain_state(runtime_module, project_a["id"], project_b["id"])
@@ -66,7 +68,7 @@ def test_online_safe_domain_state_is_isolated_by_project_owner_hash(
     db_bytes = b"".join(path.read_bytes() for path in (tmp_path / "runtime").glob("*.sqlite3*"))
 
     assert project_a["id"] != project_b["id"]
-    assert project_a["rootPath"] == "Online Workspace"
+    assert project_a["rootPath"] == "Uploaded Project"
     assert str(tmp_path) not in str(project_a)
     assert session_a != session_b
     assert [item["id"] for item in list_a.json()["data"]["items"]] == [project_a["id"]]
@@ -106,8 +108,8 @@ def test_online_safe_rejects_user_root_and_reuses_current_project(
     client = TestClient(app_module.create_app(), base_url="https://testserver")
 
     rejected = client.post("/api/projects", json={"rootPath": "/root"})
-    created = client.post("/api/projects", json={})
-    reopened = client.post("/api/projects/choose-local")
+    created = _import_project_response(client, {"app.py": "print('own')\n"})
+    reopened = _import_project_response(client, {"other.py": "print('ignored')\n"})
     session_id = client.cookies.get(ONLINE_SESSION_COOKIE_NAME)
 
     with runtime_module.get_session_factory()() as session:
@@ -198,6 +200,22 @@ def _seed_domain_state(runtime_module, project_a: str, project_b: str) -> dict[s
         return {"task_a": task_a.id, "task_b": task_b.id, "proposal_a": proposal_a.id}
 
 
+def _import_project(client: TestClient, files: dict[str, str]) -> dict[str, object]:
+    return _import_project_response(client, files).json()["data"]
+
+
+def _import_project_response(client: TestClient, files: dict[str, str]):
+    output = BytesIO()
+    with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in files.items():
+            archive.writestr(name, content)
+    return client.post(
+        "/api/projects/import-zip",
+        content=output.getvalue(),
+        headers={"content-type": "application/zip"},
+    )
+
+
 def _demo_workspace(tmp_path: Path) -> Path:
     demo_workspace = tmp_path / "demo-workspace"
     baseline = demo_workspace / ".baseline"
@@ -218,15 +236,23 @@ def _reload_api_for_online_safe(
     import se_mentor.api.credentials as credentials_api
     import se_mentor.api.events as events_api
     import se_mentor.api.execution as execution_api
+    import se_mentor.api.governance as governance_api
+    import se_mentor.api.memory as memory_api
     import se_mentor.api.projects as projects_api
+    import se_mentor.api.proposals as proposals_api
     import se_mentor.api.runtime as runtime
     import se_mentor.api.runtime_workspace as runtime_workspace_api
+    import se_mentor.api.tasks as tasks_api
     import se_mentor.main as main
 
     runtime = importlib.reload(runtime)
     projects_api = importlib.reload(projects_api)
     credentials_api = importlib.reload(credentials_api)
     runtime_workspace_api = importlib.reload(runtime_workspace_api)
+    importlib.reload(tasks_api)
+    importlib.reload(proposals_api)
+    importlib.reload(governance_api)
+    importlib.reload(memory_api)
     execution_api = importlib.reload(execution_api)
     events_api = importlib.reload(events_api)
     main = importlib.reload(main)

@@ -565,6 +565,8 @@ export interface MentorApi {
   ): Promise<WorkbenchMessageRecord>;
   createProposal(taskId: string, goal: string, question?: string): Promise<Proposal>;
   createTask(projectId: string, request: string): Promise<Task>;
+  exportProjectPatch(projectId: string): Promise<Blob>;
+  exportProjectZip(projectId: string): Promise<Blob>;
   getDiffTrace(changeId: string): Promise<DiffTrace>;
   getTaskFileChanges(taskId: string): Promise<TaskFileChanges>;
   getProjectBootstrap(projectId: string): Promise<ProjectBootstrap>;
@@ -588,6 +590,7 @@ export interface MentorApi {
   getTaskList(projectId: string): Promise<TaskList>;
   getCredentialStatus(): Promise<CredentialStatus>;
   indexAnalysis(): Promise<AnalysisIndexResult>;
+  importProjectZip(file: File): Promise<Project>;
   approveRequest(approvalId: string, approvedScope: string[]): Promise<ApprovalResult>;
   rejectApproval(approvalId: string): Promise<ApprovalResult>;
   executeTask(taskId: string, command: string): Promise<ExecutionResult>;
@@ -632,6 +635,28 @@ export function createMentorApi(fetcher: FetchLike = fetch): MentorApi {
       });
     }
     return payload.data;
+  };
+  const requestBlob = async (input: string): Promise<Blob> => {
+    const response = await fetcher(input);
+    if (!response.ok) {
+      const body = await response.text();
+      try {
+        const payload = JSON.parse(body) as Envelope<unknown>;
+        throw new MentorApiError(response.status, payload.error ?? {
+          code: "API_ERROR",
+          message: "Request did not complete",
+        });
+      } catch (error) {
+        if (error instanceof MentorApiError) {
+          throw error;
+        }
+        throw new MentorApiError(response.status, {
+          code: `HTTP_${response.status}`,
+          message: body || response.statusText || "Download failed",
+        });
+      }
+    }
+    return response.blob();
   };
 
   return {
@@ -688,6 +713,10 @@ export function createMentorApi(fetcher: FetchLike = fetch): MentorApi {
         body: JSON.stringify({ projectId, request: requestText }),
         method: "POST",
       }),
+    exportProjectPatch: (projectId) =>
+      requestBlob(`/api/projects/${projectId}/changes.patch`),
+    exportProjectZip: (projectId) =>
+      requestBlob(`/api/projects/${projectId}/export.zip`),
     executeTask: (taskId, command) =>
       request<ExecutionResult>(`/api/tasks/${taskId}/execute`, {
         body: JSON.stringify({ command }),
@@ -743,6 +772,15 @@ export function createMentorApi(fetcher: FetchLike = fetch): MentorApi {
     getTaskTimeline: (taskId) => request<TaskTimeline>(`/api/tasks/${taskId}/timeline`),
     getTaskList: (projectId) => request<TaskList>(`/api/projects/${projectId}/tasks`),
     getCredentialStatus: () => request<CredentialStatus>("/api/credentials/llm/status"),
+    importProjectZip: (file) =>
+      request<Project>("/api/projects/import-zip", {
+        body: file,
+        headers: {
+          "content-type": "application/zip",
+          "x-se-mentor-filename": file.name,
+        },
+        method: "POST",
+      }),
     indexAnalysis: () => request<AnalysisIndexResult>("/api/analysis/index", { method: "POST" }),
     listRecovery: () => request<RecoveryList>("/api/recovery"),
     listKnowledge: (projectId) => request<KnowledgeList>(`/api/projects/${projectId}/knowledge`),

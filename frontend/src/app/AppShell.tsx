@@ -20,6 +20,8 @@ const shellText = {
   ready: "\u9879\u76ee\u5206\u6790\u5b8c\u6210",
   registered: "\u9879\u76ee\u5df2\u6ce8\u518c",
   selectRepo: "\u8bf7\u9009\u62e9\u672c\u5730 Git \u4ed3\u5e93",
+  uploadProject: "\u4e0a\u4f20\u9879\u76ee",
+  uploadZip: "\u4e0a\u4f20 ZIP \u9879\u76ee",
 };
 
 interface AppShellProps {
@@ -28,6 +30,7 @@ interface AppShellProps {
   onNewTask: () => void;
   onOpenProject: () => void;
   onViewChange: (view: NavKey) => void;
+  onlineSafe?: boolean;
   projectHydrationState?: "BOOTING" | "READY" | "EMPTY" | "ERROR";
   project: Project | null;
   projectBootstrap: Project["bootstrap"] | null;
@@ -42,6 +45,7 @@ export function AppShell({
   onNewTask,
   onOpenProject,
   onViewChange,
+  onlineSafe = false,
   projectHydrationState = "READY",
   project,
   projectBootstrap,
@@ -55,6 +59,7 @@ export function AppShell({
       ? shellText.booting
       : shellText.noProject;
   const branch = project?.branch ?? "main";
+  const openProjectLabel = onlineSafe ? shellText.uploadProject : shellText.openLocalRepo;
 
   return (
     <div className="app">
@@ -77,7 +82,9 @@ export function AppShell({
               ? `${branch} - ${project.rootPath ?? project.id}`
               : projectHydrationState === "BOOTING"
                 ? shellText.booting
-                : shellText.selectRepo}
+                : onlineSafe
+                  ? shellText.uploadZip
+                  : shellText.selectRepo}
           </div>
           {project && projectBootstrap?.status && projectBootstrap.status !== "READY" ? (
             <div className={`project-bootstrap ${projectBootstrap.status.toLowerCase()}`}>
@@ -90,7 +97,7 @@ export function AppShell({
             type="button"
             onClick={onOpenProject}
           >
-            {projectOpening ? shellText.opening : shellText.openLocalRepo}
+            {projectOpening ? shellText.opening : openProjectLabel}
           </button>
           {projectError ? (
             <div className="project-error" role="alert">

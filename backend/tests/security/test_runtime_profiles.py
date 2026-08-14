@@ -439,10 +439,10 @@ def test_online_safe_project_registration_is_locked(monkeypatch, tmp_path: Path)
     assert etc_response.json()["error"]["code"] == "ONLINE_SAFE_USER_PATH_NOT_ALLOWED"
     assert source_response.status_code == 409
     assert source_response.json()["error"]["code"] == "ONLINE_SAFE_USER_PATH_NOT_ALLOWED"
-    assert create_current_response.status_code == 201
-    assert create_current_response.json()["data"]["rootPath"] == "Online Workspace"
-    assert picker_response.status_code == 200
-    assert picker_response.json()["data"]["id"] == create_current_response.json()["data"]["id"]
+    assert create_current_response.status_code == 409
+    assert create_current_response.json()["error"]["code"] == "ONLINE_SAFE_PROJECT_ZIP_REQUIRED"
+    assert picker_response.status_code == 409
+    assert picker_response.json()["error"]["code"] == "ONLINE_SAFE_PROJECT_ZIP_REQUIRED"
     assert str(runtime_root) not in str(create_current_response.json())
 
 

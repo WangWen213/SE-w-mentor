@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib
 import socket
+import zipfile
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -199,7 +201,7 @@ def test_online_safe_public_agent_flow_remains_locked(
     )
     client = TestClient(app_module.create_app(), base_url="https://testserver")
     assert runtime_module._ENGINE is not None
-    project_id = client.post("/api/projects", json={}).json()["data"]["id"]
+    project_id = _import_project(client)["id"]
     with runtime_module.get_session_factory()() as session:
         task = ChangeTask(project_id=project_id, original_request="do work")
         session.add(task)
@@ -248,6 +250,17 @@ def _resolver(hosts: dict[str, list[str]]):
         return infos
 
     return resolve
+
+
+def _import_project(client: TestClient) -> dict[str, object]:
+    output = BytesIO()
+    with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("app.py", "print('online')\n")
+    return client.post(
+        "/api/projects/import-zip",
+        content=output.getvalue(),
+        headers={"content-type": "application/zip"},
+    ).json()["data"]
 
 
 def _failing_resolver(host: str, port: int | None, *args: object):
