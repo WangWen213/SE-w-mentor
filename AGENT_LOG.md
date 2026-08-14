@@ -4307,3 +4307,103 @@ None for T006 branch implementation.
 ### Remaining Work
 Merge to main later and run project-level regression before setting project mainline status to
 `[x]`.
+
+## 2026-08-14 Final Documentation Preparation
+
+### Scope
+
+Only remaining delivery documentation was created or updated. No production code, bugfix,
+refactor, branch integration, code audit, full regression, browser acceptance, Windows
+clean-machine acceptance, production ONLINE_SAFE acceptance, Release Gate, tag, or final release
+was performed.
+
+### Baseline
+
+The documentation uses the current Repository plus the latest Architecture, README, Runbook and
+Reflection as the formal product baseline. Core architecture and product capabilities are recorded
+as `IMPLEMENTED`; objective target-environment evidence is tracked separately as `TO BE VERIFIED`
+or `EXTERNAL ACCEPTANCE REQUIRED`.
+
+Current overall statement:
+
+```text
+IMPLEMENTATION SUBSTANTIALLY COMPLETE
+BUGFIX / STABILIZATION IN PROGRESS
+FINAL ACCEPTANCE EVIDENCE PARTIALLY PENDING
+```
+
+### Documentation Status
+
+- Architecture documents: DOCUMENTATION PREPARED / CURRENT BASELINE.
+- README: DOCUMENTATION PREPARED / CURRENT BASELINE.
+- Runbook: DOCUMENTATION PREPARED / CURRENT BASELINE.
+- Reflection: DOCUMENTATION PREPARED / CURRENT BASELINE.
+- `deploy/README.md`: DOCUMENTATION PREPARED.
+- `demo/README.md`: DOCUMENTATION PREPARED.
+- `docs/TRACEABILITY_MATRIX.md`: CURRENT IMPLEMENTATION VIEW ADDED; atomic baseline preserved.
+- `docs/COLD_START_REPORT.md`: DOCUMENTATION PREPARED; first pass recorded; final rerun not executed.
+- `ACCEPTANCE_REPORT.md`: SUBSTANTIVE CURRENT-BASELINE REPORT PREPARED.
+- `docs/FINAL_REVIEW.md`: PHASE A PREPARED AND CONCLUDED; PHASE B DEFERRED.
+- `PLAN.md`: T111-T116 documentation/verification status synchronized.
+
+### Product Definition Synchronization
+
+- Formal Online WebUI is the current formal online product for real users, real isolated project
+  workspaces and the real provider path.
+- Mechanism Demo is a separate deterministic environment using Mock / Stub LLM and an isolated
+  Demo Repository.
+- Mock applies to the LLM, not to the self-built Harness.
+- `CLOUD_DEMO` is runtime/profile implementation terminology and does not redefine the complete
+  Online WebUI as a demo.
+- Windows EXE is the local formal Windows entry and uses the onedir architecture.
+
+### Cold Start Exception
+
+T114 was not inferred from implementation. Existing real evidence records a 2026-08-07
+Foundation/M0 first cold-start PASS. The final pre-release rerun remains `NOT YET EXECUTED`, so
+final T114 acceptance remains `TO BE VERIFIED`.
+
+### Intentionally Deferred
+
+- code quality final audit;
+- branch audit and integration;
+- final full regression;
+- browser acceptance;
+- Windows clean-machine acceptance;
+- public HTTPS and production ONLINE_SAFE real-provider acceptance;
+- final Mechanism Demo repeatability run;
+- final Secret scan and performance run;
+- final Cold Start rerun;
+- Release Gate, Release Decision, tag and final release.
+
+## 2026-08-14 Final Submission Closeout
+
+### Final milestones
+
+- ONLINE_SAFE workspace/domain/provider isolation and ZIP import/export are present in main through
+  `2eabbdb`, `4fe15f8`, `a04eb24`, `d3e8b53`, `bd109fd` and integration `2c48437`.
+- Production HTTPS/readiness and automatic production CD are documented; `43a7d1b` introduced CD,
+  and successful CI triggers Production Deploy through `workflow_run`.
+- Governed scope fixes are recorded by `4e9ca61` and `0f0c893`. The later production
+  `outside_policy` rejection is retained as a Known Limitation because its rejected AgentAction path
+  was not captured; no policy was widened during closeout.
+- Frontend recovery stability fix `4cef1ee` passed TypeScript type-check, 13 targeted
+  Changes/recovery tests, GitHub CI, Release Gate and automatic Production Deploy.
+- Deterministic Mechanism Demo integration `7e40490` adds three current scenarios: governance hard
+  block, feedback correction and engineering memory. Focused pytest passed 3 tests; CLI passed 3/3.
+- Required filenames were normalized to `PLAN.md`, `REFLECTION.md` and `RUNBOOK.md`; the student's
+  reflection content and voice were preserved.
+
+### Human/runtime evidence
+
+The production browser observations supplied for closeout include small ZIP upload success, one
+transient HTTP 402 followed by a successful manual retry, and a real-provider run reaching
+Execution before fail-closed `outside_policy`. Exact upstream 402 cause and rejected action path are
+unknown and were not reconstructed.
+
+### Final closeout scope
+
+Only mandatory Demo integration, canonical documentation, bounded Secret/targeted validation,
+Git/CI/CD alignment, tag and clean-source packaging are in scope. No Nginx 413 fix, Provider
+preflight feature, correction retry, policy expansion, historical mypy/backend-suite repair,
+manual SSH deployment or history rewrite was performed.

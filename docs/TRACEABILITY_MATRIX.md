@@ -2,6 +2,76 @@
 
 Status: frozen/current. This matrix freezes required columns and maps atomic P0 US acceptance criteria, FR sub-requirements, NFR requirements, AC families, and foundation governance rows to primary ownership, tests, and evidence.
 
+## 1. Current Implementation And Acceptance View
+
+本节以当前 Repository 与最新 Architecture、README、Runbook、Reflection 为正式基线。这里的
+`Implementation Status` 表示能力是否已经形成当前产品实现；`Final Verification` 单独表示最终
+回归、目标环境或外部验收证据是否已经收齐。两者不得互相替代。
+
+| Requirement | Task | Component | Implementation Status | Evidence | Final Verification |
+| --- | --- | --- | --- | --- | --- |
+| Project registration | T019-T023 | Project lifecycle | IMPLEMENTED | Architecture、README、Plan/evidence | TO BE VERIFIED — final full regression |
+| Project Bootstrap | T024 | Bootstrap / index entry | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final full regression |
+| Project understanding | T028-T043 | Index / Git / Knowledge | IMPLEMENTED | Architecture、README、existing evidence | TO BE VERIFIED — final full regression |
+| Proposal | T025-T027 | Proposal service | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final full regression |
+| User Confirmation | T027, T043-T052 | Proposal lifecycle / Governance entry | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final full regression |
+| ContextPackage | T053-T057 | Context / Provider boundary | IMPLEMENTED | Architecture、README | TO BE VERIFIED — final full regression |
+| Impact Analysis | T040-T043 | Impact analyzer | IMPLEMENTED | Architecture、README | TO BE VERIFIED — final full regression |
+| Governance | T044-T052 | Governance engine | IMPLEMENTED | Architecture、README、Runbook、existing evidence | TO BE VERIFIED — final governance regression |
+| ALLOW | T044-T052, T081 | Governance decision | IMPLEMENTED | Rules/decision baseline、Demo contract | TO BE VERIFIED — final scenario regression |
+| REQUIRE_APPROVAL | T047-T052, T082 | Governance / Approval | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final scenario regression |
+| BLOCK / DENY_HARD | T044-T052, T083 | Governance precedence | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final security regression |
+| Approval | T047-T050 | Approval service | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final regression |
+| ExecutionPolicy | T049-T052 | Policy compiler / repository | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final security regression |
+| PolicyEnforcer double enforcement | T058-T067 | Governance + runtime enforcement | IMPLEMENTED | Architecture、README | TO BE VERIFIED — final security regression |
+| Dispatcher | T058-T067 | Runtime dispatcher | IMPLEMENTED | Architecture、README | TO BE VERIFIED — final full regression |
+| Tool boundary | T058-T067 | File / Patch / Shell / Git / Validation tools | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final security regression |
+| WRITE Lock | T020, T060-T067 | Project write coordination | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final concurrency regression |
+| Transaction | T061-T067 | Transaction manager / manifest | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final recovery regression |
+| Shell safety | T058-T067 | Shell tool / policy | IMPLEMENTED | Architecture、Runbook、security baseline | TO BE VERIFIED — final security regression |
+| Git safety | T031-T034, T058-T067 | Git service / tool policy | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final security regression |
+| Validation | T068-T080 | Validation plan / runner | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final full regression |
+| Feedback | T070-T076 | Failure classification / feedback | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final scenario regression |
+| Auto repair | T071-T076, T084 | Repair loop | IMPLEMENTED | Architecture、README、Demo contract | TO BE VERIFIED — final scenario regression |
+| Stagnation / Replan | T073-T076, T084 | Progress / loop control | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final scenario regression |
+| CompletionGate | T078 | Completion gate | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final full regression |
+| Cancel | T064-T067, T079 | Runtime / safe-point cancellation | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final recovery regression |
+| Keep | T079-T080 | Post-cancel disposition | IMPLEMENTED | README、Runbook | TO BE VERIFIED — final scenario regression |
+| Rollback | T061-T067, T080, T085 | Transaction rollback | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final recovery regression |
+| Crash Recovery | T061-T067, T080 | Recovery coordinator | IMPLEMENTED | Architecture、README、Runbook | TO BE VERIFIED — final recovery regression |
+| Engineering Knowledge | T035-T043, T079 | Knowledge subsystem | IMPLEMENTED | Architecture、README、Memory contract | TO BE VERIFIED — final full regression |
+| Knowledge Freshness | T038-T043, T085 | Freshness checker | IMPLEMENTED | Architecture、README、Runbook、Demo contract | TO BE VERIFIED — final scenario regression |
+| WebUI | T086-T099 | React WebUI / FastAPI API | IMPLEMENTED | README、Runbook、Architecture | TO BE VERIFIED — final browser regression |
+| Tasks page | T093-T099 | Tasks UI / task API | IMPLEMENTED | README、Runbook | TO BE VERIFIED — final browser regression |
+| Memory page | T093-T099 | Memory UI / knowledge API | IMPLEMENTED | README、Architecture | TO BE VERIFIED — final browser regression |
+| Governance page/history | T093-T099 | Governance UI / history API | IMPLEMENTED | README、Runbook | TO BE VERIFIED — final browser regression |
+| Evaluation page | T093-T099 | Evaluation UI / validation API | IMPLEMENTED | README、Architecture | TO BE VERIFIED — final browser regression |
+| Settings | T093-T104 | Settings / provider configuration | IMPLEMENTED | README、Runbook | TO BE VERIFIED — final browser regression |
+| Credential boundary | T006, T104, T110 | Local/Online credential services | IMPLEMENTED | Decisions、README、Runbook、existing evidence | TO BE VERIFIED — final Secret scan |
+| Windows packaging | T105-T106 | PyInstaller onedir distribution | IMPLEMENTED | README、Runbook、packaging baseline | EXTERNAL ACCEPTANCE REQUIRED — clean Windows machine |
+| Formal Online WebUI | T107-T109 | Online product / API / WebUI | IMPLEMENTED / CURRENT PRODUCT | README、Runbook、ONLINE_SAFE readiness | EXTERNAL ACCEPTANCE REQUIRED — public real-provider flow |
+| Online user/workspace isolation | T107-T109 | Session / ownership / workspace / persistence | IMPLEMENTED | ONLINE_SAFE readiness、security baseline | EXTERNAL ACCEPTANCE REQUIRED — production ONLINE_SAFE |
+| Mechanism Demo | T113 | Mock provider / three deterministic Harness scenarios | IMPLEMENTED | `scripts/demo_harness.py`、focused tests、`demo/README.md` | VERIFIED — 3 tests and 3/3 CLI scenarios |
+| Docker | T107-T109, T112 | Compose / images / persistent volume | IMPLEMENTED | `deploy/docker-compose*.yml`、deployment guide | EXTERNAL ACCEPTANCE REQUIRED — target host smoke |
+| Nginx / SSE | T108-T109, T112 | Gateway / reverse proxy / event stream | IMPLEMENTED | `deploy/nginx/`、ONLINE_SAFE readiness | EXTERNAL ACCEPTANCE REQUIRED — public HTTPS/SSE smoke |
+| Deployment | T107-T112 | Formal Online and Demo deployment | IMPLEMENTED | `deploy/README.md`、Production CD Runbook | EXTERNAL ACCEPTANCE REQUIRED |
+| Observability / replay | T086-T101 | Events / REST state / SSE / evidence | IMPLEMENTED | Architecture、README、Runbook、evidence layout | TO BE VERIFIED — final full regression |
+| Secret handling | T006, T104, T110 | Redaction / credential / build & export boundary | IMPLEMENTED | Decisions、README、ONLINE_SAFE readiness、existing evidence | TO BE VERIFIED — final Secret scan |
+
+Current traceability conclusion:
+
+```text
+IMPLEMENTATION SUBSTANTIALLY COMPLETE
+BUGFIX / STABILIZATION IN PROGRESS
+FINAL ACCEPTANCE EVIDENCE PARTIALLY PENDING
+```
+
+## 2. Atomic P0 Contract Ownership Baseline (Preserved)
+
+下表保留原始 134 项原子 US / FR / NFR / AC ownership、测试与 evidence 映射，供严格契约追踪和
+历史工具兼容使用。其旧 `status` 列记录的是该映射建立时的原子任务计划状态，不应取代上表的
+当前产品 `Implementation Status` 或 `Final Verification` 结论。
+
 | requirement | requirement anchor | priority | primary task | supporting tasks | test | evidence | status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | US-01-AC-01 | US-01-AC-01 | P0 | T025 | T001 | `tests/acceptance/US-01-AC-01.py` | `evidence/tdd/T025.md` | planned |

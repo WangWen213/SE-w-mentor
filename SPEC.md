@@ -1,3 +1,29 @@
+# SE-Mentor Final Submission Specification Baseline
+
+本节是最终提交时的权威运行基线。后续长篇章节保留了需求形成和早期设计过程；若其中“公共云端
+仅为 Mock Demo”等早期描述与本节冲突，以本节和当前 Repository 为准，不将历史设计文字解释为
+当前产品行为。
+
+## Runtime Profiles
+
+| Profile | Implemented behavior | Security/runtime boundary |
+| --- | --- | --- |
+| `LOCAL_FULL` | Windows/local WebUI、CLI、onedir executable；打开用户真实本地 Git repository；使用用户拥有的 Provider credential | 完整本地 Tool / Validation 能力仍受 Governance、ExecutionPolicy、PolicyEnforcer、WRITE Lock 与 Transaction 约束 |
+| `CLOUD_DEMO` | 固定/临时 Demo workspace；`MockLLMProvider`；离线确定性机制展示 | 不接受真实 Provider credential，不访问任意用户宿主路径，不等同于 ONLINE_SAFE |
+| `ONLINE_SAFE` | 公网 HTTPS WebUI；用户上传 ZIP；Session 隔离 workspace；建立 fresh Git baseline；用户配置自己的 OpenAI-compatible Provider；执行 Proposal、Confirm/Adjust、Impact、Governance、Execution、Evaluation、Memory 与 ZIP/Patch export | 不访问用户本地文件系统；credential 为 Session scope；`RUN_COMMAND` 和 `RUN_VALIDATION` 禁用；ownership/path/policy fail-closed |
+
+## Final implementation classification
+
+- **Implemented**：self-built Harness、三种 runtime profile、Proposal/Impact/Governance/Policy/
+  Execution/Evaluation/Memory、Credential/Workspace isolation、安全 ZIP import/export、Windows
+  onedir、Formal Online WebUI、deterministic mechanism demo、GitHub Release CI 与自动 CD。
+- **Known Limitation**：公网大 ZIP 可能先被 Nginx 413 拒绝；Provider preflight UX 仍可能显示原始
+  错误；观察到一次根因未证实的 HTTP 402；public real-provider 执行曾在 Execution 以
+  `outside_policy` fail-closed，完整 ZIP → modified ZIP 尚未证明；历史 full-tree mypy/backend
+  suite debt 由 Repository Health 独立跟踪；TLS 自动续期仍可能需要运维 follow-up。
+- **Deferred / frozen out**：不在最终收口中扩宽 Governance/ExecutionPolicy，不添加 wildcard grant，
+  不实现 correction retry、413 配置修改、Provider preflight 或历史健康债务修复。
+
 # 0. 领域与机制设计
 
 ## 0.1 设计目标
@@ -8895,7 +8921,7 @@ SE-Mentor 的技术选型需要同时满足以下要求：
     
 6. 支持 Windows 本地完整版本分发；
     
-7. 提供能够通过公网访问的 WebUI 演示版本；
+7. 提供通过公网 HTTPS 访问的正式 ONLINE_SAFE WebUI，并保留独立 CLOUD_DEMO；
     
 8. 支持操作系统安全凭据存储；
     
@@ -8908,14 +8934,8 @@ SE-Mentor 的技术选型需要同时满足以下要求：
 12. 适合个人在课程周期内独立完成。
     
 
-SE-Mentor 采用“双形态交付”：
-
-- **Windows 本地完整版本**：负责访问和修改用户真实代码仓库；
-    
-- **阿里云公共演示版本**：负责提供公网 WebUI，展示 Agent 主循环、治理、审批、验证和 Mock 修正闭环。
-    
-
-两种形态共享同一套 Harness 核心代码，但采用不同的工具权限、凭据策略和执行环境。
+SE-Mentor 采用三个 Runtime Profile：`LOCAL_FULL`、`CLOUD_DEMO`、`ONLINE_SAFE`。三者共享同一套
+Harness 核心代码，但采用不同的项目入口、工具权限、凭据策略和执行环境。
 
 ---
 
@@ -8943,7 +8963,7 @@ SE-Mentor 采用“双形态交付”：
 |凭据访问|Python keyring|Windows Credential Manager 适配|
 |本地打包|PyInstaller `onedir`|Windows x64 可执行分发|
 |完整运行平台|Windows 10/11 x64|访问本地代码仓库|
-|公共演示平台|阿里云 ECS|托管公网 WebUI 与 Mock 演示后端|
+|正式在线平台|阿里云 ECS|托管 HTTPS ONLINE_SAFE WebUI；CLOUD_DEMO 是独立 Mock profile|
 |云端容器运行时|Docker + Docker Compose|标准化部署与服务编排|
 |云端镜像仓库|阿里云容器镜像服务 ACR|保存与分发演示版镜像|
 |Web 入口|Nginx|HTTPS、静态资源和反向代理|
@@ -9512,7 +9532,8 @@ llm:
 |高风险治理解释|GPT-5.6 Sol|
 |多次修正失败后的重新规划|GPT-5.6 Sol|
 |Harness 单元测试|MockLLMProvider|
-|阿里云公共演示|默认 MockLLMProvider|
+|CLOUD_DEMO 机制演示|默认 MockLLMProvider|
+|ONLINE_SAFE|用户 Session-scoped OpenAI-compatible Provider|
 
 模型名称通过配置提供，不在 Agent 主循环中硬编码。
 
@@ -9685,7 +9706,7 @@ Mock Provider：
     
 - 可以在 CI 中运行；
     
-- 可以在阿里云公共演示中安全使用。
+- 可以在独立 `CLOUD_DEMO` 中安全使用；不能据此把正式 `ONLINE_SAFE` 定义为 Mock Demo。
     
 
 ---
@@ -10196,7 +10217,8 @@ Windows Credential Manager
 用户目标机的 Windows Credential Manager
 ```
 
-阿里云公共演示默认使用 Mock LLM，因此不需要在 ECS 保存用户或开发者的真实 LLM API Key。
+`CLOUD_DEMO` 使用 Mock LLM。`ONLINE_SAFE` 使用用户在安全 Web Session 中配置的凭据，凭据按
+Session 隔离，不进入项目 workspace、普通日志、SQLite 明文或部署镜像。
 
 ### 阿里云部署凭据
 
@@ -10235,7 +10257,7 @@ GitLab CI Protected / Masked Variables
 
 # 8.12 分发与部署平台
 
-## 8.12.1 双形态交付
+## 8.12.1 三种 Runtime Profile
 
 SE-Mentor 同时提供：
 
@@ -10256,7 +10278,7 @@ SE-Mentor 同时提供：
 - 创建任务备份和回滚事务。
     
 
-### 阿里云公共演示版本
+### CLOUD_DEMO
 
 用于：
 
@@ -10275,7 +10297,8 @@ SE-Mentor 同时提供：
 - 展示可观测性和任务回放。
     
 
-公共演示版本不访问访问者电脑上的本地文件系统。
+CLOUD_DEMO 不访问访问者电脑上的本地文件系统。正式 `ONLINE_SAFE` 也不直接访问本地文件系统，
+而是把用户 ZIP 安全解压到当前 Session 隔离 workspace，建立 fresh Git baseline，并允许安全导出。
 
 ---
 
@@ -10583,9 +10606,9 @@ SSE 路由应关闭不必要的代理缓冲，以避免事件延迟。
 
 ---
 
-## 8.12.12 公共演示安全边界
+## 8.12.12 CLOUD_DEMO 安全边界
 
-阿里云公共演示版采用比本地版本更严格的策略：
+CLOUD_DEMO 采用比本地版本更严格的策略：
 
 - 不允许用户输入任意宿主机路径；
     
@@ -11196,9 +11219,9 @@ Docker 基础镜像、Nginx、Python 依赖和前端依赖也应纳入第三方�
 - 不适合作为主要本地完整版本。
     
 
-Docker 仅用于：
+Docker 用于：
 
-- 阿里云公共演示；
+- 正式 `ONLINE_SAFE` 与独立 `CLOUD_DEMO` 服务端部署；
     
 - CI；
     
@@ -11345,7 +11368,7 @@ SQLite + 文件系统 + Windows Credential Manager
 
 ---
 
-## 8.18.2 阿里云公共演示版本
+## 8.18.2 CLOUD_DEMO 机制演示（历史部署拓扑）
 
 ```text
 公网浏览器
@@ -11482,7 +11505,7 @@ LLM：
 OpenAI Responses API
 默认 GPT-5.6 Terra
 高复杂度 GPT-5.6 Sol
-测试和公共演示使用 MockLLMProvider
+测试和 CLOUD_DEMO 使用 MockLLMProvider；ONLINE_SAFE 使用用户 Session-scoped Provider
 
 设计：
 Open Design
@@ -11497,7 +11520,7 @@ Windows Credential Manager
 PyInstaller onedir
 Windows 10/11 x64
 
-公共演示部署：
+CLOUD_DEMO 部署（独立于正式 ONLINE_SAFE）：
 阿里云 ECS
 Docker + Docker Compose
 Nginx + HTTPS
@@ -12993,9 +13016,9 @@ P0 至少满足：
 
 ---
 
-## 9.17.2 阿里云公共演示
+## 9.17.2 Formal Online WebUI 与 CLOUD_DEMO
 
-阿里云演示版本必须满足：
+共同的公网部署必须满足：
 
 1. 通过公网 HTTPS 地址访问；
     
@@ -13007,9 +13030,9 @@ P0 至少满足：
     
 5. SSE 能推送任务状态；
     
-6. Mock Agent 闭环可以运行；
+6. `ONLINE_SAFE` 运行真实 Session-scoped Provider path；`CLOUD_DEMO` 运行 Mock Harness 闭环；
     
-7. 只能访问容器内预置示例仓库；
+7. `ONLINE_SAFE` 只能访问当前 Session 隔离 ZIP workspace；`CLOUD_DEMO` 只能访问预置/临时示例仓库；
     
 8. 任意宿主路径请求被拒绝；
     
@@ -13027,7 +13050,7 @@ P0 至少满足：
     
 15. 镜像中不存在真实 LLM Key；
     
-16. 演示数据可以重置。
+16. CLOUD_DEMO 数据可以重置，ONLINE_SAFE 持久化必须按 user/session/project 隔离。
     
 
 ---
@@ -14910,9 +14933,9 @@ program + argument list
 
 ### 建议
 
-阿里云公共演示默认使用确定性 Mock LLM。
-
-真实 LLM 只在本地完整版本或受控教师演示模式中使用。
+`CLOUD_DEMO` 默认使用确定性 Mock LLM。`LOCAL_FULL` 与 `ONLINE_SAFE` 可以使用用户自己的真实
+OpenAI-compatible Provider；ONLINE_SAFE 凭据必须为 Session scope，并受 HTTPS、ownership、
+workspace isolation 与 fail-closed policy 约束。
 
 ---
 

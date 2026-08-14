@@ -2626,19 +2626,13 @@ LLM 负责提出候选动作。
 系统架构：
 
 ```text
-docs/ARCHITECTURE.md
+系统架构设计.md
 ```
 
-安全边界：
+安全边界与架构决策：
 
 ```text
-docs/SECURITY_BOUNDARIES.md
-```
-
-架构决策：
-
-```text
-docs/ARCHITECTURE_DECISIONS.md
+docs/DECISIONS_P0.md
 ```
 
 项目使用说明：
@@ -2656,7 +2650,7 @@ deploy/README.md
 需求与实现追踪：
 
 ```text
-TRACEABILITY_MATRIX.md
+docs/TRACEABILITY_MATRIX.md
 ```
 
 最终验收：

@@ -1,5 +1,27 @@
 # SE-Mentor 完整实施计划（PLAN v2）
 
+## FINAL CLOSEOUT STATUS — 2026-08-14
+
+本节记录最终实现与提交事实。下方历史任务条目保留原计划记录；最终实现状态与提交证据以本节、
+`AGENT_LOG.md` 及 `docs/FINAL_STATUS.md` 为准。历史 `Commit: 未填写` 表示当时没有可靠的
+Task-specific hash 记录，不得据此否定当前已集成实现，也不得事后编造 hash。
+
+| Final milestone | Status | Commit / evidence |
+| --- | --- | --- |
+| Self-built Harness core | IMPLEMENTED | current main history、Architecture、focused/release evidence |
+| ONLINE_SAFE workspace/domain/provider isolation | IMPLEMENTED | `2eabbdb`, `4fe15f8`, `a04eb24` |
+| ZIP import/export and ONLINE_SAFE runtime | IMPLEMENTED | `d3e8b53`, `bd109fd`, integration `2c48437` |
+| Production HTTPS / deployment readiness | IMPLEMENTED | `bd109fd`, production runbook |
+| Production CI/CD | IMPLEMENTED | `43a7d1b`, scoped gates `f7c916e`; `workflow_run` automatic deploy |
+| Governed scope P0 fix | IMPLEMENTED | `4e9ca61`, root workspace grant preservation `0f0c893` |
+| Frontend recovery stability | COMPLETE | `4cef1ee`; type-check PASS; Changes/recovery 13 PASS |
+| Deterministic Mechanism Demo | COMPLETE | `7e40490`; focused pytest 3 PASS; CLI scenarios 3/3 PASS |
+| Final documentation closeout | COMPLETE IN FINAL DOC COMMIT | README/SPEC/PROCESS/LOG/FINAL_STATUS and canonical filenames |
+
+Final frozen limitations are not feature tasks: public large ZIP Nginx 413, Provider preflight UX,
+unproven transient HTTP 402 cause, public real-provider `outside_policy` full-E2E gap, historical
+Repository Health debt, and TLS renewal automation follow-up. They are documented, not silently marked complete.
+
 > 状态：**前置骨架和本地环境准备已开始；严格 DoD 状态以各 Task 状态行和 `PREP_STATUS.md` 为准。**  
 > 依据：`SPEC.问题陈述.md`、上一版 PLAN 审查报告。  
 > 原则：每个 Task 由一个新鲜 subagent 在一次会话内完成；严格 TDD；所有 P0 结果必须有自动化测试和证据。
@@ -12,7 +34,7 @@
 - `[!] 阻塞`：依赖外部环境、前置决策或未完成任务。
 - `[~] P1 延后`：不属于 P0 发布条件，但必须保留原因和重新评审入口。
 
-**本文件生成时：117 个 P0 Task 均未完成；其中 Windows、阿里云和最终发布 Task 含外部阻塞。**
+**历史计划生成时：117 个 P0 Task 均未完成；该句仅描述初始计划快照，最终状态以上述 FINAL CLOSEOUT STATUS 为准。**
 
 **当前执行策略：暂停 T009 及之后功能开发；先完成 T000～T008 合规回填。工程环境准备度单独记录在 `PREP_STATUS.md`，本 PLAN 只记录严格 DoD 状态。**
 
@@ -22,7 +44,7 @@
 1. 只实现本 Task 的最小范围，不顺手完成后续 Task；
 1. 当前测试、相关回归、Lint、类型检查全部通过；
 1. 先做 Spec Compliance Review，再做 Code Quality Review；
-1. 更新 `TRACEABILITY_MATRIX.md`、`AGENT_LOG.md`、Task 状态、commit 和 evidence；
+1. 更新 `docs/TRACEABILITY_MATRIX.md`、`AGENT_LOG.md`、Task 状态、commit 和 evidence；
 1. `git status` 干净，禁止 `git add .`；
 1. 如发现规约歧义，标记 `[!]` 并暂停，不自行猜测。
 
@@ -3319,15 +3341,14 @@ T000-T008 规约/契约/迁移门禁
 
 ## T111 — 架构、安全边界与模块偏离文档
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[x] DOCUMENTATION COMPLETE
+- **阻塞说明**：无；当前架构、安全边界和产品定义已作为正式文档基线，最终运行验收不改变该文档完成状态
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`架构设计`, `审查目录漂移问题`
 - **目标**：记录最终模块边界、数据流、信任边界、ExecutionPolicy 双层强制和任何对 SPEC 目录结构的批准偏离。
 - **涉及文件**：
-  - `docs/ARCHITECTURE.md`
-  - `docs/SECURITY_BOUNDARIES.md`
-  - `docs/ARCHITECTURE_DECISIONS.md`
+  - `系统架构设计.md`
+  - `docs/DECISIONS_P0.md`
 - **预期实现要点**：
   - 每个偏离包含理由、影响和批准记录
   - 图示本地/云端边界
@@ -3348,14 +3369,14 @@ T000-T008 规约/契约/迁移门禁
 
 ## T112 — README、运行、凭据、恢复与部署说明
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[-] DOCUMENTATION COMPLETE；runtime / target-host verification pending
+- **阻塞说明**：README、Runbook 与 `deploy/README.md` 已完成；公网 HTTPS、production ONLINE_SAFE 和目标主机 smoke 仍需外部验收
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`README 交付`, `AC-DIST-WIN`, `AC-DEPLOY-ALIYUN`
 - **目标**：让陌生用户可按文档安装、Mock 运行、配置/清除 Key、恢复、打包和部署。
 - **涉及文件**：
   - `README.md`
-  - `docs/RUNBOOK.md`
+  - `RUNBOOK.md`
   - `deploy/README.md`
 - **预期实现要点**：
   - 命令与实际一致
@@ -3377,14 +3398,15 @@ T000-T008 规约/契约/迁移门禁
 
 ## T113 — 可复现机制演示场景
 
-- **状态**：[ ] 未开始
-- **阻塞说明**：无
+- **状态**：[x] IMPLEMENTED；DEMO DOCUMENTATION COMPLETE；focused repeatability verified
+- **阻塞说明**：无；当前入口提供 Governance Guardrail、Feedback-driven Self Correction、Engineering Memory / Context 三个确定性场景，3 个 focused tests 与 CLI 3/3 已通过
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`课程演示`, `FR-12`, `US 闭环`
-- **目标**：提供 ALLOW、WARN、BLOCK、自动修正、停滞、回滚和知识保鲜的演示入口。
+- **目标**：提供 governance hard block、feedback correction 和 engineering memory 三个当前真实、确定性的 Harness 演示场景；其他产品能力不冒充为独立 Demo 场景。
 - **涉及文件**：
-  - `demo/run_demo.py`
-  - `demo/scenarios/`
+  - `scripts/demo_harness.py`
+  - `backend/src/se_mentor/demo/harness_demo.py`
+  - `backend/tests/demo/test_harness_demo.py`
   - `demo/README.md`
 - **预期实现要点**：
   - 每场景从干净 Git 状态开始
@@ -3402,12 +3424,12 @@ T000-T008 规约/契约/迁移门禁
   - evidence/test-reports/T113.xml
   - evidence/diffs/T113.patch
   - `AGENT_LOG.md` 中的 T113 记录
-- **Commit**：`未填写`
+- **Commit**：`7e40490`
 
 ## T114 — 陌生智能体冷启动验证与二次修订
 
-- **状态**：[-] first cold-start PASS complete; final pre-release rerun not executed
-- **阻塞说明**：首轮已完成；发布前仍需第二轮复跑
+- **状态**：[-] FIRST COLD-START PASS EXECUTED AND RECORDED；FINAL PRE-RELEASE RERUN NOT YET EXECUTED
+- **阻塞说明**：2026-08-07 Foundation/M0 首轮已有真实证据；最终冻结基线上的 fresh-agent 复跑仍未执行，不能标记最终 COMPLETE
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`审查 Cold Start`, `SPEC_PROCESS`
 - **目标**：分别在核心实现前后让不同新鲜 subagent 仅凭 SPEC/PLAN 实施指定 Task，记录歧义和修订。
@@ -3435,8 +3457,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T115 — 生成验收证据、ACCEPTANCE_REPORT 与 Release Gate
 
-- **状态**：[!] 未开始；依赖全部 P0 与外部验收
-- **阻塞说明**：Windows 与阿里云证据尚未产生
+- **状态**：[!] SUBSTANTIVE ACCEPTANCE REPORT COMPLETE；final evidence collection and Release Gate pending
+- **阻塞说明**：核心产品和架构已按 IMPLEMENTED 形成实质性报告；Demo repeatability 已验证；final full regression、Windows clean-machine、公网 HTTPS / production ONLINE_SAFE、Secret scan、performance 与 Cold Start 最终证据仍待采集
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`9.2～9.22`, `ACCEPTANCE_REPORT.md`, `evidence/`, `发布门禁`
 - **目标**：自动汇总 P0 功能、8 个 E2E、性能、安全、凭据、Windows、阿里云、CI、回放、未完成项和证据索引。
@@ -3465,8 +3487,8 @@ T000-T008 规约/契约/迁移门禁
 
 ## T116 — 最终 Spec Compliance、Code Quality 与发布
 
-- **状态**：[!] 未开始；最终门禁
-- **阻塞说明**：前置任务和外部验收尚未完成
+- **状态**：[!] PHASE A SPEC COMPLIANCE PASS / COMPLIANT；PHASE B CODE QUALITY FINAL AUDIT DEFERRED UNTIL IMPLEMENTATION FREEZE
+- **阻塞说明**：Phase A 已基于当前稳定实现和权威文档完成；Phase B、新的代码质量审计、最终外部验收与 Release Decision 尚未执行
 - **Worktree**：`wt-delivery`
 - **覆盖需求**：`最终双阶段评审`, `系统级 DoD`
 - **目标**：先做规约合规审查，再做代码质量审查；修复全部 Critical/High 后创建 Release Candidate 和最终 Tag。

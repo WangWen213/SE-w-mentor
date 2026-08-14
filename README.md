@@ -1,10 +1,15 @@
 # SE-Mentor
 
+**Repository:** https://github.com/WangWen213/SE-w-mentor
+
+**Online WebUI:** https://47.76.106.57
+
 Production CD for the current ONLINE_SAFE deployment is documented in
 `docs/PRODUCTION_CD_RUNBOOK.md`. The deployment path is:
 
 ```text
-main -> CI -> Production Deploy -> ECS /opt/se-mentor -> production compose
+push main -> GitHub CI -> Release Gate -> Production Deploy (workflow_run)
+-> ECS /opt/se-mentor -> Docker Compose -> health/runtime verification
 ```
 
 > **Software Change Proposal Analysis and Governance**  
@@ -1178,6 +1183,23 @@ SE-Mentor 提供三种相互独立的运行模式：
 
 `ONLINE_SAFE` 不直接访问用户电脑的本地文件系统，也不依赖 Local Bridge。用户上传的是项目副本，所有修改仅发生在当前 Session 隔离的服务器 Workspace 中。
 
+正式 ONLINE_SAFE 使用流程：
+
+1. 打开公共 WebUI；
+2. 上传项目 ZIP；
+3. 在 Settings 配置自己的 OpenAI-compatible API Base URL、Model 和 API Key；
+4. 创建软件变更任务；
+5. 审阅 Proposal；
+6. Confirm 或 Adjust；
+7. 查看 Impact；
+8. 查看 Governance / ExecutionPolicy；
+9. 在策略允许时执行；
+10. 查看 Changes、Evaluation 与 Engineering Memory；
+11. 在支持时导出修改后的 ZIP 或 Patch。
+
+ONLINE_SAFE 不开放 `RUN_COMMAND` 和 `RUN_VALIDATION`，凭据保持 Session scope，治理与工具边界
+fail-closed。
+
 HTTPS、Trusted Proxy、安全凭据以及真实 Web 全链路验收说明见 `docs/ONLINE_SAFE_PHASE5A_READINESS.md`。
 
 ---
@@ -1282,95 +1304,40 @@ Stub LLM
 - 确保课堂现场演示稳定；
 - 确保每次可以触发相同治理场景。
 
+当前确定性 Demo 的准确入口：
+
+```powershell
+$env:PYTHONPATH=(Resolve-Path backend\src).Path
+.\backend\.venv\Scripts\python.exe scripts\demo_harness.py --all
+```
+
+写出 JSON evidence：
+
+```powershell
+.\backend\.venv\Scripts\python.exe scripts\demo_harness.py --all --output $env:TEMP\sementor-demo-evidence
+```
+
 ---
 
 # 32. Mechanism Demo 场景
 
-Demo 重点展示以下场景。
+当前 CLI 实际、可重复支持三个场景：
 
-## 32.1 ALLOW
+## 32.1 Governance Guardrail
 
-```text
-普通安全修改
-    ↓
-Impact
-    ↓
-ALLOW
-    ↓
-Execution
-```
+危险写动作命中治理规则，产生 `BLOCK`，并证明 Tool 没有执行。
 
-## 32.2 WARN
+## 32.2 Feedback-driven Self Correction
 
-```text
-高风险修改
-    ↓
-REQUIRE_APPROVAL
-    ↓
-用户批准
-    ↓
-ExecutionPolicy
-    ↓
-Execution
-```
+第一次 Validation 失败，Feedback 进入下一次 Provider context，AgentAction 发生改变，第二次
+Validation 通过。
 
-## 32.3 BLOCK
+## 32.3 Engineering Memory / Context
 
-```text
-危险行为
-    ↓
-DENY_HARD
-    ↓
-BLOCK
-```
+工程知识被持久化并检索命中，注入 Context 后影响后续 Agent 行为。
 
-## 32.4 自动修正
-
-```text
-Code Change
-    ↓
-Test Failed
-    ↓
-Feedback
-    ↓
-Repair
-    ↓
-Test Passed
-```
-
-## 32.5 Stagnation
-
-```text
-Repeated Failure
-    ↓
-Stagnation Detected
-    ↓
-REPLAN / STOP
-```
-
-## 32.6 Rollback
-
-```text
-Execution
-    ↓
-Cancel
-    ↓
-Rollback
-    ↓
-Transaction Restore
-```
-
-## 32.7 Knowledge Freshness
-
-```text
-Old Knowledge
-    ↓
-Repository Changed
-    ↓
-Freshness Check
-    ↓
-DRIFTED / STALE
-```
+ALLOW、Approval、Stagnation、Rollback 与 Knowledge Freshness 是完整 Harness 的产品能力和测试
+范围，但不能把它们写成当前 `scripts/demo_harness.py` 已提供的独立 CLI 场景。
 
 ---
 
@@ -1812,6 +1779,42 @@ Online WebUI 已实现
 
 只有获得对应目标环境证据之后，才能在最终 Acceptance Report 中宣称完全验收。
 
+## 45.1 Public large ZIP / Nginx 413
+
+小型项目 ZIP 已验证可上传。较大的 ZIP 可能在到达 Backend ZIP safety validation 前被公网 Nginx
+以 `413 Request Entity Too Large` 拒绝，因此不能宣称公网支持 Backend 理论上限。Backend 仍有
+独立的有界 ZIP 安全策略；当前 gateway body limit 更严格。未来应仅为
+`/api/projects/import-zip` 对齐限制并提供友好的中文 413 UX，本次冻结不修改该行为。
+
+## 45.2 Provider credential preflight UX
+
+未配置 Provider 时，Backend 会 fail-closed，但界面仍可能直接显示原始 credential/provider
+错误。未来可在创建任务前引导用户进入 Settings；本次冻结不新增该交互。
+
+## 45.3 Transient provider-compatible failure
+
+真实 Provider Proposal 请求曾观察到一次 HTTP 402，人工重试后成功。上游原因没有被确定，不能
+写成已确认的 billing、quota 或官方服务故障。
+
+## 45.4 Public real-provider execution
+
+真实浏览器链路已到达 Proposal → Confirm → Impact → Governance ALLOW → Execution，随后以
+`policy denied: outside_policy` fail-closed。被拒绝的 AgentAction path 未保留，因此无法确定是
+模型 scope drift、结构化 scope 遗漏还是其他 contract 问题。公网 real-provider 的
+ZIP → modified ZIP 全链路尚未完全验证。Local deterministic/controlled Harness CREATE_FILE 已
+通过，未授权路径 fail-closed 已验证；两类证据不能混用。
+
+## 45.5 Repository Health
+
+Production Release CI 覆盖并通过生产关键路径。Repository-wide historical health 仍保留
+full-tree strict mypy debt 和约 20 个历史 full-backend-suite failures，由
+`.github/workflows/repository-health.yml` 独立跟踪；不能宣称整个历史仓库健康度全绿。
+
+## 45.6 TLS renewal
+
+Production HTTPS 当前可用。自动证书续期若尚未完成，仍是运维 follow-up；本次 closeout 不修改
+TLS 基础设施。
+
 ---
 
 # 46. 当前使用方式
@@ -1840,7 +1843,7 @@ Windows EXE
 Online WebUI
 ```
 
-如果你需要稳定展示 ALLOW / WARN / BLOCK / Repair / Rollback 等核心机制：
+如果你需要稳定展示治理硬阻断、反馈修正与工程记忆等核心机制：
 
 ```text
 Mechanism Demo
@@ -1853,25 +1856,19 @@ Mechanism Demo
 系统架构：
 
 ```text
-docs/ARCHITECTURE.md
-```
-
-安全边界：
-
-```text
-docs/SECURITY_BOUNDARIES.md
+系统架构设计.md
 ```
 
 架构决策：
 
 ```text
-docs/ARCHITECTURE_DECISIONS.md
+docs/DECISIONS_P0.md
 ```
 
 运行与故障恢复：
 
 ```text
-docs/RUNBOOK.md
+RUNBOOK.md
 ```
 
 部署：
@@ -1883,7 +1880,7 @@ deploy/README.md
 需求与实现追踪：
 
 ```text
-TRACEABILITY_MATRIX.md
+docs/TRACEABILITY_MATRIX.md
 ```
 
 任务实施记录：
