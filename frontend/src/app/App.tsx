@@ -32,6 +32,10 @@ import { ProposalReviewPage } from "../pages/ProposalReviewPage";
 import { RecoveryPage } from "../pages/RecoveryPage";
 import { TaskResultPage } from "../pages/TaskResultPage";
 import { useTaskEvents } from "../hooks/useTaskEvents";
+import {
+  preserveTerminalTaskSnapshot,
+  shouldReconcileAfterReconnect,
+} from "./taskRefreshPolicy";
 import { AppShell } from "./AppShell";
 import type { NavKey, ProposalFixture, WorkbenchMessage, WorkbenchTimelineItem } from "./fixtures";
 
@@ -234,6 +238,7 @@ export function App({ api: providedApi }: AppProps = {}) {
   const governanceDetailRequestRunRef = useRef<Record<string, number>>({});
   const fileChangeRequestRunRef = useRef<Record<string, number>>({});
   const timelineRequestRunRef = useRef<Record<string, number>>({});
+  const taskProjectionRequestRunRef = useRef<Record<string, number>>({});
   const governanceRefreshTimersRef = useRef<Record<string, number>>({});
   const governanceHistoryRefreshTimersRef = useRef<Record<string, number>>({});
   const fileChangeRefreshTimersRef = useRef<Record<string, number>>({});
@@ -242,6 +247,17 @@ export function App({ api: providedApi }: AppProps = {}) {
   const applyTaskSnapshot = useCallback((task: Task) => {
     setActiveTask((current) => (current?.id === task.id ? task : current));
     setTasks((current) => upsertTasks(current, [task]));
+  }, []);
+
+  const applyReconciledTaskSnapshot = useCallback((task: Task) => {
+    setActiveTask((current) =>
+      current?.id === task.id ? preserveTerminalTaskSnapshot(current, task) : current,
+    );
+    setTasks((current) => {
+      const existing = current.find((item) => item.id === task.id);
+      const snapshot = existing ? preserveTerminalTaskSnapshot(existing, task) : task;
+      return upsertTasks(current, [snapshot]);
+    });
   }, []);
 
   useEffect(() => {
@@ -706,12 +722,17 @@ export function App({ api: providedApi }: AppProps = {}) {
   );
 
   const reconcileTaskProjection = useCallback(async (taskId: string) => {
+    const requestId = (taskProjectionRequestRunRef.current[taskId] ?? 0) + 1;
+    taskProjectionRequestRunRef.current[taskId] = requestId;
     const [task, proposal, timeline] = await Promise.all([
       api.getTask(taskId),
       fetchProposalForTask(taskId),
       api.getTaskTimeline(taskId),
     ]);
-    applyTaskSnapshot(task);
+    if (taskProjectionRequestRunRef.current[taskId] !== requestId) {
+      return { proposal, task, timeline };
+    }
+    applyReconciledTaskSnapshot(task);
     if (activeTaskIdRef.current === taskId) {
       setActiveProposal(proposal);
       setProposalQueryState(proposal ? "EXISTS" : "NOT_CREATED");
@@ -721,7 +742,7 @@ export function App({ api: providedApi }: AppProps = {}) {
       [taskId]: dedupeTimelineItems(timeline.items.map((item) => timelineItemFromRecord(taskId, item))),
     }));
     return { proposal, task, timeline };
-  }, [api, applyTaskSnapshot, fetchProposalForTask]);
+  }, [api, applyReconciledTaskSnapshot, fetchProposalForTask]);
 
   const refreshActiveTask = useCallback(async () => {
     if (!activeTask) {
@@ -1313,11 +1334,23 @@ export function App({ api: providedApi }: AppProps = {}) {
   ]);
 
   useEffect(() => {
-    if (activeTask && taskEvents.reconnectCount > 0) {
-      void reconcileTaskProjection(activeTask.id);
-      scheduleFileChangesRefresh(activeTask.id);
+    const taskId = activeTask?.id;
+    const taskStatus = activeTask?.status;
+    if (
+      taskId &&
+      taskStatus &&
+      shouldReconcileAfterReconnect(taskStatus, taskEvents.reconnectCount)
+    ) {
+      void reconcileTaskProjection(taskId);
+      scheduleFileChangesRefresh(taskId);
     }
-  }, [activeTask, reconcileTaskProjection, scheduleFileChangesRefresh, taskEvents.reconnectCount]);
+  }, [
+    activeTask?.id,
+    activeTask?.status,
+    reconcileTaskProjection,
+    scheduleFileChangesRefresh,
+    taskEvents.reconnectCount,
+  ]);
 
   useEffect(() => {
     processedEventIdsRef.current = new Set();
