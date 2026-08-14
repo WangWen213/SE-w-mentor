@@ -6,20 +6,25 @@ import re
 from time import perf_counter
 from uuid import uuid4
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
-from se_mentor.api.runtime import get_session_factory
+from se_mentor.api.online_access import require_project_access, require_task_access
+from se_mentor.api.online_readiness import require_online_safe_project_readiness
+from se_mentor.api.runtime import (
+    get_runtime_settings,
+    get_session_factory,
+)
 from se_mentor.db.session import session_scope
 from se_mentor.git.git_service import GitService
 from se_mentor.models.execution import FileChange, ToolExecution
 from se_mentor.models.governance import GovernanceDecision, ImpactReport
-from se_mentor.models.project import Project
 from se_mentor.models.task import ChangeProposal, ChangeTask, ProposalStatus
 from se_mentor.models.validation import ValidationPlan, ValidationRun
 from se_mentor.models.workbench import WorkbenchMessage
+from se_mentor.runtime.profiles import RuntimeProfile
 from se_mentor.tasks.task_service import TaskCreationRequest, TaskService
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -34,13 +39,26 @@ class TaskCreate(BaseModel):
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_task(payload: TaskCreate, response: Response) -> dict[str, object]:
+def create_task(
+    payload: TaskCreate,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
     total_started = perf_counter()
     if not payload.request.strip():
         response.status_code = status.HTTP_400_BAD_REQUEST
         return error("TASK_REQUEST_REQUIRED", "task request is required")
     with session_scope(_SESSION_FACTORY) as session:
-        project = session.get(Project, payload.project_id)
+        if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+            readiness = require_online_safe_project_readiness(
+                session,
+                payload.project_id,
+                request,
+                response,
+            )
+            if isinstance(readiness, dict):
+                return readiness
+        project = require_project_access(session, payload.project_id, request, response)
         if project is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROJECT_NOT_FOUND", "project not found")
@@ -114,10 +132,10 @@ def create_task(payload: TaskCreate, response: Response) -> dict[str, object]:
 
 
 @router.get("/{task_id}")
-def get_task(task_id: str, response: Response) -> dict[str, object]:
+def get_task(task_id: str, request: Request, response: Response) -> dict[str, object]:
     started = perf_counter()
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")
@@ -127,11 +145,11 @@ def get_task(task_id: str, response: Response) -> dict[str, object]:
 
 
 @router.get("/{task_id}/timeline")
-def get_task_timeline(task_id: str, response: Response) -> dict[str, object]:
+def get_task_timeline(task_id: str, request: Request, response: Response) -> dict[str, object]:
     started = perf_counter()
     with session_scope(_SESSION_FACTORY) as session:
         db_started = perf_counter()
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")

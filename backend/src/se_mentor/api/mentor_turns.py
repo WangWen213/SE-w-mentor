@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_access import require_task_access
 from se_mentor.api.runtime import get_domain_provider, get_session_factory
 from se_mentor.db.session import session_scope
 from se_mentor.llm.base import LLMRequest, ProviderError
@@ -25,13 +26,18 @@ class MentorTurnCreate(BaseModel):
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_turn(task_id: str, payload: MentorTurnCreate, response: Response) -> dict[str, object]:
+def create_turn(
+    task_id: str,
+    payload: MentorTurnCreate,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
     user_text = payload.text.strip()
     if not user_text:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return error("MENTOR_TURN_TEXT_REQUIRED", "turn text is required")
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")

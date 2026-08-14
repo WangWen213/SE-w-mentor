@@ -4,24 +4,26 @@ import difflib
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
-from se_mentor.api.runtime import get_session_factory
+from se_mentor.api.online_access import require_file_change_access, require_task_access
+from se_mentor.api.runtime import get_runtime_settings, get_session_factory
 from se_mentor.db.session import session_scope
 from se_mentor.models.execution import BackupEntry, FileChange, ToolExecution
 from se_mentor.models.project import Project
 from se_mentor.models.task import ChangeTask
+from se_mentor.runtime.profiles import RuntimeProfile
 
 router = APIRouter(prefix="/api/diffs", tags=["diffs"])
 _SESSION_FACTORY = get_session_factory()
 
 
 @router.get("/tasks/{task_id}/changes")
-def task_changes(task_id: str, response: Response) -> dict[str, object]:
+def task_changes(task_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")
@@ -49,9 +51,9 @@ def task_changes(task_id: str, response: Response) -> dict[str, object]:
 
 
 @router.get("/{change_id}/trace")
-def trace_change(change_id: str, response: Response) -> dict[str, object]:
+def trace_change(change_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        change = session.get(FileChange, change_id)
+        change = require_file_change_access(session, change_id, request, response)
         if change is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("FILE_CHANGE_NOT_FOUND", "file change not found")
@@ -104,7 +106,9 @@ def _trace_payload(
             "toolStatus": tool.status,
             "commandSummary": tool.command_summary,
             "backupRef": backup.backup_artifact_ref if backup else None,
-            "workspacePath": str(current_path),
+            "workspacePath": None
+            if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE
+            else str(current_path),
         },
     }
 

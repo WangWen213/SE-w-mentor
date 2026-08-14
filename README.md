@@ -1161,6 +1161,19 @@ User-provided OpenAI-compatible Provider
 
 ---
 
+## 运行模式（Runtime Profiles）
+
+SE-Mentor 提供三种相互独立的运行模式：
+
+- `LOCAL_FULL`：本地完整模式。用户通过“打开本地仓库”选择本机 Git 仓库，SE-Mentor 直接在本地项目上执行完整的软件修改流程。
+- `CLOUD_DEMO`：公网演示模式。使用固定 Demo Workspace 与内置 Mock Provider，不需要也不接受真实 API Key。
+- `ONLINE_SAFE`：公网真实运行模式。用户填写自己的 OpenAI-compatible 模型凭据并上传项目 ZIP；SE-Mentor 将项目安全解压到当前 Session 独立的服务器 Workspace 中，通过真实 Harness 完成 Proposal、Impact、Governance、Execution 等流程，并允许用户下载修改后的 ZIP 或 Patch。
+
+`ONLINE_SAFE` 不直接访问用户电脑的本地文件系统，也不依赖 Local Bridge。用户上传的是项目副本，所有修改仅发生在当前 Session 隔离的服务器 Workspace 中。
+
+HTTPS、Trusted Proxy、安全凭据以及真实 Web 全链路验收说明见 `docs/ONLINE_SAFE_PHASE5A_READINESS.md`。
+
+---
 # 29. Online Provider 上线原则
 
 Online WebUI 的产品目标是支持真实用户自己的 Provider。

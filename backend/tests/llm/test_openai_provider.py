@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from urllib import request as urlrequest
 from typing import Any, cast
+from urllib import request as urlrequest
 
 import pytest
 
 from se_mentor.api import runtime
-from se_mentor.security.secrets import Secret
 from se_mentor.llm.base import (
     LLMRequest,
     ProviderHTTPError,
@@ -14,6 +13,7 @@ from se_mentor.llm.base import (
     ProviderTimeout,
 )
 from se_mentor.llm.openai_provider import OpenAIProviderConfig, OpenAIResponsesProvider
+from se_mentor.security.secrets import Secret
 
 
 class FakeResponses:
@@ -139,7 +139,10 @@ def test_T054_http_provider_uses_bounded_timeout_and_classifies_urlopen_timeout(
     monkeypatch.setattr(runtime.urlrequest, "urlopen", timeout_urlopen)
     provider = runtime.build_openai_provider(
         Secret("sk-test"),
-        config=runtime.ProviderRuntimeConfig(base_url="https://example.invalid/v1", model="gpt-test"),
+        config=runtime.ProviderRuntimeConfig(
+            base_url="https://example.invalid/v1",
+            model="gpt-test",
+        ),
     )
 
     with pytest.raises(ProviderTimeout, match="90s"):

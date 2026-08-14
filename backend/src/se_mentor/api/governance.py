@@ -3,12 +3,17 @@ from __future__ import annotations
 import hashlib
 import json
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
-from se_mentor.api.runtime import get_domain_provider, get_session_factory
+from se_mentor.api.online_access import require_proposal_access
+from se_mentor.api.online_readiness import (
+    OnlineSafeReadiness,
+    require_online_safe_project_readiness,
+)
+from se_mentor.api.runtime import get_domain_provider, get_runtime_settings, get_session_factory
 from se_mentor.approvals.request_service import ApprovalRequestService
 from se_mentor.db.session import session_scope
 from se_mentor.evidence.bundle import EvidenceBundleBuilder, EvidenceItem
@@ -17,7 +22,7 @@ from se_mentor.governance.memory_writeback import GovernanceMemoryWritebackServi
 from se_mentor.governance.rule_repository import RuleDefinition
 from se_mentor.impact.direct import DirectImpact, DirectImpactKind
 from se_mentor.impact.report_service import ImpactReportGenerationError, ImpactReportService
-from se_mentor.llm.base import ProviderError
+from se_mentor.llm.base import LLMProvider, ProviderError
 from se_mentor.models.approval import (
     ApprovalRequest,
     ApprovalRequestStatus,
@@ -35,6 +40,7 @@ from se_mentor.models.governance import (
 from se_mentor.models.task import ChangeProposal, ChangeTask, ProposalStatus, TaskStatus
 from se_mentor.orchestration.change_flow import _ensure_proposal_action
 from se_mentor.policy.compiler import ExecutionPolicyCompiler
+from se_mentor.runtime.profiles import RuntimeProfile
 
 router = APIRouter(prefix="/api/proposals", tags=["governance"])
 _SESSION_FACTORY = get_session_factory()
@@ -45,9 +51,13 @@ class GovernanceRequest(BaseModel):
 
 
 @router.get("/{proposal_id}/governance")
-def current_governance(proposal_id: str, response: Response) -> dict[str, object]:
+def current_governance(
+    proposal_id: str,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        proposal = session.get(ChangeProposal, proposal_id)
+        proposal = require_proposal_access(session, proposal_id, request, response)
         if proposal is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROPOSAL_NOT_FOUND", "proposal not found")
@@ -82,16 +92,20 @@ def current_governance(proposal_id: str, response: Response) -> dict[str, object
 def run_governance(
     proposal_id: str,
     payload: GovernanceRequest,
+    request: Request,
     response: Response,
 ) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        proposal = session.get(ChangeProposal, proposal_id)
+        proposal = require_proposal_access(session, proposal_id, request, response)
         if proposal is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROPOSAL_NOT_FOUND", "proposal not found")
         if proposal.status != ProposalStatus.CONFIRMED:
             response.status_code = status.HTTP_409_CONFLICT
             return error("PROPOSAL_NOT_CONFIRMED", "proposal must be confirmed before governance")
+        provider = _provider_for_project(session, proposal.task.project_id, request, response)
+        if isinstance(provider, dict):
+            return provider
         changed_paths = tuple(payload.changed_paths or _json_list(proposal.initial_scope_json))
         existing = _latest_governance(session, proposal.id)
         if existing is not None:
@@ -123,7 +137,7 @@ def run_governance(
             response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
             return error("IMPACT_SCOPE_EMPTY", "confirmed proposal has no impact scope")
         try:
-            impact_report = _generate_impact_report(session, proposal, changed_paths)
+            impact_report = _generate_impact_report(session, proposal, changed_paths, provider)
             action = _ensure_proposal_action(session, proposal.task, proposal, changed_paths)
             decision = GovernanceDecisionService(session).evaluate(
                 task_id=proposal.task_id,
@@ -225,7 +239,7 @@ def _ensure_execution_readiness(
                 governance_decision_id=decision.id,
                 read_paths=changed_paths,
                 write_paths=changed_paths,
-                commands=("RUN_COMMAND",),
+                commands=_execution_commands(),
                 protected_paths=(),
                 network={},
                 resource_limits={},
@@ -248,7 +262,12 @@ def _active_policy_for_decision(session, decision_id: str) -> ExecutionPolicy | 
     )
 
 
-def _generate_impact_report(session, proposal: ChangeProposal, changed_paths: tuple[str, ...]):
+def _generate_impact_report(
+    session,
+    proposal: ChangeProposal,
+    changed_paths: tuple[str, ...],
+    provider: LLMProvider,
+):
     revision = proposal.task.base_revision or "working-tree"
     evidence_items = tuple(
         EvidenceItem(
@@ -281,7 +300,7 @@ def _generate_impact_report(session, proposal: ChangeProposal, changed_paths: tu
         )
         for index, path in enumerate(changed_paths)
     )
-    return ImpactReportService(session, get_domain_provider()).generate(
+    return ImpactReportService(session, provider).generate(
         task_id=proposal.task_id,
         proposal_id=proposal.id,
         base_revision=revision,
@@ -290,6 +309,26 @@ def _generate_impact_report(session, proposal: ChangeProposal, changed_paths: tu
         indirect_impacts=(),
         unknowns=tuple(str(item) for item in _json_object(proposal.risks_json).get("risks", [])),
     )
+
+
+def _provider_for_project(
+    session,
+    project_id: str,
+    request: Request,
+    response: Response,
+) -> LLMProvider | dict[str, object]:
+    if get_runtime_settings().profile is not RuntimeProfile.ONLINE_SAFE:
+        return get_domain_provider()
+    readiness = require_online_safe_project_readiness(session, project_id, request, response)
+    if isinstance(readiness, OnlineSafeReadiness):
+        return readiness.provider
+    return readiness
+
+
+def _execution_commands() -> tuple[str, ...]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        return ("APPLY_APPROVED_CHANGES",)
+    return ("RUN_COMMAND",)
 
 
 def _governance_payload(

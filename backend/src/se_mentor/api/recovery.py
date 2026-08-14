@@ -3,16 +3,16 @@ from __future__ import annotations
 import logging
 from time import perf_counter
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_access import online_project_filter, require_task_access
 from se_mentor.api.runtime import get_session_factory
 from se_mentor.db.session import session_scope
 from se_mentor.models.execution import TaskTransaction, TransactionState
 from se_mentor.models.project import Project
-from se_mentor.models.task import ChangeTask
 from se_mentor.transactions.recovery import TransactionRecoveryService
 
 router = APIRouter(prefix="/api/recovery", tags=["recovery"])
@@ -25,7 +25,7 @@ class RecoveryResolve(BaseModel):
 
 
 @router.get("")
-def list_recovery() -> dict[str, object]:
+def list_recovery(request: Request, response: Response) -> dict[str, object]:
     started = perf_counter()
     with session_scope(_SESSION_FACTORY) as session:
         db_started = perf_counter()
@@ -51,7 +51,13 @@ def list_recovery() -> dict[str, object]:
                 total_ms,
             )
             return ok({"items": []})
-        projects = session.scalars(select(Project).order_by(Project.updated_at.desc())).all()
+        projects = session.scalars(
+            online_project_filter(
+                select(Project).order_by(Project.updated_at.desc()),
+                request,
+                response,
+            )
+        ).all()
         items: list[dict[str, object]] = []
         scan_started = perf_counter()
         for project in projects:
@@ -84,12 +90,17 @@ def list_recovery() -> dict[str, object]:
 
 
 @router.post("/{task_id}/resolve")
-def resolve(task_id: str, payload: RecoveryResolve, response: Response) -> dict[str, object]:
+def resolve(
+    task_id: str,
+    payload: RecoveryResolve,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
     if payload.action != "rollback":
         response.status_code = status.HTTP_409_CONFLICT
         return error("RECOVERY_ACTION_UNSUPPORTED", "only rollback recovery is supported")
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")

@@ -6,6 +6,7 @@ services:
     image: se-mentor-backend:t107
     environment:
       SE_MENTOR_RUNTIME_PROFILE: CLOUD_DEMO
+      SE_MENTOR_TRUST_PROXY: "false"
       SE_MENTOR_RUNTIME_ROOT: /var/lib/se-mentor
       SE_MENTOR_DEMO_RUNTIME_ROOT: /var/lib/se-mentor
       SE_MENTOR_DEMO_WORKSPACE: /var/lib/se-mentor/demo-workspace

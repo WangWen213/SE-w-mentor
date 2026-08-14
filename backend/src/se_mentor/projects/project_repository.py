@@ -13,8 +13,16 @@ def find_project_by_root(session: Session, root_path: Path) -> Project | None:
     return session.scalar(select(Project).where(Project.normalized_root_path == normalized))
 
 
-def add_project(session: Session, root_path: Path) -> Project:
-    project = Project(root_path=str(root_path.resolve()))
+def add_project(
+    session: Session,
+    root_path: Path,
+    *,
+    owner_session_hash: str | None = None,
+) -> Project:
+    project = Project(
+        root_path=str(root_path.resolve()),
+        owner_session_hash=owner_session_hash,
+    )
     session.add(project)
     session.flush()
     return project

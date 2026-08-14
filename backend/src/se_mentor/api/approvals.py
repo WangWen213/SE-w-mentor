@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 from typing import Protocol
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_access import require_approval_access
 from se_mentor.approvals.decision_service import ApprovalDecisionService
 from se_mentor.db.session import session_scope
 from se_mentor.models.approval import (
@@ -122,8 +123,16 @@ def get_approval_authority() -> ApprovalAuthority:
 
 @router.post("/{approval_id}/approve")
 def approve(
-    approval_id: str, payload: ApprovalDecisionPayload, response: Response
+    approval_id: str,
+    payload: ApprovalDecisionPayload,
+    request: Request,
+    response: Response,
 ) -> dict[str, object]:
+    if _SESSION_FACTORY is not None:
+        with session_scope(_SESSION_FACTORY) as session:
+            if require_approval_access(session, approval_id, request, response) is None:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return error("APPROVAL_NOT_FOUND", "approval request not found")
     try:
         return ok(
             get_approval_authority().approve(
@@ -137,7 +146,12 @@ def approve(
 
 
 @router.post("/{approval_id}/reject")
-def reject(approval_id: str, response: Response) -> dict[str, object]:
+def reject(approval_id: str, request: Request, response: Response) -> dict[str, object]:
+    if _SESSION_FACTORY is not None:
+        with session_scope(_SESSION_FACTORY) as session:
+            if require_approval_access(session, approval_id, request, response) is None:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return error("APPROVAL_NOT_FOUND", "approval request not found")
     try:
         return ok(get_approval_authority().reject(approval_id=approval_id))
     except ValueError as exc:
