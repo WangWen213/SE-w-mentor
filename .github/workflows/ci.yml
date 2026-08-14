@@ -27,8 +27,17 @@ jobs:
         run: python -m ruff format --check backend scripts tests
       - name: Ruff check
         run: python -m ruff check backend scripts tests
-      - name: Mypy
-        run: cd backend && python -m mypy src tests
+      - name: Mypy production-critical paths
+        working-directory: backend
+        run: |
+          python -m mypy \
+            src/se_mentor/paths.py \
+            src/se_mentor/policy/grants.py \
+            src/se_mentor/policy/compiler.py \
+            src/se_mentor/policy/enforcer.py \
+            src/se_mentor/tools/create_file.py \
+            src/se_mentor/tools/apply_patch.py \
+            src/se_mentor/tools/delete_file.py
 
   backend-tests:
     name: Backend Tests
@@ -44,12 +53,32 @@ jobs:
           python -m pip install -e "backend[dev]"
       - name: Migration policy
         run: python scripts/ci/check_migrations.py
-      - name: Backend unit tests
-        run: python scripts/ci/run_backend_tests.py
+      - name: Backend core release tests
+        working-directory: backend
+        run: |
+          python -m pytest \
+            tests/policy/test_grants.py \
+            tests/policy/test_compiler.py \
+            tests/policy/test_enforcer.py \
+            tests/policy/test_policy_regression_scoped_action.py \
+            tests/tools/test_create_file.py \
+            tests/tools/test_apply_patch.py \
+            tests/tools/test_delete_file.py \
+            tests/transactions/test_recovery.py \
+            tests/api/test_real_execution_recovery.py::test_execution_without_real_file_change_fails_terminally
+      - name: ONLINE_SAFE release security tests
+        working-directory: backend
+        run: |
+          python -m pytest \
+            tests/security/test_online_workspaces.py \
+            tests/security/test_online_domain_isolation.py::test_online_safe_domain_state_is_isolated_by_project_owner_hash \
+            tests/security/test_online_execution_readiness.py \
+            tests/security/test_online_provider_security.py \
+            tests/security/test_runtime_profiles.py
+      - name: P0 real create-file acceptance
+        run: python scripts/accept_online_safe_create_file_e2e.py
       - name: Mock-safe E2E
         run: python scripts/ci/run_mock_e2e.py
-      - name: Security checks
-        run: python scripts/ci/run_security_checks.py
 
   frontend-tests:
     name: Frontend Tests

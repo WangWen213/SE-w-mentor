@@ -1,0 +1,43 @@
+# This workflow tracks repository-wide historical health debt.
+# It is intentionally separate from the production release gate.
+name: Repository Health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 18 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  full-tree-mypy:
+    name: Full-tree strict mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "backend[dev]"
+      - name: Check the full backend source and test tree
+        working-directory: backend
+        run: python -m mypy src tests
+
+  full-backend-suite:
+    name: Full historical backend test suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "backend[dev]"
+      - name: Run the full backend test suite
+        run: python scripts/ci/run_backend_tests.py
