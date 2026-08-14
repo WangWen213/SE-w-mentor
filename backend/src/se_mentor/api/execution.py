@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from se_mentor.agent.runtime import AgentRuntime, ExecutionPipelineUnavailable
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_access import require_task_access
 from se_mentor.api.runtime import (
     ONLINE_SAFE_EXECUTION_ERROR,
     get_runtime_settings,
@@ -60,14 +61,27 @@ def get_execution_orchestrator() -> ExecutionOrchestratorProtocol:
 
 
 @router.post("/{task_id}/execute")
-def execute(task_id: str, payload: ExecuteRequest, response: Response) -> dict[str, object]:
+def execute(
+    task_id: str,
+    payload: ExecuteRequest,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        if _SESSION_FACTORY is None:
+            response.status_code = status.HTTP_409_CONFLICT
+            return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
+        with session_scope(_SESSION_FACTORY) as session:
+            if require_task_access(session, task_id, request, response) is None:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return error("TASK_NOT_FOUND", "task not found")
     if online_safe_error := _online_safe_execution_error(response):
         return online_safe_error
     if _SESSION_FACTORY is None:
         response.status_code = status.HTTP_409_CONFLICT
         return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")
@@ -97,12 +111,20 @@ def execute(task_id: str, payload: ExecuteRequest, response: Response) -> dict[s
 
 
 @router.post("/{task_id}/cancel")
-def cancel(task_id: str, response: Response) -> dict[str, object]:
+def cancel(task_id: str, request: Request, response: Response) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        if _SESSION_FACTORY is None:
+            response.status_code = status.HTTP_409_CONFLICT
+            return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
+        with session_scope(_SESSION_FACTORY) as session:
+            if require_task_access(session, task_id, request, response) is None:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return error("TASK_NOT_FOUND", "task not found")
     if online_safe_error := _online_safe_execution_error(response):
         return online_safe_error
     if _SESSION_FACTORY is not None:
         with session_scope(_SESSION_FACTORY) as session:
-            task = session.get(ChangeTask, task_id)
+            task = require_task_access(session, task_id, request, response)
             if task is None:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("TASK_NOT_FOUND", "task not found")
@@ -123,14 +145,22 @@ def cancel(task_id: str, response: Response) -> dict[str, object]:
 
 
 @router.get("/{task_id}/policy")
-def policy(task_id: str, response: Response) -> dict[str, object]:
+def policy(task_id: str, request: Request, response: Response) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        if _SESSION_FACTORY is None:
+            response.status_code = status.HTTP_409_CONFLICT
+            return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
+        with session_scope(_SESSION_FACTORY) as session:
+            if require_task_access(session, task_id, request, response) is None:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return error("TASK_NOT_FOUND", "task not found")
     if online_safe_error := _online_safe_execution_error(response):
         return online_safe_error
     if _SESSION_FACTORY is None:
         response.status_code = status.HTTP_409_CONFLICT
         return error("EXECUTION_UNAVAILABLE", "execution authority unavailable")
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")

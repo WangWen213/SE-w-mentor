@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from se_mentor.db.base import Base
@@ -57,11 +57,13 @@ class Project(TimestampMixin, Base):
     __tablename__ = "projects"
     __table_args__ = (
         UniqueConstraint("normalized_root_path", name="uq_projects_normalized_root_path"),
+        Index("ix_projects_owner_session_hash", "owner_session_hash"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_id)
     root_path: Mapped[str] = mapped_column(String(1024), nullable=False)
     normalized_root_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    owner_session_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     configs: Mapped[list[ProjectConfig]] = relationship(
         back_populates="project",

@@ -6,11 +6,12 @@ import re
 from time import perf_counter
 from uuid import uuid4
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_access import require_task_access
 from se_mentor.api.runtime import (
     ONLINE_SAFE_EXECUTION_ERROR,
     get_runtime_settings,
@@ -122,10 +123,10 @@ def create_task(payload: TaskCreate, response: Response) -> dict[str, object]:
 
 
 @router.get("/{task_id}")
-def get_task(task_id: str, response: Response) -> dict[str, object]:
+def get_task(task_id: str, request: Request, response: Response) -> dict[str, object]:
     started = perf_counter()
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")
@@ -135,11 +136,11 @@ def get_task(task_id: str, response: Response) -> dict[str, object]:
 
 
 @router.get("/{task_id}/timeline")
-def get_task_timeline(task_id: str, response: Response) -> dict[str, object]:
+def get_task_timeline(task_id: str, request: Request, response: Response) -> dict[str, object]:
     started = perf_counter()
     with session_scope(_SESSION_FACTORY) as session:
         db_started = perf_counter()
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")

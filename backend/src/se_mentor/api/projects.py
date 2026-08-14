@@ -7,13 +7,21 @@ from pathlib import Path
 from threading import Lock
 from time import perf_counter
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_access import (
+    OnlineSessionUnavailable,
+    current_online_owner_hash,
+    current_online_session,
+    online_project_filter,
+    require_project_access,
+)
 from se_mentor.api.runtime import (
     ONLINE_SAFE_WORKSPACE_ERROR,
+    get_online_workspace_factory,
     get_runtime_settings,
     get_session_factory,
 )
@@ -26,6 +34,7 @@ from se_mentor.projects.bootstrap import ProjectBootstrapService
 from se_mentor.projects.project_repository import find_project_by_root
 from se_mentor.projects.project_service import ProjectRegistrationError, register_project
 from se_mentor.runtime.demo import DemoRuntimeError, ensure_demo_workspace
+from se_mentor.runtime.online_workspaces import ONLINE_SAFE_USER_PATH_ERROR, OnlineWorkspaceError
 from se_mentor.runtime.profiles import RuntimeProfile
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
@@ -39,14 +48,20 @@ _BOOTSTRAP_READY_CACHE: dict[str, tuple[float, dict[str, object]]] = {}
 
 
 class ProjectCreate(BaseModel):
-    root_path: str = Field(alias="rootPath")
+    root_path: str | None = Field(default=None, alias="rootPath")
 
 
 @router.get("")
-def list_projects() -> dict[str, object]:
+def list_projects(request: Request, response: Response) -> dict[str, object]:
     started = perf_counter()
     with session_scope(_SESSION_FACTORY) as session:
-        projects = session.scalars(select(Project).order_by(Project.updated_at.desc())).all()
+        projects = session.scalars(
+            online_project_filter(
+                select(Project).order_by(Project.updated_at.desc()),
+                request,
+                response,
+            )
+        ).all()
         items = [
             _project_payload(project, bootstrap=_bootstrap_state(session, project.id))
             for project in projects
@@ -60,21 +75,29 @@ def list_projects() -> dict[str, object]:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_project(payload: ProjectCreate, response: Response) -> dict[str, object]:
-    if not payload.root_path.strip():
+def create_project(
+    payload: ProjectCreate,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        if payload.root_path and payload.root_path.strip():
+            response.status_code = status.HTTP_409_CONFLICT
+            return error(
+                ONLINE_SAFE_USER_PATH_ERROR,
+                "online safe projects use the current session workspace",
+            )
+        return _open_online_safe_project(request, response)
+    if not payload.root_path or not payload.root_path.strip():
         response.status_code = status.HTTP_400_BAD_REQUEST
         return error("PROJECT_PATH_REQUIRED", "project rootPath is required")
     return _register_project(payload.root_path, response)
 
 
 @router.post("/choose-local", status_code=status.HTTP_201_CREATED)
-def choose_local_project(response: Response) -> dict[str, object]:
+def choose_local_project(request: Request, response: Response) -> dict[str, object]:
     if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
-        response.status_code = status.HTTP_409_CONFLICT
-        return error(
-            ONLINE_SAFE_WORKSPACE_ERROR,
-            "online safe workspace sessions are not implemented yet",
-        )
+        return _open_online_safe_project(request, response)
     if get_runtime_settings().profile is RuntimeProfile.CLOUD_DEMO:
         response.status_code = status.HTTP_409_CONFLICT
         return error(
@@ -170,7 +193,66 @@ def _register_project(root_path: str, response: Response) -> dict[str, object]:
     return ok(project_payload)
 
 
+def _open_online_safe_project(request: Request, response: Response) -> dict[str, object]:
+    try:
+        online_session = current_online_session(request, response)
+        owner_hash = current_online_owner_hash(request, response)
+        workspace = get_online_workspace_factory().get_or_create(online_session)
+    except OnlineSessionUnavailable:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return error("ONLINE_SAFE_SESSION_LIMIT_REACHED", "active session limit reached")
+    except OnlineWorkspaceError as exc:
+        response.status_code = status.HTTP_409_CONFLICT
+        return error(exc.code, str(exc))
+
+    with session_scope(_SESSION_FACTORY) as session:
+        existing = session.scalar(
+            select(Project)
+            .where(Project.owner_session_hash == owner_hash)
+            .order_by(Project.created_at.asc())
+        )
+        if existing is not None:
+            existing.updated_at = datetime.now(UTC)
+            session.flush()
+            response.status_code = status.HTTP_200_OK
+            return ok(_project_payload(existing, bootstrap=_bootstrap_state(session, existing.id)))
+        try:
+            registered = register_project(
+                session,
+                workspace.root,
+                authorized_root=workspace.root,
+            )
+        except ProjectRegistrationError as exc:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return error("PROJECT_REGISTRATION_FAILED", str(exc))
+        project = registered.project
+        project.owner_session_hash = owner_hash
+        project_payload = _project_payload(project, bootstrap={"status": "REGISTERED"})
+        project_payload["revision"] = registered.current_revision
+        project_id = project.id
+    project_payload["bootstrap"] = _schedule_bootstrap(project_id)
+    return ok(project_payload)
+
+
+@router.get("/{project_id}")
+def get_project(project_id: str, request: Request, response: Response) -> dict[str, object]:
+    with session_scope(_SESSION_FACTORY) as session:
+        project = require_project_access(session, project_id, request, response)
+        if project is None:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return error("PROJECT_NOT_FOUND", "project not found")
+        return ok(_project_payload(project, bootstrap=_bootstrap_state(session, project.id)))
+
+
 def _project_payload(project: Project, *, bootstrap: dict[str, object]) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        return {
+            "id": project.id,
+            "authorized": True,
+            "rootPath": "Online Workspace",
+            "name": "Online Workspace",
+            "bootstrap": bootstrap,
+        }
     return {
         "id": project.id,
         "authorized": True,
@@ -180,9 +262,9 @@ def _project_payload(project: Project, *, bootstrap: dict[str, object]) -> dict[
 
 
 @router.get("/{project_id}/bootstrap")
-def bootstrap_status(project_id: str, response: Response) -> dict[str, object]:
+def bootstrap_status(project_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        if session.get(Project, project_id) is None:
+        if require_project_access(session, project_id, request, response) is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROJECT_NOT_FOUND", "project not found")
         return ok(_bootstrap_state(session, project_id))
@@ -347,27 +429,27 @@ def _readiness_payload(bootstrap) -> dict[str, object]:
 
 
 @router.get("/{project_id}/config")
-def project_config(project_id: str, response: Response) -> dict[str, object]:
+def project_config(project_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        if session.get(Project, project_id) is None:
+        if require_project_access(session, project_id, request, response) is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROJECT_NOT_FOUND", "project not found")
     return ok({"projectId": project_id, "secrets": "[redacted]"})
 
 
 @router.get("/{project_id}/locks")
-def lock_status(project_id: str, response: Response) -> dict[str, object]:
+def lock_status(project_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        if session.get(Project, project_id) is None:
+        if require_project_access(session, project_id, request, response) is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROJECT_NOT_FOUND", "project not found")
     return ok({"projectId": project_id, "status": "UNLOCKED"})
 
 
 @router.get("/{project_id}/tasks")
-def list_project_tasks(project_id: str, response: Response) -> dict[str, object]:
+def list_project_tasks(project_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        if session.get(Project, project_id) is None:
+        if require_project_access(session, project_id, request, response) is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROJECT_NOT_FOUND", "project not found")
         tasks = [

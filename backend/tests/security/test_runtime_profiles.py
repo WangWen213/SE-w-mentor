@@ -424,22 +424,26 @@ def test_online_safe_project_registration_is_locked(monkeypatch, tmp_path: Path)
     app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
         monkeypatch, runtime_root
     )
-    client = TestClient(app_module.create_app())
+    client = TestClient(app_module.create_app(), base_url="https://testserver")
 
     source_repo = Path.cwd()
     root_response = client.post("/api/projects", json={"rootPath": "/root"})
     etc_response = client.post("/api/projects", json={"rootPath": "/etc"})
     source_response = client.post("/api/projects", json={"rootPath": str(source_repo)})
+    create_current_response = client.post("/api/projects", json={})
     picker_response = client.post("/api/projects/choose-local")
 
     assert root_response.status_code == 409
-    assert root_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
+    assert root_response.json()["error"]["code"] == "ONLINE_SAFE_USER_PATH_NOT_ALLOWED"
     assert etc_response.status_code == 409
-    assert etc_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
+    assert etc_response.json()["error"]["code"] == "ONLINE_SAFE_USER_PATH_NOT_ALLOWED"
     assert source_response.status_code == 409
-    assert source_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
-    assert picker_response.status_code == 409
-    assert picker_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
+    assert source_response.json()["error"]["code"] == "ONLINE_SAFE_USER_PATH_NOT_ALLOWED"
+    assert create_current_response.status_code == 201
+    assert create_current_response.json()["data"]["rootPath"] == "Online Workspace"
+    assert picker_response.status_code == 200
+    assert picker_response.json()["data"]["id"] == create_current_response.json()["data"]["id"]
+    assert str(runtime_root) not in str(create_current_response.json())
 
 
 def test_online_safe_tool_registry_excludes_run_command(monkeypatch, tmp_path: Path) -> None:

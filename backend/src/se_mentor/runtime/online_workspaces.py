@@ -133,13 +133,15 @@ class SafeOnlineWorkspaceFactory:
         return self.get_or_create(session)
 
     def cleanup_expired(self, active_session_ids: Collection[str]) -> None:
-        active = set(active_session_ids)
+        active = {_session_dir_name(session_id) for session_id in active_session_ids}
         self.sessions_root.mkdir(parents=True, exist_ok=True)
         for child in self.sessions_root.iterdir():
             if child.name in active:
                 continue
             self._safe_rmtree(child)
-            self._handles.pop(child.name, None)
+        for session_id in tuple(self._handles):
+            if _session_dir_name(session_id) not in active:
+                self._handles.pop(session_id, None)
 
     def resolve_workspace_path(self, handle: WorkspaceHandle, relative_path: str) -> Path:
         requested = Path(relative_path)
@@ -264,7 +266,7 @@ class SafeOnlineWorkspaceFactory:
                 ONLINE_SAFE_WORKSPACE_BOUNDARY_ERROR,
                 "ONLINE_SAFE session id is not a valid workspace identifier",
             )
-        session_root = (self.sessions_root / session_id).resolve()
+        session_root = (self.sessions_root / _session_dir_name(session_id)).resolve()
         self._ensure_inside(session_root, self.sessions_root)
         return session_root
 
@@ -295,3 +297,7 @@ def _remove_readonly(function: Callable[[str], None], path: str, exc: BaseExcept
         raise exc
     os.chmod(path, stat.S_IWRITE)
     function(path)
+
+
+def _session_dir_name(session_id: str) -> str:
+    return hashlib.sha256(session_id.encode("utf-8")).hexdigest()

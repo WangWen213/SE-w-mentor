@@ -4,11 +4,12 @@ import json
 import logging
 from time import perf_counter
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_access import require_proposal_access, require_task_access
 from se_mentor.api.projects import get_project_bootstrap_state, is_project_context_ready
 from se_mentor.api.runtime import (
     ONLINE_SAFE_EXECUTION_ERROR,
@@ -53,11 +54,21 @@ class ProposalAdjust(BaseModel):
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_proposal(task_id: str, payload: ProposalCreate, response: Response) -> dict[str, object]:
+def create_proposal(
+    task_id: str,
+    payload: ProposalCreate,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        with session_scope(_SESSION_FACTORY) as session:
+            if require_task_access(session, task_id, request, response) is None:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return error("TASK_NOT_FOUND", "task not found")
     if online_safe_error := _online_safe_execution_error(response):
         return online_safe_error
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")
@@ -182,9 +193,9 @@ def create_proposal(task_id: str, payload: ProposalCreate, response: Response) -
 
 
 @router.get("")
-def current_proposal(task_id: str, response: Response) -> dict[str, object]:
+def current_proposal(task_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")
@@ -211,9 +222,9 @@ def current_proposal(task_id: str, response: Response) -> dict[str, object]:
 
 
 @router.get("/history")
-def proposal_history(task_id: str, response: Response) -> dict[str, object]:
+def proposal_history(task_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")
@@ -231,11 +242,22 @@ def proposal_history(task_id: str, response: Response) -> dict[str, object]:
 
 
 @router.post("/{proposal_id}/confirm")
-def confirm_proposal(task_id: str, proposal_id: str, response: Response) -> dict[str, object]:
+def confirm_proposal(
+    task_id: str,
+    proposal_id: str,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        with session_scope(_SESSION_FACTORY) as session:
+            proposal = require_proposal_access(session, proposal_id, request, response)
+            if proposal is None or proposal.task_id != task_id:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return error("PROPOSAL_NOT_FOUND", "proposal not found")
     if online_safe_error := _online_safe_execution_error(response):
         return online_safe_error
     with session_scope(_SESSION_FACTORY) as session:
-        proposal = session.get(ChangeProposal, proposal_id)
+        proposal = require_proposal_access(session, proposal_id, request, response)
         if proposal is None or proposal.task_id != task_id:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROPOSAL_NOT_FOUND", "proposal not found")
@@ -288,11 +310,22 @@ def confirm_proposal(task_id: str, proposal_id: str, response: Response) -> dict
 
 
 @router.post("/{proposal_id}/reject")
-def reject_proposal(task_id: str, proposal_id: str, response: Response) -> dict[str, object]:
+def reject_proposal(
+    task_id: str,
+    proposal_id: str,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        with session_scope(_SESSION_FACTORY) as session:
+            proposal = require_proposal_access(session, proposal_id, request, response)
+            if proposal is None or proposal.task_id != task_id:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return error("PROPOSAL_NOT_FOUND", "proposal not found")
     if online_safe_error := _online_safe_execution_error(response):
         return online_safe_error
     with session_scope(_SESSION_FACTORY) as session:
-        proposal = session.get(ChangeProposal, proposal_id)
+        proposal = require_proposal_access(session, proposal_id, request, response)
         if proposal is None or proposal.task_id != task_id:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROPOSAL_NOT_FOUND", "proposal not found")
@@ -310,8 +343,15 @@ def adjust_proposal(
     task_id: str,
     proposal_id: str,
     payload: ProposalAdjust,
+    request: Request,
     response: Response,
 ) -> dict[str, object]:
+    if get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE:
+        with session_scope(_SESSION_FACTORY) as session:
+            previous = require_proposal_access(session, proposal_id, request, response)
+            if previous is None or previous.task_id != task_id:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return error("PROPOSAL_NOT_FOUND", "proposal not found")
     if online_safe_error := _online_safe_execution_error(response):
         return online_safe_error
     instruction = payload.instruction.strip()
@@ -319,11 +359,11 @@ def adjust_proposal(
         response.status_code = status.HTTP_400_BAD_REQUEST
         return error("PROPOSAL_ADJUSTMENT_REQUIRED", "proposal adjustment is required")
     with session_scope(_SESSION_FACTORY) as session:
-        previous = session.get(ChangeProposal, proposal_id)
+        previous = require_proposal_access(session, proposal_id, request, response)
         if previous is None or previous.task_id != task_id:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROPOSAL_NOT_FOUND", "proposal not found")
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")

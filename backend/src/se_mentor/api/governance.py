@@ -3,11 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_access import require_proposal_access
 from se_mentor.api.runtime import get_domain_provider, get_session_factory
 from se_mentor.approvals.request_service import ApprovalRequestService
 from se_mentor.db.session import session_scope
@@ -45,9 +46,13 @@ class GovernanceRequest(BaseModel):
 
 
 @router.get("/{proposal_id}/governance")
-def current_governance(proposal_id: str, response: Response) -> dict[str, object]:
+def current_governance(
+    proposal_id: str,
+    request: Request,
+    response: Response,
+) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        proposal = session.get(ChangeProposal, proposal_id)
+        proposal = require_proposal_access(session, proposal_id, request, response)
         if proposal is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROPOSAL_NOT_FOUND", "proposal not found")
@@ -82,10 +87,11 @@ def current_governance(proposal_id: str, response: Response) -> dict[str, object
 def run_governance(
     proposal_id: str,
     payload: GovernanceRequest,
+    request: Request,
     response: Response,
 ) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        proposal = session.get(ChangeProposal, proposal_id)
+        proposal = require_proposal_access(session, proposal_id, request, response)
         if proposal is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROPOSAL_NOT_FOUND", "proposal not found")

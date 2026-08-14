@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_access import require_project_access
 from se_mentor.api.runtime import get_session_factory
 from se_mentor.db.session import session_scope
 from se_mentor.models.knowledge import EngineeringKnowledge, KnowledgeSource
@@ -18,9 +19,9 @@ _SESSION_FACTORY = get_session_factory()
 
 
 @router.get("")
-def list_knowledge(project_id: str, response: Response) -> dict[str, object]:
+def list_knowledge(project_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        project = session.get(Project, project_id)
+        project = require_project_access(session, project_id, request, response)
         if project is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROJECT_NOT_FOUND", "project not found")

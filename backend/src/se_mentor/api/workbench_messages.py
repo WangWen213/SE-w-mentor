@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from se_mentor.api.envelope import error, ok
+from se_mentor.api.online_access import require_proposal_access, require_task_access
 from se_mentor.api.proposals import _proposal_payload
 from se_mentor.api.runtime import get_session_factory
-from se_mentor.db.session import session_scope
-from se_mentor.models.task import ChangeProposal, ChangeTask
-from se_mentor.models.workbench import WorkbenchMessage
 from se_mentor.api.workbench_presentation import workbench_message_text
+from se_mentor.db.session import session_scope
+from se_mentor.models.task import ChangeProposal
+from se_mentor.models.workbench import WorkbenchMessage
 
 router = APIRouter(prefix="/api/tasks/{task_id}/messages", tags=["workbench-messages"])
 _SESSION_FACTORY = get_session_factory()
@@ -25,9 +26,9 @@ class WorkbenchMessageCreate(BaseModel):
 
 
 @router.get("")
-def list_messages(task_id: str, response: Response) -> dict[str, object]:
+def list_messages(task_id: str, request: Request, response: Response) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")
@@ -43,10 +44,11 @@ def list_messages(task_id: str, response: Response) -> dict[str, object]:
 def create_message(
     task_id: str,
     payload: WorkbenchMessageCreate,
+    request: Request,
     response: Response,
 ) -> dict[str, object]:
     with session_scope(_SESSION_FACTORY) as session:
-        task = session.get(ChangeTask, task_id)
+        task = require_task_access(session, task_id, request, response)
         if task is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("TASK_NOT_FOUND", "task not found")
@@ -56,7 +58,7 @@ def create_message(
             return error("WORKBENCH_MESSAGE_TEXT_REQUIRED", "message text is required")
         proposal_id = payload.proposal_id
         if proposal_id is not None:
-            proposal = session.get(ChangeProposal, proposal_id)
+            proposal = require_proposal_access(session, proposal_id, request, response)
             if proposal is None or proposal.task_id != task_id:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return error("PROPOSAL_NOT_FOUND", "proposal not found")

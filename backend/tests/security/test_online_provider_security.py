@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from se_mentor.models.project import Project
 from se_mentor.models.task import ChangeProposal, ChangeTask, ProposalCreatedByType
 from se_mentor.runtime.online_provider_security import (
     ONLINE_SAFE_PROVIDER_CREDENTIAL_REQUIRED,
@@ -200,11 +199,9 @@ def test_online_safe_public_agent_flow_remains_locked(
     )
     client = TestClient(app_module.create_app(), base_url="https://testserver")
     assert runtime_module._ENGINE is not None
+    project_id = client.post("/api/projects", json={}).json()["data"]["id"]
     with runtime_module.get_session_factory()() as session:
-        project = Project(root_path=str(tmp_path / "repo"))
-        session.add(project)
-        session.flush()
-        task = ChangeTask(project_id=project.id, original_request="do work")
+        task = ChangeTask(project_id=project_id, original_request="do work")
         session.add(task)
         session.flush()
         proposal = ChangeProposal(
@@ -219,7 +216,6 @@ def test_online_safe_public_agent_flow_remains_locked(
         )
         session.add(proposal)
         session.commit()
-        project_id = project.id
         task_id = task.id
         proposal_id = proposal.id
 

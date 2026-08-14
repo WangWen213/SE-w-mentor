@@ -5,16 +5,16 @@ import logging
 from time import perf_counter
 from typing import Any
 
-from fastapi import APIRouter, Query, Response, status
+from fastapi import APIRouter, Query, Request, Response, status
 from sqlalchemy import select
 
 from se_mentor.api.envelope import error, ok
 from se_mentor.api.governance import _governance_payload
+from se_mentor.api.online_access import require_project_access
 from se_mentor.api.runtime import get_session_factory
 from se_mentor.db.session import session_scope
 from se_mentor.models.approval import ApprovalRequest, ApprovalRequestStatus
 from se_mentor.models.governance import GovernanceDecision, GovernanceVerdict, ImpactReport
-from se_mentor.models.project import Project
 from se_mentor.models.task import ChangeProposal, ChangeTask
 
 router = APIRouter(prefix="/api/projects", tags=["governance-history"])
@@ -26,6 +26,7 @@ _MAX_LIMIT = 30
 @router.get("/{project_id}/governance-history")
 def project_governance_history(
     project_id: str,
+    request: Request,
     response: Response,
     limit: int = Query(20, ge=1, le=_MAX_LIMIT),
     offset: int = Query(0, ge=0),
@@ -34,7 +35,7 @@ def project_governance_history(
     started = perf_counter()
     with session_scope(_SESSION_FACTORY) as session:
         db_started = perf_counter()
-        if session.get(Project, project_id) is None:
+        if require_project_access(session, project_id, request, response) is None:
             response.status_code = status.HTTP_404_NOT_FOUND
             return error("PROJECT_NOT_FOUND", "project not found")
         statement = (
@@ -82,11 +83,15 @@ def project_governance_history(
 def project_governance_detail(
     project_id: str,
     decision_id: str,
+    request: Request,
     response: Response,
 ) -> dict[str, object]:
     started = perf_counter()
     with session_scope(_SESSION_FACTORY) as session:
         db_started = perf_counter()
+        if require_project_access(session, project_id, request, response) is None:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return error("PROJECT_NOT_FOUND", "project not found")
         row = session.execute(
             select(GovernanceDecision, ChangeTask, ImpactReport)
             .join(ChangeTask, GovernanceDecision.task_id == ChangeTask.id)

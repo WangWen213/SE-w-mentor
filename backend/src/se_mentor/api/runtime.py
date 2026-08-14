@@ -120,6 +120,29 @@ def _ensure_runtime_schema_compatibility() -> None:
 
 
 _ensure_runtime_schema_compatibility()
+
+
+def _ensure_project_owner_schema() -> None:
+    with _ENGINE.begin() as connection:
+        columns = {
+            row[1]
+            for row in connection.execute(text("PRAGMA table_info(projects)")).all()
+        }
+        if "owner_session_hash" not in columns:
+            connection.execute(
+                text("ALTER TABLE projects ADD COLUMN owner_session_hash VARCHAR(64)")
+            )
+        indexes = {
+            row[1]
+            for row in connection.execute(text("PRAGMA index_list(projects)")).all()
+        }
+        if "ix_projects_owner_session_hash" not in indexes:
+            connection.execute(
+                text("CREATE INDEX ix_projects_owner_session_hash ON projects(owner_session_hash)")
+            )
+
+
+_ensure_project_owner_schema()
 SESSION_FACTORY = create_session_factory(_ENGINE)
 
 
