@@ -24,7 +24,7 @@ def canonical_project_path(path: str) -> str:
             raise ProjectPathError("project path cannot traverse outside the workspace")
         parts.append(part)
     if not parts:
-        raise ProjectPathError("project path is empty")
+        return "."
     return "/".join(parts)
 
 

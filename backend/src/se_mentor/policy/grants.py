@@ -28,7 +28,10 @@ class TemporaryGrant:
             normalized = canonical_project_path(relative_path)
         except ProjectPathError:
             return False
-        return normalized in self.write_paths and normalized not in self.protected_paths
+        return _path_allowed(normalized, self.write_paths) and not _path_allowed(
+            normalized,
+            self.protected_paths,
+        )
 
 
 @dataclass(frozen=True)
@@ -69,7 +72,10 @@ class ExecutionAuthorization:
             normalized = canonical_project_path(relative_path)
         except ProjectPathError:
             return False
-        baseline_allowed = normalized in self.write_paths and normalized not in self.protected_paths
+        baseline_allowed = _path_allowed(normalized, self.write_paths) and not _path_allowed(
+            normalized,
+            self.protected_paths,
+        )
         if not baseline_allowed:
             return False
         if self.temporary_grant is None:
@@ -132,3 +138,7 @@ def _json_list(value: str) -> tuple[str, ...]:
 
 def _normalize(paths: tuple[str, ...]) -> tuple[str, ...]:
     return canonical_project_paths(paths)
+
+
+def _path_allowed(relative_path: str, scope: tuple[str, ...]) -> bool:
+    return "." in scope or relative_path in scope
