@@ -14,7 +14,7 @@ from se_mentor.security.secrets import Secret
 
 ONLINE_SESSION_COOKIE_NAME = "se_mentor_session"
 ONLINE_SESSION_ID_BYTES = 32
-ONLINE_SESSION_TTL_SECONDS = 45 * 60
+ONLINE_SESSION_TTL_SECONDS = 12 * 60 * 60
 ONLINE_SESSION_MAX_ACTIVE = 128
 
 
@@ -87,6 +87,11 @@ class InMemoryOnlineSessionStore:
         with self._lock:
             self._cleanup_locked(self._clock())
             return len(self._sessions)
+
+    def active_session_ids(self) -> tuple[str, ...]:
+        with self._lock:
+            self._cleanup_locked(self._clock())
+            return tuple(self._sessions.keys())
 
     def get_or_create(self, session_id: str | None) -> OnlineSession:
         with self._lock:

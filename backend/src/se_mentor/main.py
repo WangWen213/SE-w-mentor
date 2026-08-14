@@ -25,6 +25,7 @@ from se_mentor.api.proposals import router as proposals_router
 from se_mentor.api.recovery import router as recovery_router
 from se_mentor.api.replay import router as replay_router
 from se_mentor.api.runtime import get_runtime_settings, get_session_factory
+from se_mentor.api.runtime_workspace import router as runtime_workspace_router
 from se_mentor.api.tasks import router as tasks_router
 from se_mentor.api.workbench_messages import router as workbench_messages_router
 from se_mentor.observability.logging import configure_runtime_logging
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
 
     app.include_router(projects_router)
     app.include_router(credentials_router)
+    app.include_router(runtime_workspace_router)
     app.include_router(tasks_router)
     app.include_router(mentor_turns_router)
     app.include_router(workbench_messages_router)

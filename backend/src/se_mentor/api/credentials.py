@@ -12,6 +12,7 @@ from se_mentor.api.runtime import (
     credential_status_payload,
     get_credential_store,
     get_online_session_store,
+    get_online_workspace_factory,
     get_runtime_settings,
     set_provider_config,
 )
@@ -53,6 +54,7 @@ def status_credential(request: Request, response: Response) -> dict[str, object]
         except OnlineSessionLimitExceeded:
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
             return error("ONLINE_SAFE_SESSION_LIMIT_REACHED", "active session limit reached")
+        _cleanup_online_workspaces()
         _set_session_cookie(response, session)
         return ok(_online_session_status_payload(session))
     return ok(credential_status_payload(get_credential_store().status()))
@@ -182,6 +184,12 @@ def _set_session_cookie(response: Response, session: OnlineSession) -> None:
         secure=True,
         httponly=True,
         samesite="lax",
+    )
+
+
+def _cleanup_online_workspaces() -> None:
+    get_online_workspace_factory().cleanup_expired(
+        get_online_session_store().active_session_ids()
     )
 
 

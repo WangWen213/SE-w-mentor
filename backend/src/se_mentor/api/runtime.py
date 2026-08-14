@@ -48,6 +48,7 @@ from se_mentor.runtime.online_sessions import (
     OnlineSessionExpired,
     OnlineSessionRequired,
 )
+from se_mentor.runtime.online_workspaces import SafeOnlineWorkspaceFactory
 from se_mentor.runtime.profiles import RuntimeProfile  # noqa: I001
 from se_mentor.runtime.profiles import get_runtime_settings as resolve_runtime_settings
 from se_mentor.security.secrets import Secret
@@ -137,6 +138,10 @@ ONLINE_SAFE_PROVIDER_ERROR = "ONLINE_SAFE_PROVIDER_NOT_READY"
 ONLINE_SAFE_WORKSPACE_ERROR = "ONLINE_SAFE_WORKSPACE_NOT_READY"
 ONLINE_SAFE_EXECUTION_ERROR = "ONLINE_SAFE_EXECUTION_NOT_READY"
 _ONLINE_SESSION_STORE = InMemoryOnlineSessionStore()
+_ONLINE_WORKSPACE_FACTORY = SafeOnlineWorkspaceFactory(
+    runtime_root=_RUNTIME_SETTINGS.runtime_root,
+    baseline_root=_RUNTIME_SETTINGS.demo_workspace_root / ".baseline",
+)
 
 
 class OnlineSafeNotReadyError(ProviderConfigError):
@@ -190,6 +195,10 @@ def get_credential_store() -> CredentialStore:
 
 def get_online_session_store() -> InMemoryOnlineSessionStore:
     return _ONLINE_SESSION_STORE
+
+
+def get_online_workspace_factory() -> SafeOnlineWorkspaceFactory:
+    return _ONLINE_WORKSPACE_FACTORY
 
 
 def get_runtime_settings():

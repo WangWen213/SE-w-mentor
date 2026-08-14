@@ -15,6 +15,7 @@ from se_mentor.projects.project_service import register_project
 from se_mentor.runtime.demo import reset_demo_runtime, reset_demo_workspace
 from se_mentor.runtime.online_sessions import (
     ONLINE_SESSION_COOKIE_NAME,
+    ONLINE_SESSION_TTL_SECONDS,
     InMemoryOnlineSessionStore,
 )
 from se_mentor.runtime.profiles import RuntimeProfile, RuntimeProfileError, get_runtime_profile
@@ -174,6 +175,7 @@ def test_online_safe_credentials_use_secure_ephemeral_session_store(
 
     status_response = https_client.get("/api/credentials/llm/status")
     cookie_header = status_response.headers["set-cookie"]
+    initial_session_id = https_client.cookies.get(ONLINE_SESSION_COOKIE_NAME)
     http_post_response = http_client.post(
         "/api/credentials/llm",
         json={
@@ -193,7 +195,10 @@ def test_online_safe_credentials_use_secure_ephemeral_session_store(
             "model": "model-a",
         },
     )
+    session_after_post = https_client.cookies.get(ONLINE_SESSION_COOKIE_NAME)
     after_set_response = https_client.get("/api/credentials/llm/status")
+    session_after_refresh = https_client.cookies.get(ONLINE_SESSION_COOKIE_NAME)
+    refresh_cookie_header = after_set_response.headers["set-cookie"]
     put_response = https_client.put(
         "/api/credentials/llm",
         json={
@@ -210,6 +215,7 @@ def test_online_safe_credentials_use_secure_ephemeral_session_store(
     assert status_response.status_code == 200
     assert status_response.json()["data"]["configured"] is False
     assert ONLINE_SESSION_COOKIE_NAME in cookie_header
+    assert "Max-Age=43200" in cookie_header
     assert "HttpOnly" in cookie_header
     assert "Secure" in cookie_header
     assert "SameSite=lax" in cookie_header
@@ -219,6 +225,8 @@ def test_online_safe_credentials_use_secure_ephemeral_session_store(
     assert post_response.json()["data"]["configured"] is True
     assert after_set_response.status_code == 200
     assert after_set_response.json()["data"]["configured"] is True
+    assert initial_session_id == session_after_post == session_after_refresh
+    assert "Max-Age=43200" in refresh_cookie_header
     assert after_set_response.json()["data"]["source"] == "ONLINE_SAFE_SESSION"
     assert "key" not in str(after_set_response.json()).lower()
     assert ONLINE_SAFE_TEST_KEY not in str(after_set_response.json())
@@ -231,6 +239,43 @@ def test_online_safe_credentials_use_secure_ephemeral_session_store(
     assert runtime_module.get_online_session_store().credential_for(session_id) is None
     assert projects_api.get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE
     assert credentials_api.get_runtime_settings().profile is RuntimeProfile.ONLINE_SAFE
+
+
+def test_online_safe_session_ttl_is_12h_sliding_and_cookie_refreshes(
+    monkeypatch, tmp_path: Path
+) -> None:
+    runtime_root = tmp_path / "online-safe-runtime"
+    current_time = datetime(2026, 8, 14, 0, 0, tzinfo=UTC)
+    app_module, _, _, runtime_module, _ = _reload_api_for_online_safe(
+        monkeypatch, runtime_root
+    )
+    store = InMemoryOnlineSessionStore(
+        ttl_seconds=ONLINE_SESSION_TTL_SECONDS,
+        max_active_sessions=8,
+        clock=lambda: current_time,
+    )
+    monkeypatch.setattr(runtime_module, "_ONLINE_SESSION_STORE", store)
+    client = TestClient(app_module.create_app(), base_url="https://testserver")
+
+    first = client.get("/api/credentials/llm/status")
+    session_id = client.cookies.get(ONLINE_SESSION_COOKIE_NAME)
+    session = store.require(session_id)
+
+    assert ONLINE_SESSION_TTL_SECONDS == 43200
+    assert first.status_code == 200
+    assert "Max-Age=43200" in first.headers["set-cookie"]
+    assert "HttpOnly" in first.headers["set-cookie"]
+    assert "Secure" in first.headers["set-cookie"]
+    assert "SameSite=lax" in first.headers["set-cookie"]
+    assert session.expires_at == current_time + timedelta(hours=12)
+
+    current_time += timedelta(hours=11)
+    refresh = client.get("/api/credentials/llm/status")
+    refreshed = store.require(session_id)
+
+    assert client.cookies.get(ONLINE_SESSION_COOKIE_NAME) == session_id
+    assert "Max-Age=43200" in refresh.headers["set-cookie"]
+    assert refreshed.expires_at == datetime(2026, 8, 14, 23, 0, tzinfo=UTC)
 
 
 def test_online_safe_session_credentials_are_isolated_and_expire(
@@ -381,11 +426,18 @@ def test_online_safe_project_registration_is_locked(monkeypatch, tmp_path: Path)
     )
     client = TestClient(app_module.create_app())
 
-    create_response = client.post("/api/projects", json={"rootPath": "/root"})
+    source_repo = Path.cwd()
+    root_response = client.post("/api/projects", json={"rootPath": "/root"})
+    etc_response = client.post("/api/projects", json={"rootPath": "/etc"})
+    source_response = client.post("/api/projects", json={"rootPath": str(source_repo)})
     picker_response = client.post("/api/projects/choose-local")
 
-    assert create_response.status_code == 409
-    assert create_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
+    assert root_response.status_code == 409
+    assert root_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
+    assert etc_response.status_code == 409
+    assert etc_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
+    assert source_response.status_code == 409
+    assert source_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
     assert picker_response.status_code == 409
     assert picker_response.json()["error"]["code"] == runtime_module.ONLINE_SAFE_WORKSPACE_ERROR
 
